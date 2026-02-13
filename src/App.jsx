@@ -5,6 +5,7 @@ import PrecisionMedicineDashboard from './components/PrecisionMedicineDashboard'
 import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
+import BoneHealthTracker from './components/BoneHealthTracker';
 
 // Helper to make authenticated API calls
 const apiFetch = (url, options = {}) => {
@@ -148,6 +149,12 @@ function App() {
           Lab Results
         </button>
         <button 
+          className={activeTab === 'bonehealth' ? 'active' : ''}
+          onClick={() => setActiveTab('bonehealth')}
+        >
+          🦴 Bone Health
+        </button>
+        <button 
           className={activeTab === 'profile' ? 'active' : ''}
           onClick={() => setActiveTab('profile')}
         >
@@ -173,6 +180,7 @@ function App() {
         {activeTab === 'genomics' && <PrecisionMedicineDashboard />}
         {activeTab === 'portals' && <PortalManager />}
         {activeTab === 'tests' && <TestResultsView />}
+        {activeTab === 'bonehealth' && <BoneHealthTracker />}
         {activeTab === 'profile' && <ProfileView />}
         {activeTab === 'research' && <ResearchView />}
         {activeTab === 'library' && <LibraryView />}
