@@ -5,16 +5,24 @@
   "description": "Personal health records and medical research discovery tool",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
     "start": "npm run server & npm run dev"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "cytoscape": "^3.33.1",
     "express": "^4.18.2",
-    "better-sqlite3": "^9.2.2",
-    "cors": "^2.8.5"
+    "jsonwebtoken": "^9.0.3",
+    "openai": "^6.21.0",
+    "playwright": "^1.58.2",
+    "react-cytoscapejs": "^2.0.0",
+    "reactflow": "^11.11.4"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
