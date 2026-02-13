@@ -7,6 +7,7 @@ import { generateHealthcareSummary } from './ai-summary.js';
 import * as vault from './vault.js';
 import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
+import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 
 const app = express();
 const PORT = 3000;
@@ -1057,6 +1058,34 @@ app.post('/api/portals/credentials/:id/sync', requireAuth, async (req, res) => {
   try {
     const result = await syncPortal(req.params.id);
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bone Health Tracking API
+app.get('/api/bone-health', requireAuth, (req, res) => {
+  try {
+    const data = getBoneHealthData();
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/bone-health/metrics', requireAuth, (req, res) => {
+  try {
+    const metrics = getBoneHealthMetrics();
+    res.json(metrics);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/bone-health/actions', requireAuth, (req, res) => {
+  try {
+    const actions = getBoneHealthActions();
+    res.json(actions);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
