@@ -1,0 +1,71 @@
+# Deploy MRT Landing Page to Vercel - Quick Start
+
+## 🚀 Deploy in 2 Minutes
+
+### Option 1: One Command (Easiest)
+
+```bash
+cd ~/.openclaw/workspace/medical-research-tracker/landing-page
+./deploy.sh production
+```
+
+That's it! The script will:
+- Install Vercel CLI if needed
+- Login to Vercel (opens browser)
+- Deploy to production
+- Give you the live URL
+
+### Option 2: Manual (3 commands)
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Go to landing page folder
+cd ~/.openclaw/workspace/medical-research-tracker/landing-page
+
+# Deploy to production
+vercel --prod
+```
+
+## ✅ After Deploy
+
+Your site will be live at:
+- Preview: https://medical-research-tracker-[random].vercel.app
+- Production: https://medical-research-tracker.vercel.app
+
+## 🌐 Custom Domain (Optional)
+
+1. Go to Vercel Dashboard → Your Project → Settings → Domains
+2. Add: mytreatmentpath.com
+3. Update DNS records as shown
+4. Wait ~1 hour for SSL to activate
+
+## 📋 What's Included
+
+✅ Security headers (XSS protection, frame protection)
+✅ Automatic HTTPS/SSL
+✅ Global CDN (fast worldwide)
+✅ Custom redirects:
+   - /download → GitHub releases
+   - /github → GitHub repo
+
+## 🔄 Update Site
+
+Just push to GitHub:
+
+```bash
+git add landing-page/
+git commit -m "Update landing page"
+git push origin main
+```
+
+Vercel auto-deploys within 30 seconds!
+
+## 📖 Full Guide
+
+See VERCEL-DEPLOYMENT.md for detailed docs.
+
+---
+
+**Ready? Run:** ./deploy.sh production

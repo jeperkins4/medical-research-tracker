@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import PathwayVisualization from './PathwayVisualization';
 import MutationDrugNetwork from './MutationDrugNetwork';
 
 export default function PrecisionMedicineDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [selectedMutation, setSelectedMutation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('overview'); // overview, mutation-detail, pathways, network, trials
+  const [view, setView] = useState('overview'); // overview, mutation-detail, network, trials
 
   useEffect(() => {
     fetchDashboard();
@@ -90,21 +89,6 @@ export default function PrecisionMedicineDashboard() {
           Overview
         </button>
         <button
-          onClick={() => setView('pathways')}
-          className={`px-6 py-3 text-sm font-semibold transition-all ${
-            view === 'pathways'
-              ? 'bg-blue-600 text-white shadow-md z-10'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border-t border-b border-gray-300'
-          }`}
-          style={{
-            borderLeft: view === 'pathways' ? '1px solid #2563eb' : 'none',
-            borderRight: view === 'pathways' ? '1px solid #2563eb' : 'none',
-            marginLeft: view === 'pathways' ? '0' : '-1px'
-          }}
-        >
-          Pathways
-        </button>
-        <button
           onClick={() => setView('network')}
           className={`px-6 py-3 text-sm font-semibold transition-all ${
             view === 'network'
@@ -117,7 +101,7 @@ export default function PrecisionMedicineDashboard() {
             marginLeft: view === 'network' ? '0' : '-1px'
           }}
         >
-          Mutation-Drug Network
+          Network
         </button>
         <button
           onClick={() => setView('trials')}
@@ -629,13 +613,6 @@ export default function PrecisionMedicineDashboard() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Pathways Tab */}
-      {view === 'pathways' && (
-        <div className="h-screen -m-6">
-          <PathwayVisualization />
         </div>
       )}
 
