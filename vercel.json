@@ -1,8 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Static site - no build needed'",
-  "outputDirectory": "landing-page",
-  "installCommand": "echo 'No dependencies to install'",
+  "buildCommand": null,
+  "installCommand": null,
   "framework": null,
   "headers": [
     {
