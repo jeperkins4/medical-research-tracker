@@ -1,6 +1,7 @@
 appId: com.mytreatmentpath.app
 productName: MyTreatmentPath
 copyright: Copyright © 2026 John Perkins
+npmRebuild: false
 
 directories:
   output: build
@@ -66,5 +67,5 @@ linux:
 
 publish:
   provider: github
-  owner: mytreatmentpath
-  repo: mytreatmentpath-electron
+  owner: jeperkins4
+  repo: medical-research-tracker
