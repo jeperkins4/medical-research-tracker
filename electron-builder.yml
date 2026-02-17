@@ -2,6 +2,8 @@ appId: com.mytreatmentpath.app
 productName: MyTreatmentPath
 copyright: Copyright © 2026 John Perkins
 npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
 
 directories:
   output: build
