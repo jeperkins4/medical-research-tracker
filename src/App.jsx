@@ -6,6 +6,9 @@ import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
+import NutritionTracker from './components/NutritionTracker';
+import MedicationEvidenceModal from './components/MedicationEvidenceModal';
+import medicationEvidence from './medicationEvidence';
 
 // Helper to make authenticated API calls
 const apiFetch = (url, options = {}) => {
@@ -68,15 +71,31 @@ function App() {
   };
 
   const handleLogin = (user) => {
+    console.log('[App] Login successful, user:', user);
     setUsername(user);
     setAuthenticated(true);
     setNeedsSetup(false);
     
-    // Fetch health status after login
+    // Try to fetch health status (will fail if backend not authenticated, but that's OK for now)
     apiFetch('/api/health')
-      .then(res => res.json())
-      .then(data => setHealth(data))
-      .catch(err => console.error('API connection failed:', err));
+      .then(res => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          console.log('[App] Backend API not authenticated (expected with Supabase login)');
+          // Set a basic health status for cloud-only mode
+          return { status: 'cloud', message: 'Using cloud authentication' };
+        }
+      })
+      .then(data => {
+        console.log('[App] Health status:', data);
+        setHealth(data);
+      })
+      .catch(err => {
+        console.log('[App] API connection failed (expected with Supabase-only login):', err.message);
+        // Set a basic health status even if backend fails
+        setHealth({ status: 'cloud', message: 'Cloud mode - local backend unavailable' });
+      });
   };
 
   const handleLogout = async () => {
@@ -119,16 +138,10 @@ function App() {
 
       <nav>
         <button 
-          className={activeTab === 'patient' ? 'active' : ''}
-          onClick={() => setActiveTab('patient')}
+          className={activeTab === 'profile' ? 'active' : ''}
+          onClick={() => setActiveTab('profile')}
         >
-          Patient Info
-        </button>
-        <button 
-          className={activeTab === 'summary' ? 'active' : ''}
-          onClick={() => setActiveTab('summary')}
-        >
-          🧠 Strategy
+          📋 Overview
         </button>
         <button 
           className={activeTab === 'genomics' ? 'active' : ''}
@@ -137,53 +150,38 @@ function App() {
           🧬 Genomics
         </button>
         <button 
-          className={activeTab === 'portals' ? 'active' : ''}
-          onClick={() => setActiveTab('portals')}
+          className={activeTab === 'treatment' ? 'active' : ''}
+          onClick={() => setActiveTab('treatment')}
         >
-          🔐 Portals
-        </button>
-        <button 
-          className={activeTab === 'tests' ? 'active' : ''}
-          onClick={() => setActiveTab('tests')}
-        >
-          Lab Results
-        </button>
-        <button 
-          className={activeTab === 'bonehealth' ? 'active' : ''}
-          onClick={() => setActiveTab('bonehealth')}
-        >
-          🦴 Bone Health
-        </button>
-        <button 
-          className={activeTab === 'profile' ? 'active' : ''}
-          onClick={() => setActiveTab('profile')}
-        >
-          Vitals & Records
+          💊 Treatment
         </button>
         <button 
           className={activeTab === 'research' ? 'active' : ''}
           onClick={() => setActiveTab('research')}
         >
-          Research
+          📚 Research
         </button>
         <button 
-          className={activeTab === 'library' ? 'active' : ''}
-          onClick={() => setActiveTab('library')}
+          className={activeTab === 'summary' ? 'active' : ''}
+          onClick={() => setActiveTab('summary')}
         >
-          Library
+          🧠 Strategy
+        </button>
+        <button 
+          className={activeTab === 'portals' ? 'active' : ''}
+          onClick={() => setActiveTab('portals')}
+        >
+          🔐 Portals
         </button>
       </nav>
 
       <main>
-        {activeTab === 'patient' && <PatientView />}
-        {activeTab === 'summary' && <HealthcareSummary />}
+        {activeTab === 'profile' && <OverviewView />}
         {activeTab === 'genomics' && <PrecisionMedicineDashboard />}
-        {activeTab === 'portals' && <PortalManager />}
-        {activeTab === 'tests' && <TestResultsView />}
-        {activeTab === 'bonehealth' && <BoneHealthTracker />}
-        {activeTab === 'profile' && <ProfileView />}
+        {activeTab === 'treatment' && <TreatmentView />}
         {activeTab === 'research' && <ResearchView />}
-        {activeTab === 'library' && <LibraryView />}
+        {activeTab === 'summary' && <HealthcareSummary />}
+        {activeTab === 'portals' && <PortalManager />}
       </main>
     </div>
   );
@@ -718,6 +716,8 @@ function ProfileView() {
   const [showVitalForm, setShowVitalForm] = useState(false);
   const [showMedicationForm, setShowMedicationForm] = useState(false);
   const [showConditionForm, setShowConditionForm] = useState(false);
+  const [selectedMedication, setSelectedMedication] = useState(null);
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
   useEffect(() => {
     apiFetch('/api/conditions').then(r => r.json()).then(setConditions);
@@ -735,6 +735,11 @@ function ProfileView() {
 
   const refreshConditions = () => {
     apiFetch('/api/conditions').then(r => r.json()).then(setConditions);
+  };
+
+  const showMedicationEvidence = (medication) => {
+    setSelectedMedication(medication);
+    setShowEvidenceModal(true);
   };
 
   return (
@@ -776,10 +781,21 @@ function ProfileView() {
       <section>
         <h3>Medications ({medications.length})</h3>
         {medications.length === 0 && <p className="empty">No medications tracked yet</p>}
-        <ul>
+        <ul className="medications-list">
           {medications.map(m => (
-            <li key={m.id}>
-              <strong>{m.name}</strong> — {m.dosage} {m.frequency}
+            <li key={m.id} className="medication-item">
+              <div className="medication-info">
+                <strong>{m.name}</strong> — {m.dosage} {m.frequency}
+              </div>
+              {medicationEvidence[m.name] && (
+                <button 
+                  className="evidence-button" 
+                  onClick={() => showMedicationEvidence(m)}
+                  title="View research evidence"
+                >
+                  📚 Evidence
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -788,6 +804,14 @@ function ProfileView() {
         </button>
         {showMedicationForm && <MedicationForm onSave={refreshMedications} onClose={() => setShowMedicationForm(false)} />}
       </section>
+
+      {showEvidenceModal && selectedMedication && (
+        <MedicationEvidenceModal
+          medication={selectedMedication}
+          evidence={medicationEvidence[selectedMedication.name]}
+          onClose={() => setShowEvidenceModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1210,16 +1234,67 @@ function VitalForm({ conditions, onSave, onClose }) {
   );
 }
 
-function ResearchView() {
+function OverviewView() {
+  const [subTab, setSubTab] = useState('vitals');
+
   return (
     <div className="view">
-      <h2>Research Discovery</h2>
-      <ResearchSearch />
+      <div className="sub-nav">
+        <button 
+          className={subTab === 'vitals' ? 'active' : ''}
+          onClick={() => setSubTab('vitals')}
+        >
+          Vitals & Records
+        </button>
+        <button 
+          className={subTab === 'patient' ? 'active' : ''}
+          onClick={() => setSubTab('patient')}
+        >
+          Patient Info
+        </button>
+        <button 
+          className={subTab === 'labs' ? 'active' : ''}
+          onClick={() => setSubTab('labs')}
+        >
+          Lab Results
+        </button>
+      </div>
+      
+      {subTab === 'vitals' && <ProfileView />}
+      {subTab === 'patient' && <PatientView />}
+      {subTab === 'labs' && <TestResultsView />}
     </div>
   );
 }
 
-function LibraryView() {
+function TreatmentView() {
+  const [subTab, setSubTab] = useState('nutrition');
+
+  return (
+    <div className="view">
+      <div className="sub-nav">
+        <button 
+          className={subTab === 'nutrition' ? 'active' : ''}
+          onClick={() => setSubTab('nutrition')}
+        >
+          🥗 Nutrition
+        </button>
+        <button 
+          className={subTab === 'bone' ? 'active' : ''}
+          onClick={() => setSubTab('bone')}
+        >
+          🦴 Bone Health
+        </button>
+      </div>
+      
+      {subTab === 'nutrition' && <NutritionTracker />}
+      {subTab === 'bone' && <BoneHealthTracker />}
+    </div>
+  );
+}
+
+function ResearchView() {
+  const [subTab, setSubTab] = useState('search');
   const [papers, setPapers] = useState([]);
 
   useEffect(() => {
@@ -1234,37 +1309,63 @@ function LibraryView() {
 
   return (
     <div className="view">
-      <h2>Research Library</h2>
-      {papers.length === 0 && <p className="empty">No papers saved yet</p>}
-      <div className="papers">
-        {papers.map(p => {
-          const paperUrl = getPaperUrl(p);
-          const CardContent = (
-            <>
-              <h4>{p.title}</h4>
-              <p className="meta">{p.authors} • {p.journal}</p>
-              <span className={`type ${p.type}`}>{p.type}</span>
-            </>
-          );
-
-          return paperUrl ? (
-            <a 
-              key={p.id} 
-              href={paperUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="paper-card clickable"
-              style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
-            >
-              {CardContent}
-            </a>
-          ) : (
-            <div key={p.id} className="paper-card">
-              {CardContent}
-            </div>
-          );
-        })}
+      <div className="sub-nav">
+        <button 
+          className={subTab === 'search' ? 'active' : ''}
+          onClick={() => setSubTab('search')}
+        >
+          Search
+        </button>
+        <button 
+          className={subTab === 'library' ? 'active' : ''}
+          onClick={() => setSubTab('library')}
+        >
+          Library ({papers.length})
+        </button>
       </div>
+
+      {subTab === 'search' && (
+        <>
+          <h2>Research Discovery</h2>
+          <ResearchSearch />
+        </>
+      )}
+
+      {subTab === 'library' && (
+        <>
+          <h2>Research Library</h2>
+          {papers.length === 0 && <p className="empty">No papers saved yet</p>}
+          <div className="papers">
+            {papers.map(p => {
+              const paperUrl = getPaperUrl(p);
+              const CardContent = (
+                <>
+                  <h4>{p.title}</h4>
+                  <p className="meta">{p.authors} • {p.journal}</p>
+                  <span className={`type ${p.type}`}>{p.type}</span>
+                </>
+              );
+
+              return paperUrl ? (
+                <a 
+                  key={p.id} 
+                  href={paperUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="paper-card clickable"
+                  style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+                >
+                  {CardContent}
+                </a>
+              ) : (
+                <div key={p.id} className="paper-card">
+                  {CardContent}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

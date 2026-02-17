@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyTreatmentPath - Your Personal Medical Research Assistant</title>
+    <meta name="description" content="Track your health journey, discover relevant research, and make informed treatment decisions with AI-powered insights.">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="MyTreatmentPath - Personal Medical Research Assistant">
+    <meta property="og:description" content="Track health data, discover research, and optimize your treatment strategy with genomic-driven insights.">
+    <meta property="og:image" content="/og-image.png">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --bg: #ffffff;
+            --bg-light: #f9fafb;
+            --border: #e5e7eb;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--bg);
+        }
+        
+        /* Header */
+        header {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+        
+        .nav-links a {
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+        
+        .cta-button {
+            background: var(--primary);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .cta-button:hover {
+            background: var(--primary-dark);
+        }
+        
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 20px;
+            text-align: center;
+        }
+        
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .hero p {
+            font-size: 1.25rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
+        }
+        
+        .download-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 600px;
+            margin: 0 auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .download-section h2 {
+            color: var(--text);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .download-button {
+            background: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.3s, transform 0.2s;
+            font-size: 1.125rem;
+        }
+        
+        .download-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        .download-button .icon {
+            font-size: 1.5rem;
+        }
+        
+        .version-info {
+            margin-top: 15px;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+        
+        .system-requirements {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+        
+        /* Features Section */
+        .features {
+            max-width: 1200px;
+            margin: 80px auto;
+            padding: 0 20px;
+        }
+        
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 60px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+        }
+        
+        .feature-card {
+            text-align: center;
+            padding: 30px;
+            background: var(--bg-light);
+            border-radius: 12px;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .feature-card p {
+            color: var(--text-light);
+        }
+        
+        /* Privacy Section */
+        .privacy {
+            background: var(--bg-light);
+            padding: 60px 20px;
+            text-align: center;
+        }
+        
+        .privacy-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .privacy h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+        
+        .privacy p {
+            font-size: 1.125rem;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        
+        .privacy-badges {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .badge {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Screenshots Section */
+        .screenshots {
+            max-width: 1200px;
+            margin: 80px auto;
+            padding: 0 20px;
+        }
+        
+        .screenshots h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 60px;
+        }
+        
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+        
+        .screenshot-card {
+            background: var(--bg-light);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .screenshot-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .screenshot-caption {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .screenshot-caption h3 {
+            margin-bottom: 10px;
+        }
+        
+        /* FAQ Section */
+        .faq {
+            max-width: 800px;
+            margin: 80px auto;
+            padding: 0 20px;
+        }
+        
+        .faq h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 60px;
+        }
+        
+        .faq-item {
+            margin-bottom: 30px;
+            background: var(--bg-light);
+            padding: 25px;
+            border-radius: 12px;
+        }
+        
+        .faq-item h3 {
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .faq-item p {
+            color: var(--text-light);
+        }
+        
+        /* Footer */
+        footer {
+            background: var(--text);
+            color: white;
+            padding: 60px 20px 30px;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 20px;
+        }
+        
+        .footer-section ul {
+            list-style: none;
+        }
+        
+        .footer-section li {
+            margin-bottom: 10px;
+        }
+        
+        .footer-section a {
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-section a:hover {
+            color: white;
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .hero p {
+                font-size: 1.125rem;
+            }
+            
+            .download-buttons {
+                flex-direction: column;
+            }
+            
+            .download-button {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .feature-grid, .screenshot-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo">
+                <span class="logo-icon">🧬</span>
+                <span>MyTreatmentPath</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#privacy">Privacy</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+            <a href="#download" class="cta-button">Download</a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Your Personal Medical Research Assistant</h1>
+            <p>Track your health journey, discover relevant research, and make informed treatment decisions with AI-powered insights — all while keeping your data private and secure.</p>
+            
+            <div class="download-section" id="download">
+                <h2>Download for macOS</h2>
+                <div class="download-buttons">
+                    <a href="https://github.com/yourusername/medical-research-tracker/releases/download/v0.1.0/MyTreatmentPath-0.1.0-arm64.dmg" class="download-button">
+                        <span class="icon">🍎</span>
+                        <div>
+                            <div>Download for Mac</div>
+                            <div style="font-size: 0.875rem; opacity: 0.8;">Apple Silicon (M1/M2/M3)</div>
+                        </div>
+                    </a>
+                    <a href="https://github.com/yourusername/medical-research-tracker/releases/download/v0.1.0/MyTreatmentPath-0.1.0.dmg" class="download-button">
+                        <span class="icon">💻</span>
+                        <div>
+                            <div>Download for Mac</div>
+                            <div style="font-size: 0.875rem; opacity: 0.8;">Intel</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="version-info">
+                    Version 0.1.0 • February 2026 • Free & Open Source
+                </div>
+                <div class="system-requirements">
+                    <strong>Requirements:</strong> macOS 11.0 (Big Sur) or later<br>
+                    <strong>Coming Soon:</strong> Windows & Linux builds
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <h2>Everything You Need to Manage Your Health</h2>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Health Dashboard</h3>
+                <p>Track vitals, lab results, medications, and symptoms in one organized place. Visualize trends over time to spot patterns.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🧬</div>
+                <h3>Genomic Integration</h3>
+                <p>Import Foundation One CDx reports. Map mutations to affected pathways and genomically-targeted treatments automatically.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔬</div>
+                <h3>Research Discovery</h3>
+                <p>Search PubMed and ClinicalTrials.gov with one click. Save relevant papers and track emerging research in your condition.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>AI Strategy Insights</h3>
+                <p>GPT-4 analyzes your complete health profile and synthesizes actionable insights across genomics, treatments, diet, and research.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🍎</div>
+                <h3>Nutrition Tracking</h3>
+                <p>Document your dietary approach, log meals, and track energy/symptoms. See how nutrition correlates with biomarkers.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🔔</div>
+                <h3>Research Alerts</h3>
+                <p>Automated daily scanner finds new research matching your conditions. Get notified via Telegram when relevant papers publish.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy Section -->
+    <section class="privacy" id="privacy">
+        <div class="privacy-content">
+            <h2>🔒 Your Data Stays Private</h2>
+            <p>Your health information is sensitive. MyTreatmentPath is designed with privacy-first principles:</p>
+            
+            <div style="text-align: left; max-width: 600px; margin: 30px auto;">
+                <p>✅ <strong>Local-First:</strong> All data stored on your device by default</p>
+                <p>✅ <strong>Encrypted Storage:</strong> SQLCipher database encryption</p>
+                <p>✅ <strong>Optional Cloud:</strong> Sync via your own Supabase account (you control access)</p>
+                <p>✅ <strong>No Third Parties:</strong> We don't sell or share your data. Ever.</p>
+                <p>✅ <strong>Open Source:</strong> Code is public — verify our privacy claims yourself</p>
+            </div>
+            
+            <div class="privacy-badges">
+                <div class="badge">🔐 End-to-End Encrypted</div>
+                <div class="badge">🏠 Local-First</div>
+                <div class="badge">🚫 No Ads</div>
+                <div class="badge">📖 Open Source</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq" id="faq">
+        <h2>Frequently Asked Questions</h2>
+        
+        <div class="faq-item">
+            <h3>Is MyTreatmentPath free?</h3>
+            <p>Yes, completely free and open source. Download, use, and even modify the code. No hidden costs, no subscriptions.</p>
+        </div>
+        
+        <div class="faq-item">
+            <h3>Is my health data secure?</h3>
+            <p>Absolutely. Data is stored locally on your device with SQLCipher encryption. If you enable cloud sync, you control the Supabase instance and encryption keys. We never see your data.</p>
+        </div>
+        
+        <div class="faq-item">
+            <h3>Do I need an internet connection?</h3>
+            <p>For basic tracking, no. Research search, AI summaries, and cloud sync require internet, but core features work offline.</p>
+        </div>
+        
+        <div class="faq-item">
+            <h3>Can I import my medical records?</h3>
+            <p>Currently supports Foundation One CDx genomic reports. More import formats (labs, EHR exports) coming soon. You can also manually enter any data.</p>
+        </div>
+        
+        <div class="faq-item">
+            <h3>Does this replace my doctor?</h3>
+            <p>No. MyTreatmentPath is a research and organization tool, not medical advice. Always consult your healthcare providers for treatment decisions.</p>
+        </div>
+        
+        <div class="faq-item">
+            <h3>Windows/Linux version?</h3>
+            <p>Coming soon! macOS is the initial release. Windows and Linux builds are in progress. Follow on GitHub for updates.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>MyTreatmentPath</h3>
+                <p>Empowering patients to take control of their health journey through research, data, and insights.</p>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Resources</h3>
+                <ul>
+                    <li><a href="https://github.com/yourusername/medical-research-tracker">GitHub</a></li>
+                    <li><a href="/docs">Documentation</a></li>
+                    <li><a href="/changelog">Changelog</a></li>
+                    <li><a href="/roadmap">Roadmap</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Legal</h3>
+                <ul>
+                    <li><a href="/privacy">Privacy Policy</a></li>
+                    <li><a href="/terms">Terms of Service</a></li>
+                    <li><a href="/disclaimer">Medical Disclaimer</a></li>
+                </ul>
+            </div>
+            
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <ul>
+                    <li><a href="mailto:support@mytreatmentpath.com">support@mytreatmentpath.com</a></li>
+                    <li><a href="https://github.com/yourusername/medical-research-tracker/issues">Report Issue</a></li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            &copy; 2026 MyTreatmentPath. Open source under MIT License.
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+        // Track downloads (if analytics enabled)
+        document.querySelectorAll('.download-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const platform = this.textContent.includes('Apple Silicon') ? 'mac-arm64' : 'mac-intel';
+                console.log('Download started:', platform);
+                // Add analytics here if needed: gtag('event', 'download', { platform });
+            });
+        });
+    </script>
+</body>
+</html>

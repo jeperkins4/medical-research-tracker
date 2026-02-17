@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { query } from './db.js';
+import { query } from './db-secure.js';
 
 // Initialize OpenAI client
 const openai = new OpenAI({

@@ -1,25 +1,55 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { init, query, run } from './db.js';
+import cron from 'node-cron';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { validateConfig } from './config-validator.js';
+import { init, query, run } from './db-secure.js';
 import { hashPassword, verifyPassword, generateToken, requireAuth } from './auth.js';
+import { auditMiddleware, logAuth } from './audit.js';
+import { createEncryptedBackup, cleanupOldBackups } from './backup.js';
 import { generateHealthcareSummary } from './ai-summary.js';
 import * as vault from './vault.js';
 import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
+import * as nutrition from './nutrition.js';
+import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Validate security configuration before starting
+validateConfig();
 
 const app = express();
 const PORT = 3000;
 
-// Allow CORS from any local network address (for network access)
+// CORS configuration
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://localhost:5173',
+  'https://localhost:3000'
+];
+
 app.use(cors({ 
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests) or from local network
-    if (!origin || origin.includes('localhost') || origin.includes('192.168.') || origin.includes('10.0.') || origin.includes('172.')) {
+    // Allow requests with no origin (like Postman, mobile apps)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check whitelist
+    if (ALLOWED_ORIGINS.some(allowed => origin.includes(allowed.replace(/^https?:\/\//, '')))) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`⚠️  Blocked CORS request from: ${origin}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
     }
   },
   credentials: true 
@@ -29,6 +59,35 @@ app.use(cookieParser());
 
 // Initialize database before starting server
 await init();
+
+// Setup automated encrypted backups (HIPAA compliance)
+const backupDir = join(__dirname, '..', 'backups');
+if (!existsSync(backupDir)) {
+  mkdirSync(backupDir, { recursive: true });
+}
+
+if (process.env.BACKUP_ENCRYPTION_KEY) {
+  // Daily backup at 2 AM
+  cron.schedule('0 2 * * *', async () => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const dbPath = join(__dirname, '..', 'data', 'health-secure.db');
+    const backupPath = join(backupDir, `health_${timestamp}.db.enc`);
+    
+    try {
+      await createEncryptedBackup(dbPath, backupPath);
+      
+      // Cleanup backups older than 30 days
+      cleanupOldBackups(backupDir, 30);
+    } catch (err) {
+      console.error('❌ Backup failed:', err.message);
+      // TODO: Alert admin via email/SMS
+    }
+  });
+  
+  console.log('✅ Automated encrypted backups scheduled (daily at 2 AM)');
+} else {
+  console.warn('⚠️  BACKUP_ENCRYPTION_KEY not set - automated backups disabled');
+}
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -71,12 +130,14 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
   if (!username || !password) {
+    logAuth(0, username || 'unknown', 'login', 'failure', 'missing_credentials', req);
     return res.status(400).json({ error: 'Username and password required' });
   }
   
   const users = query('SELECT * FROM users WHERE username = ?', [username]);
   
   if (users.length === 0) {
+    logAuth(0, username, 'login', 'failure', 'user_not_found', req);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
@@ -84,16 +145,27 @@ app.post('/api/auth/login', async (req, res) => {
   const valid = await verifyPassword(password, user.password_hash);
   
   if (!valid) {
+    logAuth(user.id, username, 'login', 'failure', 'invalid_password', req);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
   const token = generateToken(user.id, user.username);
-  res.cookie('auth_token', token, { httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie('auth_token', token, { 
+    httpOnly: true, 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000 
+  });
+  
+  logAuth(user.id, username, 'login', 'success', null, req);
   
   res.json({ success: true, username: user.username });
 });
 
 app.post('/api/auth/logout', (req, res) => {
+  if (req.user) {
+    logAuth(req.user.userId, req.user.username, 'logout', 'success', null, req);
+  }
   res.clearCookie('auth_token');
   res.json({ success: true });
 });
@@ -1088,6 +1160,189 @@ app.get('/api/bone-health/actions', requireAuth, (req, res) => {
     res.json(actions);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Audit Log API (HIPAA compliance)
+app.get('/api/audit/logs', requireAuth, (req, res) => {
+  const { limit = 100, offset = 0, user, action, resource, status } = req.query;
+  
+  let sql = 'SELECT * FROM audit_log WHERE 1=1';
+  const params = [];
+  
+  if (user) {
+    sql += ' AND username = ?';
+    params.push(user);
+  }
+  
+  if (action) {
+    sql += ' AND action = ?';
+    params.push(action);
+  }
+  
+  if (resource) {
+    sql += ' AND resource_type = ?';
+    params.push(resource);
+  }
+  
+  if (status) {
+    sql += ' AND status = ?';
+    params.push(status);
+  }
+  
+  sql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
+  params.push(parseInt(limit), parseInt(offset));
+  
+  const logs = query(sql, params);
+  res.json(logs);
+});
+
+app.get('/api/audit/stats', requireAuth, (req, res) => {
+  const stats = query(`
+    SELECT 
+      COUNT(*) as total,
+      COUNT(CASE WHEN status = 'failure' THEN 1 END) as failures,
+      COUNT(CASE WHEN action = 'login' THEN 1 END) as logins,
+      COUNT(CASE WHEN action = 'view' THEN 1 END) as views,
+      MAX(timestamp) as last_activity
+    FROM audit_log
+  `);
+  
+  res.json(stats[0] || { total: 0, failures: 0, logins: 0, views: 0, last_activity: null });
+});
+
+// Nutrition API
+app.get('/api/nutrition/foods', requireAuth, (req, res) => {
+  try {
+    const foods = nutrition.getAllFoods();
+    res.json(foods);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch foods', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/foods/:id', requireAuth, (req, res) => {
+  try {
+    const food = nutrition.getFoodWithPathways(req.params.id);
+    if (!food) {
+      return res.status(404).json({ error: 'Food not found' });
+    }
+    res.json(food);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch food', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/meals', requireAuth, (req, res) => {
+  try {
+    const { start_date, end_date, limit } = req.query;
+    const meals = nutrition.getMeals(start_date, end_date, limit);
+    res.json(meals);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch meals', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/meals/today', requireAuth, (req, res) => {
+  try {
+    const meals = nutrition.getTodaysMeals();
+    res.json(meals);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch today\'s meals', message: error.message });
+  }
+});
+
+app.post('/api/nutrition/meals', requireAuth, (req, res) => {
+  try {
+    const meal = nutrition.logMeal(req.body);
+    res.json(meal);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to log meal', message: error.message });
+  }
+});
+
+app.put('/api/nutrition/meals/:id', requireAuth, (req, res) => {
+  try {
+    const meal = nutrition.updateMeal(req.params.id, req.body);
+    res.json(meal);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update meal', message: error.message });
+  }
+});
+
+app.delete('/api/nutrition/meals/:id', requireAuth, (req, res) => {
+  try {
+    const result = nutrition.deleteMeal(req.params.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete meal', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/dashboard', requireAuth, (req, res) => {
+  try {
+    const dashboard = nutrition.getGenomicNutritionDashboard();
+    res.json(dashboard);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to generate dashboard', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/recommendations', requireAuth, (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const recommendations = nutrition.getRecommendedFoods(date);
+    res.json(recommendations);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get recommendations', message: error.message });
+  }
+});
+
+app.post('/api/nutrition/analyze-meal', requireAuth, async (req, res) => {
+  try {
+    const { mealId, description, treatment_phase, energy_level, nausea_level, forceReanalyze } = req.body;
+    
+    if (!description) {
+      return res.status(400).json({ error: 'Meal description required' });
+    }
+    
+    // Check for saved analysis first (unless forcing re-analysis)
+    if (mealId && !forceReanalyze) {
+      const saved = getSavedAnalysis(mealId);
+      if (saved) {
+        return res.json({
+          success: true,
+          ...saved,
+          cached: true
+        });
+      }
+    }
+    
+    // Perform new analysis
+    const analysis = await analyzeMeal(description, {
+      treatment_phase,
+      energy_level,
+      nausea_level
+    });
+    
+    // Save analysis if we have a meal ID and analysis was successful
+    if (mealId && analysis.success) {
+      saveAnalysis(mealId, analysis.analysis, analysis.model);
+    }
+    
+    res.json(analysis);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to analyze meal', message: error.message });
+  }
+});
+
+app.get('/api/nutrition/meal-suggestions', requireAuth, async (req, res) => {
+  try {
+    const { treatment_phase } = req.query;
+    const suggestions = await getMealSuggestions(treatment_phase || 'maintenance');
+    res.json(suggestions);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get meal suggestions', message: error.message });
   }
 });
 

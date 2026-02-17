@@ -1,4 +1,4 @@
-import { query, run } from './db.js';
+import { query, run } from './db-secure.js';
 import { encryptField, decryptField, isVaultUnlocked } from './vault.js';
 
 /**

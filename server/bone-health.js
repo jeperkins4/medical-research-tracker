@@ -3,7 +3,7 @@
  * Provides data for BoneHealthTracker component
  */
 
-import { query } from './db.js';
+import { query } from './db-secure.js';
 
 /**
  * Get bone health data including Alk Phos trend, current supplements, and recommendations

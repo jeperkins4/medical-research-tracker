@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyTreatmentPath - Product Overview</title>
+  <style>
+    @page {
+      size: 11in 8.5in;
+      margin: 0;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+    }
+    
+    .slide {
+      width: 11in;
+      height: 8.5in;
+      background: white;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+      padding: 60px 80px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .slide:last-child {
+      page-break-after: auto;
+    }
+    
+    /* Slide backgrounds */
+    .slide.title-slide {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #4338ca 100%);
+      color: white;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    
+    .slide.section-slide {
+      background: linear-gradient(135deg, #312e81 0%, #4338ca 100%);
+      color: white;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    
+    /* Typography */
+    h1 {
+      font-size: 64px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 24px;
+    }
+    
+    h2 {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 40px;
+      color: #1e3a8a;
+    }
+    
+    .title-slide h2,
+    .section-slide h2 {
+      color: white;
+      font-size: 72px;
+    }
+    
+    h3 {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #3730a3;
+    }
+    
+    p {
+      font-size: 24px;
+      line-height: 1.6;
+      color: #374151;
+      margin-bottom: 20px;
+    }
+    
+    .title-slide p {
+      font-size: 28px;
+      color: #bfdbfe;
+      max-width: 800px;
+    }
+    
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    li {
+      font-size: 24px;
+      line-height: 1.8;
+      color: #374151;
+      margin-bottom: 16px;
+      padding-left: 40px;
+      position: relative;
+    }
+    
+    li:before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #3730a3;
+      font-weight: 700;
+    }
+    
+    /* Feature grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 20px;
+    }
+    
+    .feature-card {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 30px;
+      border-left: 4px solid #3730a3;
+    }
+    
+    .feature-card h3 {
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    
+    .feature-card p {
+      font-size: 20px;
+      line-height: 1.5;
+      margin: 0;
+    }
+    
+    /* Stats */
+    .stats {
+      display: flex;
+      gap: 60px;
+      margin-top: 40px;
+      justify-content: center;
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 72px;
+      font-weight: 700;
+      color: #3730a3;
+      line-height: 1;
+    }
+    
+    .stat-label {
+      font-size: 20px;
+      color: #6b7280;
+      margin-top: 12px;
+    }
+    
+    /* Tech stack */
+    .tech-stack {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 30px;
+    }
+    
+    .tech-item {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      border: 2px solid #e5e7eb;
+    }
+    
+    .tech-item h4 {
+      font-size: 20px;
+      color: #1e3a8a;
+      margin-bottom: 8px;
+    }
+    
+    .tech-item p {
+      font-size: 16px;
+      color: #6b7280;
+      margin: 0;
+    }
+    
+    /* Highlight box */
+    .highlight {
+      background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+      border-left: 6px solid #3730a3;
+      border-radius: 12px;
+      padding: 30px;
+      margin-top: 30px;
+    }
+    
+    .highlight p {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1e3a8a;
+      margin: 0;
+    }
+    
+    /* Footer */
+    .slide-footer {
+      position: absolute;
+      bottom: 30px;
+      right: 80px;
+      font-size: 18px;
+      color: #9ca3af;
+    }
+    
+    .title-slide .slide-footer {
+      color: #93c5fd;
+    }
+    
+    /* Screenshot placeholder */
+    .screenshot {
+      background: #e5e7eb;
+      border-radius: 12px;
+      height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-size: 24px;
+      margin-top: 20px;
+      border: 2px solid #d1d5db;
+    }
+    
+    /* Two-column layout */
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      margin-top: 30px;
+    }
+    
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+      }
+      
+      .slide {
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Slide 1: Title -->
+<div class="slide title-slide">
+  <h1>MyTreatmentPath</h1>
+  <p>Precision medicine meets patient empowerment.<br>A comprehensive health records and research platform for cancer patients.</p>
+  <div style="margin-top: 60px; font-size: 20px; color: #93c5fd;">
+    Built by a stage 4 bladder cancer patient for patients who want control over their treatment journey
+  </div>
+  <div class="slide-footer">February 2026</div>
+</div>
+
+<!-- Slide 2: The Problem -->
+<div class="slide">
+  <h2>The Problem</h2>
+  <div class="two-column">
+    <div>
+      <h3>Cancer Patients Are Drowning in Data</h3>
+      <ul>
+        <li>Genomic reports with complex mutations</li>
+        <li>Hundreds of lab results across multiple portals</li>
+        <li>Medication protocols from different specialists</li>
+        <li>Research papers and clinical trial criteria</li>
+        <li>Vitals tracking across treatments</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Current "Solutions" Fall Short</h3>
+      <ul>
+        <li>Patient portals are fragmented silos</li>
+        <li>Spreadsheets are error-prone and unscalable</li>
+        <li>Paper records get lost</li>
+        <li>No connection between genomics and treatment</li>
+        <li>Research discovery is manual and time-consuming</li>
+      </ul>
+    </div>
+  </div>
+  <div class="slide-footer">Slide 2</div>
+</div>
+
+<!-- Slide 3: The Solution -->
+<div class="slide">
+  <h2>The Solution</h2>
+  <p style="font-size: 28px; max-width: 900px;">A single, secure platform that organizes your complete health record and automatically connects the dots between genomics, treatment options, and cutting-edge research.</p>
+  
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>🧬 Precision Medicine</h3>
+      <p>Connect genomic mutations to targeted pathways, treatments, and clinical trials</p>
+    </div>
+    <div class="feature-card">
+      <h3>📊 Complete Records</h3>
+      <p>All your health data—labs, vitals, medications, imaging—in one place</p>
+    </div>
+    <div class="feature-card">
+      <h3>🔬 Research Scanner</h3>
+      <p>Automated nightly scans for relevant clinical trials and treatment research</p>
+    </div>
+    <div class="feature-card">
+      <h3>🔒 HIPAA Security</h3>
+      <p>AES-256 encryption, audit logging, automated encrypted backups</p>
+    </div>
+  </div>
+  <div class="slide-footer">Slide 3</div>
+</div>
+
+<!-- Slide 4: Section - Key Features -->
+<div class="slide section-slide">
+  <h2>Key Features</h2>
+  <div class="slide-footer" style="color: #93c5fd;">Slide 4</div>
+</div>
+
+<!-- Slide 5: Precision Medicine Dashboard -->
+<div class="slide">
+  <h2>🧬 Precision Medicine Dashboard</h2>
+  <p>Complete genomic data integration with actionable treatment insights.</p>
+  
+  <ul>
+    <li><strong>Mutation tracking:</strong> Foundation One CDx integration (ARID1A, CDKN1A, MLL2, TERT)</li>
+    <li><strong>Pathway mapping:</strong> Connect mutations to biological pathways (Hypoxia/HIF-1α, MDR phenotype, PD-L1 immune escape)</li>
+    <li><strong>Treatment correlation:</strong> 13 targeted therapies mapped to specific mutations</li>
+    <li><strong>Clinical trials:</strong> 10+ relevant trials with eligibility criteria</li>
+    <li><strong>Genomic rationale:</strong> Molecular mechanisms explaining WHY each supplement/medication targets specific tumor vulnerabilities</li>
+  </ul>
+  
+  <div class="slide-footer">Slide 5</div>
+</div>
+
+<!-- Slide 6: Complete Health Records -->
+<div class="slide">
+  <h2>📊 Complete Health Records</h2>
+  <p>Unified view of your entire medical history with intelligent organization.</p>
+  
+  <div class="two-column">
+    <div>
+      <h3>Records Tracking</h3>
+      <ul>
+        <li>500+ lab results (automated CareSpace sync)</li>
+        <li>Vitals tracking with trending</li>
+        <li>19 medications with evidence modals</li>
+        <li>7 conditions with status tracking</li>
+        <li>14 healthcare providers across 6 institutions</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Smart Features</h3>
+      <ul>
+        <li>Abnormal result flagging</li>
+        <li>Trend analysis for key metrics</li>
+        <li>Provider network visualization</li>
+        <li>Medication evidence documentation</li>
+        <li>Diet/nutrition tracking with pathway scoring</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 6</div>
+</div>
+
+<!-- Slide 7: Automated Research Scanner -->
+<div class="slide">
+  <h2>🔬 Automated Research Scanner</h2>
+  <p>Never miss important research. Automated discovery working 24/7 for you.</p>
+  
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-number">28</div>
+      <div class="stat-label">Search Terms</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">35</div>
+      <div class="stat-label">Papers Tracked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">2 AM</div>
+      <div class="stat-label">Daily Scan Time</div>
+    </div>
+  </div>
+  
+  <h3 style="margin-top: 60px;">What It Scans</h3>
+  <ul>
+    <li>PubMed for peer-reviewed research</li>
+    <li>ClinicalTrials.gov for new trials</li>
+    <li>Conference proceedings (ASCO, ESMO, AACR)</li>
+    <li>FDA drug approvals and breakthrough designations</li>
+    <li>Custom search terms based on your genomic profile</li>
+  </ul>
+  
+  <div class="slide-footer">Slide 7</div>
+</div>
+
+<!-- Slide 8: Portal Integration -->
+<div class="slide">
+  <h2>🔐 Portal Automation</h2>
+  <p>Automated syncing with healthcare provider portals. Your data, automatically updated.</p>
+  
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>CareSpace (Flatiron)</h3>
+      <p>Full browser automation, OAuth SSO, 354 lab results from 10 weekly reports synced</p>
+    </div>
+    <div class="feature-card">
+      <h3>Epic MyChart</h3>
+      <p>FHIR API integration planned, credentials encrypted AES-256</p>
+    </div>
+    <div class="feature-card">
+      <h3>Cerner</h3>
+      <p>Planned via Playwright automation</p>
+    </div>
+    <div class="feature-card">
+      <h3>Credential Vault</h3>
+      <p>Session-based encryption, PBKDF2 key derivation, zero plaintext storage</p>
+    </div>
+  </div>
+  
+  <div class="highlight">
+    <p>12% faster syncs with intelligent cookie caching. Historical data back to December 2025.</p>
+  </div>
+  
+  <div class="slide-footer">Slide 8</div>
+</div>
+
+<!-- Slide 9: Nutrition & Lifestyle -->
+<div class="slide">
+  <h2>🥗 Nutrition & Lifestyle Tracking</h2>
+  <p>Evidence-based dietary tracking connected to your genomic profile.</p>
+  
+  <div class="two-column">
+    <div>
+      <h3>Features</h3>
+      <ul>
+        <li>Meal logging with genomic pathway tracking</li>
+        <li>20 pre-loaded anti-cancer foods with pathway connections</li>
+        <li>Meal scoring based on genomic profile coverage</li>
+        <li>AI analysis using Claude Haiku (Anthropic API)</li>
+        <li>Energy and symptom tracking (nausea, fatigue)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Pathway Targeting</h3>
+      <ul>
+        <li>Hypoxia/HIF-1α pathway inhibition</li>
+        <li>PI3K/mTOR pathway suppression</li>
+        <li>MDR phenotype reversal</li>
+        <li>Immune checkpoint modulation</li>
+        <li>Anti-inflammatory pathways</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 9</div>
+</div>
+
+<!-- Slide 10: AI-Powered Insights -->
+<div class="slide">
+  <h2>🧠 AI-Powered Strategy Summary</h2>
+  <p>GPT-4o synthesis of your complete healthcare approach.</p>
+  
+  <ul>
+    <li><strong>Strategy Overview:</strong> High-level summary of your multi-modal treatment approach</li>
+    <li><strong>Alignment Analysis:</strong> How genomics, medications, diet, and research align</li>
+    <li><strong>Coverage Gaps:</strong> Pathways or mutations not currently addressed</li>
+    <li><strong>Research Opportunities:</strong> Specific trials or studies worth investigating</li>
+    <li><strong>Evidence Strength:</strong> Rating of supporting research for each component</li>
+  </ul>
+  
+  <div class="highlight">
+    <p>Turns 500+ data points into a coherent, evidence-based narrative you can share with your oncology team.</p>
+  </div>
+  
+  <div class="slide-footer">Slide 10</div>
+</div>
+
+<!-- Slide 11: Security & Privacy -->
+<div class="slide">
+  <h2>🔒 Security & Privacy</h2>
+  <p style="font-size: 32px; font-weight: 600; color: #1e3a8a;">Your health data belongs to you. Period.</p>
+  
+  <div class="two-column">
+    <div>
+      <h3>HIPAA-Grade Security</h3>
+      <ul>
+        <li>AES-256-GCM encryption at rest</li>
+        <li>SQLCipher encrypted database</li>
+        <li>Session-based key management</li>
+        <li>Complete audit logging</li>
+        <li>Automated encrypted backups</li>
+        <li>30-day backup retention</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Privacy First</h3>
+      <ul>
+        <li>Local-only storage (no cloud)</li>
+        <li>Zero third-party sharing</li>
+        <li>No analytics or tracking</li>
+        <li>No external PHI transmission</li>
+        <li>You control all data export</li>
+        <li>Open source & auditable</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 11</div>
+</div>
+
+<!-- Slide 12: Technology Stack -->
+<div class="slide">
+  <h2>⚙️ Technology Stack</h2>
+  <p>Modern, secure, and performant technology choices.</p>
+  
+  <div class="tech-stack">
+    <div class="tech-item">
+      <h4>Desktop</h4>
+      <p>Electron 40+</p>
+    </div>
+    <div class="tech-item">
+      <h4>Frontend</h4>
+      <p>React 18.3 + Vite</p>
+    </div>
+    <div class="tech-item">
+      <h4>Backend</h4>
+      <p>Node.js + Express</p>
+    </div>
+    <div class="tech-item">
+      <h4>Database</h4>
+      <p>SQLite + SQLCipher</p>
+    </div>
+    <div class="tech-item">
+      <h4>Cloud (PHI-free)</h4>
+      <p>Supabase (PostgreSQL + Auth)</p>
+    </div>
+    <div class="tech-item">
+      <h4>AI</h4>
+      <p>OpenAI GPT-4o, Anthropic Claude</p>
+    </div>
+    <div class="tech-item">
+      <h4>Automation</h4>
+      <p>Playwright (portal sync)</p>
+    </div>
+    <div class="tech-item">
+      <h4>Security</h4>
+      <p>bcrypt, AES-256, PBKDF2</p>
+    </div>
+    <div class="tech-item">
+      <h4>Research</h4>
+      <p>PubMed API, ClinicalTrials.gov</p>
+    </div>
+    <div class="tech-item">
+      <h4>Distribution</h4>
+      <p>electron-builder + GitHub Releases</p>
+    </div>
+    <div class="tech-item">
+      <h4>Updates</h4>
+      <p>electron-updater (auto-update)</p>
+    </div>
+  </div>
+  
+  <div class="highlight" style="margin-top: 40px;">
+    <p>PHI stays local. Cloud services handle only non-PHI features (auth, backups, research aggregation).</p>
+  </div>
+  
+  <div class="slide-footer">Slide 12</div>
+</div>
+
+<!-- Slide 13: By the Numbers -->
+<div class="slide">
+  <h2>📈 By the Numbers</h2>
+  
+  <div class="stats" style="flex-wrap: wrap;">
+    <div class="stat">
+      <div class="stat-number">500+</div>
+      <div class="stat-label">Lab Results Tracked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">19</div>
+      <div class="stat-label">Medications with Evidence</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">4</div>
+      <div class="stat-label">Genomic Mutations</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">6</div>
+      <div class="stat-label">Biological Pathways</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">13</div>
+      <div class="stat-label">Targeted Treatments</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">35</div>
+      <div class="stat-label">Research Papers</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">14</div>
+      <div class="stat-label">Healthcare Providers</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">28</div>
+      <div class="stat-label">Automated Search Terms</div>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 13</div>
+</div>
+
+<!-- Slide 14: What Makes It Different -->
+<div class="slide">
+  <h2>What Makes It Different</h2>
+  
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>Built by a Patient</h3>
+      <p>Not venture-backed health tech. Built by someone living this reality every day.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Genomics-First</h3>
+      <p>Treatment decisions connected to your specific mutations, not one-size-fits-all protocols.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Native Desktop App</h3>
+      <p>Not another web portal. Real native app (Mac/Win/Linux) with offline-first architecture.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Privacy by Design</h3>
+      <p>PHI never leaves your device. Cloud services handle only non-PHI data. No HIPAA complexity.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Hybrid Architecture</h3>
+      <p>Best of both worlds: local privacy + cloud convenience without sacrificing security.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Research-Driven</h3>
+      <p>Automated discovery means you never miss important developments in your specific cancer type.</p>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 14</div>
+</div>
+
+<!-- Slide 15: Use Cases -->
+<div class="slide">
+  <h2>Who It's For</h2>
+  
+  <div class="two-column">
+    <div>
+      <h3>Primary Users</h3>
+      <ul>
+        <li><strong>Research-driven patients</strong> who want to understand the science behind their treatment</li>
+        <li><strong>Stage 4 patients</strong> managing complex, multi-modal treatment protocols</li>
+        <li><strong>Patients with genomic testing</strong> (Foundation One, Guardant360, Tempus, etc.)</li>
+        <li><strong>Integrative oncology patients</strong> combining traditional + evidence-based complementary approaches</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Secondary Users</h3>
+      <ul>
+        <li><strong>Oncology teams</strong> who want organized patient data for treatment planning</li>
+        <li><strong>Integrative oncologists</strong> designing genomic-driven supplement protocols</li>
+        <li><strong>Clinical trial coordinators</strong> matching patients to relevant trials</li>
+        <li><strong>Caregivers</strong> helping loved ones navigate complex treatment decisions</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="slide-footer">Slide 15</div>
+</div>
+
+<!-- Slide 16: Roadmap -->
+<div class="slide">
+  <h2>Roadmap</h2>
+  
+  <div style="margin-top: 40px;">
+    <h3>✅ Completed (Feb 2026)</h3>
+    <ul style="margin-bottom: 40px;">
+      <li>Core health records management (vitals, labs, medications, conditions)</li>
+      <li>Precision medicine dashboard with genomic integration</li>
+      <li>Automated research scanner (nightly cron jobs)</li>
+      <li>CareSpace portal automation (Flatiron Health OAuth SSO)</li>
+      <li>HIPAA-grade security (AES-256, audit logging, encrypted backups)</li>
+      <li>Nutrition tracking with genomic pathway scoring</li>
+      <li>AI strategy summaries (GPT-4o integration)</li>
+      <li>Medication evidence modals (22 treatments documented)</li>
+      <li><strong>Electron desktop app</strong> (Mac/Windows/Linux native packaging)</li>
+    </ul>
+    
+    <h3>🚧 In Progress (Q1 2026)</h3>
+    <ul>
+      <li>Supabase cloud integration (auth, settings sync, encrypted backups)</li>
+      <li>Epic MyChart FHIR integration</li>
+      <li>Cerner portal automation</li>
+      <li>Auto-update system (GitHub Releases)</li>
+      <li>Export to PDF (comprehensive health summary)</li>
+    </ul>
+  </div>
+  
+  <div class="slide-footer">Slide 16</div>
+</div>
+
+<!-- Slide 17: Future Vision -->
+<div class="slide">
+  <h2>Future Vision</h2>
+  
+  <div class="two-column">
+    <div>
+      <h3>Near-term (6 months)</h3>
+      <ul>
+        <li>Mobile app (React Native)</li>
+        <li>Imaging integration (DICOM viewer)</li>
+        <li>Treatment timeline visualization</li>
+        <li>Symptom tracking with ML pattern detection</li>
+        <li>Family health history mapping</li>
+        <li>Telemedicine visit recording & transcription</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Long-term (12+ months)</h3>
+      <ul>
+        <li>Multi-patient support (caregivers managing multiple family members)</li>
+        <li>Anonymized research data contribution (opt-in)</li>
+        <li>Patient community features (opt-in)</li>
+        <li>Clinical trial matching algorithm</li>
+        <li>Wearable device integration (Apple Health, Fitbit)</li>
+        <li>Insurance claim tracking</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="highlight">
+    <p>Goal: Become the de facto standard for research-driven cancer patients who want control over their data and treatment journey.</p>
+  </div>
+  
+  <div class="slide-footer">Slide 17</div>
+</div>
+
+<!-- Slide 18: Deployment Options -->
+<div class="slide">
+  <h2>Deployment Strategy</h2>
+  
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3>✅ Current: Hybrid Electron + Cloud</h3>
+      <p>✅ Native desktop app (Mac/Win/Linux)<br>
+      ✅ PHI stays local (zero cloud exposure)<br>
+      ✅ Cloud for research/backups only<br>
+      ✅ No HIPAA complexity</p>
+    </div>
+    <div class="feature-card">
+      <h3>Cloud Services (PHI-Free)</h3>
+      <p>✅ Supabase free tier ($0/month)<br>
+      ✅ User auth + settings sync<br>
+      ✅ Encrypted backup storage<br>
+      ✅ Research library aggregation</p>
+    </div>
+    <div class="feature-card">
+      <h3>Distribution</h3>
+      <p>✅ Code-signed .dmg (Mac)<br>
+      ✅ Code-signed .exe (Windows)<br>
+      ✅ AppImage/deb/rpm (Linux)<br>
+      ✅ Auto-update via GitHub Releases</p>
+    </div>
+    <div class="feature-card">
+      <h3>Cost Structure</h3>
+      <p>✅ Cloud: $0-25/month (Supabase)<br>
+      ✅ Code signing: $400-600/year<br>
+      ✅ Distribution: $0 (GitHub)<br>
+      ✅ Total: ~$1k/year</p>
+    </div>
+  </div>
+  
+  <div class="highlight">
+    <p>Architecture: PHI local-only + cloud services for non-PHI features = privacy + convenience without HIPAA nightmare.</p>
+  </div>
+  
+  <div class="slide-footer">Slide 18</div>
+</div>
+
+<!-- Slide 19: Hybrid Architecture Deep Dive -->
+<div class="slide">
+  <h2>Hybrid Architecture: Best of Both Worlds</h2>
+  
+  <div class="two-column">
+    <div>
+      <h3>Local (PHI-Safe) 🔒</h3>
+      <ul>
+        <li>Electron desktop app (native Mac/Win/Linux)</li>
+        <li>Embedded Express backend</li>
+        <li>SQLite encrypted database (AES-256)</li>
+        <li>All patient health data stays local</li>
+        <li>Works 100% offline</li>
+        <li>No cloud transmission of PHI</li>
+        <li>Zero HIPAA cloud compliance</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Cloud (Non-PHI) ☁️</h3>
+      <ul>
+        <li>Supabase (PostgreSQL + Auth + Storage)</li>
+        <li>User authentication (email/password only)</li>
+        <li>App settings sync (preferences, themes)</li>
+        <li>Encrypted backup storage (patient-controlled)</li>
+        <li>Research library aggregation</li>
+        <li>Daily research scans (cancer type only)</li>
+        <li>Anonymous analytics (opt-in)</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="highlight" style="margin-top: 40px;">
+    <p><strong>Key Privacy Guarantee:</strong> Cloud services never see patient names, DOB, lab results, vitals, medications, genomic data, or provider information. Only de-identified metadata for non-PHI features.</p>
+  </div>
+  
+  <div class="slide-footer">Slide 19</div>
+</div>
+
+<!-- Slide 20: Business Model -->
+<div class="slide">
+  <h2>Potential Business Models</h2>
+  
+  <div style="margin-top: 30px;">
+    <h3>Option 1: Open Source + Services</h3>
+    <ul>
+      <li>Free core product (MIT or GPL license)</li>
+      <li>Premium support for hospitals/clinics</li>
+      <li>Custom integrations (EMR systems, research platforms)</li>
+      <li>Revenue: Consulting/integration fees (~$100-250/hr)</li>
+    </ul>
+    
+    <h3 style="margin-top: 40px;">Option 2: Freemium Desktop App</h3>
+    <ul>
+      <li>Free: Core features, local-only</li>
+      <li>Pro ($9-19/month): Cloud sync, encrypted backups, advanced analytics, priority support</li>
+      <li>Enterprise ($500-2000/month): Multi-patient, white-label, custom branding, dedicated support</li>
+      <li>Revenue: Subscription-based (~$50k MRR at 5k paid users)</li>
+    </ul>
+    
+    <h3 style="margin-top: 40px;">Option 3: Hospital/Clinic Licensing</h3>
+    <ul>
+      <li>White-label platform for integrative oncology clinics</li>
+      <li>Revenue: $10k-50k/year per clinic + setup fees</li>
+    </ul>
+  </div>
+  
+  <div class="slide-footer">Slide 20</div>
+</div>
+
+<!-- Slide 21: Call to Action -->
+<div class="slide title-slide">
+  <h1 style="font-size: 56px;">MyTreatmentPath</h1>
+  <p style="font-size: 32px; margin-bottom: 40px;">Your Treatment. Your Data. Your Path.</p>
+  
+  <div style="text-align: left; max-width: 700px; margin-top: 60px;">
+    <h3 style="color: white; font-size: 28px; margin-bottom: 20px;">Next Steps</h3>
+    <ul style="font-size: 24px; color: #bfdbfe;">
+      <li>Demo available at: http://localhost:5176</li>
+      <li>GitHub: github.com/mytreatmentpath (coming soon)</li>
+      <li>Documentation: docs.mytreatmentpath.com (coming soon)</li>
+      <li>Contact: john@mytreatmentpath.com</li>
+    </ul>
+  </div>
+  
+  <div style="margin-top: 80px; font-size: 18px; color: #93c5fd; font-style: italic;">
+    For patients, by a patient.<br>
+    Open source. Privacy-first. Evidence-based.
+  </div>
+  
+  <div class="slide-footer">Slide 21</div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,60 @@
+# Supabase Quick Setup (Copy-Paste Ready)
+
+## 1. CREATE PROJECT (DONE!)
+→ https://supabase.com
+→ Project name: medical-research-tracker
+→ Region: [already created]
+
+## 2. GET API KEYS
+→ Settings → API
+Copy:
+   SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+   SUPABASE_ANON_KEY=eyJhbG...
+   SUPABASE_SERVICE_KEY=eyJhbG... (KEEP SECRET!)
+
+## 3. RUN MIGRATION
+→ SQL Editor → New query
+→ Copy/paste: supabase/migrations/001_initial_schema.sql
+→ Click "Run"
+→ Verify: "Success. No rows returned"
+
+## 4. VERIFY TABLES
+→ Table Editor
+Should see:
+   ✅ user_profiles
+   ✅ research_library
+   ✅ backup_metadata
+   ✅ research_scan_results
+
+## 5. CREATE TEST USER
+→ Authentication → Users → Add user
+   Email: test@mytreatmentpath.com
+   Password: TestPassword123!
+   Auto confirm: YES
+
+## 6. UPDATE .ENV FILES
+
+Backend (.env):
+```
+NODE_ENV=production
+SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbG... # SECRET!
+OPENAI_API_KEY=sk-proj-...
+SESSION_SECRET=random-32-chars
+```
+
+Electron (.env.local):
+```
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbG... # Safe for client
+```
+
+## 7. TEST
+```bash
+npm run server  # Backend
+npm run electron:dev  # Electron app
+```
+
+DONE! ✅
+
+Full guide: SUPABASE-SETUP.md

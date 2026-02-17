@@ -17,22 +17,41 @@ import {
   TableRow,
   Paper,
   Button,
-  Divider
+  Divider,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   Warning as WarningIcon,
   TrendingUp as TrendingUpIcon,
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
-  ArrowUpward as ArrowUpwardIcon
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+  VerifiedUser as VerifiedUserIcon,
+  AttachMoney as AttachMoneyIcon
 } from '@mui/icons-material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+
+// Trusted supplement sources (medical-grade)
+const supplementSources = {
+  'Vitamin K2-MK7': [
+    { name: 'Thorne K2 Liquid', url: 'https://www.thorne.com/products/dp/vitamin-k2-liquid', tier: 'Medical Grade', icon: <VerifiedUserIcon fontSize="small" /> },
+    { name: 'Pure Encaps K2-MK7', url: 'https://www.pureencapsulations.com/vitamin-k2.html', tier: 'Medical Grade', icon: <VerifiedUserIcon fontSize="small" /> },
+    { name: 'Life Extension K2', url: 'https://www.lifeextension.com/vitamins-supplements/item01224/super-k', tier: 'Research-Backed', icon: <AttachMoneyIcon fontSize="small" /> },
+    { name: 'Amazon (Budget)', url: 'https://www.amazon.com/s?k=vitamin+k2+mk7', tier: 'Budget', icon: <AttachMoneyIcon fontSize="small" /> }
+  ]
+};
 
 export default function BoneHealthTracker() {
   const [alkPhosData, setAlkPhosData] = useState([]);
   const [currentSupplements, setCurrentSupplements] = useState([]);
   const [missingSupplements, setMissingSupplements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orderMenuAnchor, setOrderMenuAnchor] = useState(null);
+  const [selectedSupplement, setSelectedSupplement] = useState(null);
 
   useEffect(() => {
     fetchBoneHealthData();
@@ -50,6 +69,21 @@ export default function BoneHealthTracker() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOrderClick = (event, supplement) => {
+    setSelectedSupplement(supplement);
+    setOrderMenuAnchor(event.currentTarget);
+  };
+
+  const handleOrderClose = () => {
+    setOrderMenuAnchor(null);
+    setSelectedSupplement(null);
+  };
+
+  const handleSupplierSelect = (url) => {
+    window.open(url, '_blank');
+    handleOrderClose();
   };
 
   // Calculate trend
@@ -248,7 +282,12 @@ export default function BoneHealthTracker() {
                   </TableCell>
                   <TableCell>Order Vitamin K2-MK7 200mcg supplement</TableCell>
                   <TableCell>
-                    <Button size="small" variant="outlined">
+                    <Button 
+                      size="small" 
+                      variant="outlined" 
+                      endIcon={<ArrowDropDownIcon />}
+                      onClick={(e) => handleOrderClick(e, 'Vitamin K2-MK7')}
+                    >
                       Order Online
                     </Button>
                   </TableCell>
@@ -309,6 +348,35 @@ export default function BoneHealthTracker() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Supplement Ordering Menu */}
+      <Menu
+        anchorEl={orderMenuAnchor}
+        open={Boolean(orderMenuAnchor)}
+        onClose={handleOrderClose}
+      >
+        <MenuItem disabled>
+          <Typography variant="caption" color="text.secondary">
+            Trusted Sources (FDA-compliant, third-party tested)
+          </Typography>
+        </MenuItem>
+        <Divider />
+        {selectedSupplement && supplementSources[selectedSupplement]?.map((source) => (
+          <MenuItem 
+            key={source.name}
+            onClick={() => handleSupplierSelect(source.url)}
+          >
+            <ListItemIcon>
+              {source.icon}
+            </ListItemIcon>
+            <ListItemText 
+              primary={source.name}
+              secondary={source.tier}
+              secondaryTypographyProps={{ variant: 'caption' }}
+            />
+          </MenuItem>
+        ))}
+      </Menu>
     </Box>
   );
 }

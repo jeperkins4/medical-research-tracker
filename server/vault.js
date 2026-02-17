@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { query, run } from './db.js';
+import { query, run } from './db-secure.js';
 
 // In-memory storage for the encryption key (cleared on server restart)
 let encryptionKey = null;

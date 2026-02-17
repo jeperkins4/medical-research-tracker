@@ -1,5 +1,7 @@
 # Bone Health Supplement Order List
 
+**📋 See also:** [SUPPLEMENT-SOURCES.md](./SUPPLEMENT-SOURCES.md) for trusted medical-grade suppliers, quality standards, and affiliate program info.
+
 ## Priority Order (Buy These This Week)
 
 ### 1. Vitamin K2-MK7 (200 mcg)
