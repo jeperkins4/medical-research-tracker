@@ -19,6 +19,7 @@ import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, shouldMonitorLymphatic, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
 import { getHealthStatus } from './health-check.js';
+import { initializeErrorHandlers, expressErrorHandler, requestTimeout } from './error-handler.js';
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
 import { setupMedicationRoutes } from './medications-routes.js';
@@ -61,6 +62,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Request timeout (30 seconds)
+app.use(requestTimeout(30000));
 
 // Initialize database before starting server
 await init();
@@ -1446,7 +1450,10 @@ app.get('/api/nutrition/meal-suggestions', requireAuth, async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// Global error handler (must be last middleware)
+app.use(expressErrorHandler);
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏥 Medical Research Tracker API running on http://0.0.0.0:${PORT}`);
   console.log(`   Access from network at http://<your-mac-ip>:${PORT}`);
   
@@ -1467,4 +1474,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.error(`\n❌ Health check failed:`, error.message);
     console.warn(`   Server is running but may have issues\n`);
   }
+  
+  // Initialize global error handlers (crash recovery)
+  initializeErrorHandlers(server);
 });
