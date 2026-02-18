@@ -16,7 +16,7 @@ export function shouldMonitorLiver() {
     const liverMets = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%liver%metast%' OR
           name LIKE '%hepatic%metast%' OR
@@ -141,7 +141,7 @@ export function shouldMonitorLungs() {
     const lungMets = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%lung%metast%' OR
           name LIKE '%pulmonary%metast%' OR
@@ -229,7 +229,7 @@ export function shouldMonitorKidneys() {
     const kidneyMets = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%kidney%metast%' OR
           name LIKE '%renal%metast%' OR
@@ -353,7 +353,7 @@ export function shouldMonitorLymphatic() {
     const lymphMets = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%lymph%node%metast%' OR
           name LIKE '%lymphadenopathy%' OR
@@ -487,7 +487,7 @@ function shouldMonitorBone() {
     const boneMets = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%bone%metast%' OR
           name LIKE '%osseous%' OR

@@ -19,7 +19,7 @@ export function shouldMonitorBoneHealth() {
     const boneConditions = query(`
       SELECT COUNT(*) as count
       FROM conditions
-      WHERE active = 1
+      WHERE status = 'active'
         AND (
           name LIKE '%bone%metast%' OR
           name LIKE '%osseous%' OR
