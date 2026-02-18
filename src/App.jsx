@@ -8,9 +8,12 @@ import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
 import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
+import MedicationManager from './components/MedicationManager';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import medicationEvidence from './medicationEvidence';
+import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
 
-// Helper to make authenticated API calls
+// Simple apiFetch for components that don't use retry yet
 const apiFetch = (url, options = {}) => {
   return fetch(url, {
     ...options,
@@ -35,26 +38,34 @@ function App() {
   }, []);
 
   const checkAuth = async () => {
+    console.log('[App] Starting auth check...');
     try {
       // Check if setup is needed
+      console.log('[App] Checking if setup is needed...');
       const setupRes = await apiFetch('/api/auth/needs-setup', {
         credentials: 'include'
       });
+      console.log('[App] Setup response status:', setupRes.status);
       const setupData = await setupRes.json();
+      console.log('[App] Setup data:', setupData);
       
       if (setupData.needsSetup) {
+        console.log('[App] Setup needed, showing setup screen');
         setNeedsSetup(true);
         setLoading(false);
         return;
       }
 
       // Check authentication
+      console.log('[App] Checking authentication...');
       const authRes = await apiFetch('/api/auth/check', {
         credentials: 'include'
       });
+      console.log('[App] Auth response status:', authRes.status);
 
       if (authRes.ok) {
         const authData = await authRes.json();
+        console.log('[App] Authenticated as:', authData.username);
         setAuthenticated(true);
         setUsername(authData.username);
         
@@ -62,10 +73,13 @@ function App() {
         const healthRes = await apiFetch('/api/health');
         const healthData = await healthRes.json();
         setHealth(healthData);
+      } else {
+        console.log('[App] Not authenticated, showing login');
       }
     } catch (err) {
-      console.error('Auth check failed:', err);
+      console.error('[App] Auth check failed:', err);
     } finally {
+      console.log('[App] Auth check complete, setting loading=false');
       setLoading(false);
     }
   };
@@ -173,6 +187,12 @@ function App() {
         >
           🔐 Portals
         </button>
+        <button 
+          className={activeTab === 'analytics' ? 'active' : ''}
+          onClick={() => setActiveTab('analytics')}
+        >
+          📊 Analytics
+        </button>
       </nav>
 
       <main>
@@ -182,6 +202,7 @@ function App() {
         {activeTab === 'research' && <ResearchView />}
         {activeTab === 'summary' && <HealthcareSummary />}
         {activeTab === 'portals' && <PortalManager />}
+        {activeTab === 'analytics' && <AnalyticsDashboard apiFetch={apiFetch} />}
       </main>
     </div>
   );
@@ -196,12 +217,21 @@ function TestResultsView() {
     apiFetch('/api/tests')
       .then(r => r.json())
       .then(data => {
-        setTests(data);
-        if (data.length > 0 && !selectedDate) {
-          // Auto-select most recent date
-          const dates = [...new Set(data.map(t => t.date))].sort().reverse();
-          setSelectedDate(dates[0]);
+        if (Array.isArray(data)) {
+          setTests(data);
+          if (data.length > 0 && !selectedDate) {
+            // Auto-select most recent date
+            const dates = [...new Set(data.map(t => t.date))].sort().reverse();
+            setSelectedDate(dates[0]);
+          }
+        } else {
+          console.warn('[TestResultsView] Tests API returned non-array:', data);
+          setTests([]);
         }
+      })
+      .catch(err => {
+        console.error('[TestResultsView] Failed to fetch tests:', err);
+        setTests([]);
       });
   }, []);
 
@@ -720,21 +750,71 @@ function ProfileView() {
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
   useEffect(() => {
-    apiFetch('/api/conditions').then(r => r.json()).then(setConditions);
-    apiFetch('/api/medications').then(r => r.json()).then(setMedications);
-    apiFetch('/api/vitals?limit=10').then(r => r.json()).then(setVitals);
+    apiFetch('/api/conditions')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setConditions(data);
+        } else {
+          console.warn('[ProfileView] Conditions API returned non-array:', data);
+          setConditions([]);
+        }
+      })
+      .catch(err => {
+        console.error('[ProfileView] Failed to fetch conditions:', err);
+        setConditions([]);
+      });
+    
+    apiFetch('/api/medications')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setMedications(data);
+        } else {
+          console.warn('[ProfileView] Medications API returned non-array:', data);
+          setMedications([]);
+        }
+      })
+      .catch(err => {
+        console.error('[ProfileView] Failed to fetch medications:', err);
+        setMedications([]);
+      });
+    
+    apiFetch('/api/vitals?limit=10')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setVitals(data);
+        } else {
+          console.warn('[ProfileView] Vitals API returned non-array:', data);
+          setVitals([]);
+        }
+      })
+      .catch(err => {
+        console.error('[ProfileView] Failed to fetch vitals:', err);
+        setVitals([]);
+      });
   }, []);
 
   const refreshVitals = () => {
-    apiFetch('/api/vitals?limit=10').then(r => r.json()).then(setVitals);
+    apiFetch('/api/vitals?limit=10')
+      .then(r => r.json())
+      .then(data => Array.isArray(data) ? setVitals(data) : setVitals([]))
+      .catch(() => setVitals([]));
   };
 
   const refreshMedications = () => {
-    apiFetch('/api/medications').then(r => r.json()).then(setMedications);
+    apiFetch('/api/medications')
+      .then(r => r.json())
+      .then(data => Array.isArray(data) ? setMedications(data) : setMedications([]))
+      .catch(() => setMedications([]));
   };
 
   const refreshConditions = () => {
-    apiFetch('/api/conditions').then(r => r.json()).then(setConditions);
+    apiFetch('/api/conditions')
+      .then(r => r.json())
+      .then(data => Array.isArray(data) ? setConditions(data) : setConditions([]))
+      .catch(() => setConditions([]));
   };
 
   const showMedicationEvidence = (medication) => {
@@ -1268,11 +1348,17 @@ function OverviewView() {
 }
 
 function TreatmentView() {
-  const [subTab, setSubTab] = useState('nutrition');
+  const [subTab, setSubTab] = useState('medications');
 
   return (
     <div className="view">
       <div className="sub-nav">
+        <button 
+          className={subTab === 'medications' ? 'active' : ''}
+          onClick={() => setSubTab('medications')}
+        >
+          💊 Medications & Supplements
+        </button>
         <button 
           className={subTab === 'nutrition' ? 'active' : ''}
           onClick={() => setSubTab('nutrition')}
@@ -1287,6 +1373,7 @@ function TreatmentView() {
         </button>
       </div>
       
+      {subTab === 'medications' && <MedicationManager apiFetch={apiFetch} />}
       {subTab === 'nutrition' && <NutritionTracker />}
       {subTab === 'bone' && <BoneHealthTracker />}
     </div>
@@ -1298,7 +1385,20 @@ function ResearchView() {
   const [papers, setPapers] = useState([]);
 
   useEffect(() => {
-    apiFetch('/api/papers').then(r => r.json()).then(setPapers);
+    apiFetch('/api/papers')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setPapers(data);
+        } else {
+          console.warn('[ResearchView] Papers API returned non-array:', data);
+          setPapers([]);
+        }
+      })
+      .catch(err => {
+        console.error('[ResearchView] Failed to fetch papers:', err);
+        setPapers([]);
+      });
   }, []);
 
   const getPaperUrl = (paper) => {
