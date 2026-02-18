@@ -17,6 +17,7 @@ import * as vault from './vault.js';
 import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
+import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
 import { setupMedicationRoutes } from './medications-routes.js';
@@ -1174,6 +1175,52 @@ app.get('/api/bone-health/actions', requireAuth, (req, res) => {
   try {
     const actions = getBoneHealthActions();
     res.json(actions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Organ Health Monitoring API
+app.get('/api/organ-health/liver', requireAuth, (req, res) => {
+  try {
+    const status = shouldMonitorLiver();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/organ-health/lungs', requireAuth, (req, res) => {
+  try {
+    const status = shouldMonitorLungs();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/organ-health/kidneys', requireAuth, (req, res) => {
+  try {
+    const status = shouldMonitorKidneys();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/organ-health/all', requireAuth, (req, res) => {
+  try {
+    const statuses = getAllOrganStatuses();
+    res.json(statuses);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/organ-health/summary', requireAuth, (req, res) => {
+  try {
+    const summary = getMonitoringSummary();
+    res.json(summary);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
