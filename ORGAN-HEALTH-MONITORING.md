@@ -2,7 +2,7 @@
 
 **Date:** February 18, 2026  
 **Feature:** Conditional organ-specific health monitoring  
-**Organs:** Bone, Liver, Lungs, Kidneys
+**Organs:** Bone, Liver, Lungs, Kidneys, Lymphatic System
 
 ---
 
@@ -93,6 +93,36 @@ MRT now includes **intelligent organ health monitoring** that activates only whe
 
 ---
 
+### 5. 🔗 Lymphatic System Health
+
+**Triggers:**
+- Lymph node metastases or lymphadenopathy in conditions
+- Lymphopenia (low lymphocyte count <1.0 K/μL)
+- Lymphocytosis (elevated lymphocyte count >4.8 K/μL)
+- Leukopenia (low WBC <3.5 K/μL)
+- Lymphedema
+- Enlarged lymph nodes on imaging (neck, axilla, groin, mediastinum)
+
+**Lab Markers:**
+- Absolute Lymphocyte Count: 1.0-4.8 K/μL
+- WBC (White Blood Cell Count): 3.5-10.5 K/μL
+- Lymphocytes %: 20-40% of WBC
+
+**Common Issues:**
+- Lymph node metastases (most cancers spread via lymphatic system)
+- Chemotherapy-induced lymphopenia (immune suppression)
+- Lymphedema (post-surgery/radiation swelling)
+- Chronic Lymphocytic Leukemia (CLL) - elevated lymphocytes
+- Infection risk when lymphocytes <1.0 K/μL
+
+**Why Monitor:**
+- Lymph nodes are the highway for cancer spread
+- Low lymphocytes = high infection risk (need growth factors, prophylactic antibiotics)
+- High lymphocytes may indicate CLL or lymphoma
+- Lymphedema impacts quality of life and requires management
+
+---
+
 ## API Endpoints
 
 ### Individual Organ Status
@@ -101,6 +131,7 @@ MRT now includes **intelligent organ health monitoring** that activates only whe
 GET /api/organ-health/liver
 GET /api/organ-health/lungs
 GET /api/organ-health/kidneys
+GET /api/organ-health/lymphatic
 ```
 
 **Response:**
@@ -140,6 +171,11 @@ GET /api/organ-health/all
     "shouldMonitor": true,
     "reason": "elevated_creatinine",
     "message": "Elevated Creatinine: 1.5 mg/dL (normal: 0.6-1.2)"
+  },
+  "lymphatic": {
+    "shouldMonitor": true,
+    "reason": "lymphopenia",
+    "message": "Low Lymphocyte Count: 0.6 K/μL (normal: 1.0-4.8) - Lymphopenia"
   }
 }
 ```
@@ -153,8 +189,8 @@ GET /api/organ-health/summary
 **Response:**
 ```json
 {
-  "totalOrgans": 4,
-  "organsNeedingMonitoring": 2,
+  "totalOrgans": 5,
+  "organsNeedingMonitoring": 3,
   "organs": [
     {
       "organ": "bone",
@@ -165,6 +201,11 @@ GET /api/organ-health/summary
       "organ": "kidneys",
       "reason": "elevated_creatinine",
       "message": "Elevated Creatinine: 1.5 mg/dL (normal: 0.6-1.2)"
+    },
+    {
+      "organ": "lymphatic",
+      "reason": "lymphopenia",
+      "message": "Low Lymphocyte Count: 0.6 K/μL (normal: 1.0-4.8) - Lymphopenia"
     }
   ],
   "allStatuses": { /* full status object */ }
@@ -202,6 +243,10 @@ SELECT * FROM test_results WHERE test_name LIKE '%BUN%' ORDER BY date DESC LIMIT
 -- Bone markers
 SELECT * FROM test_results WHERE test_name LIKE '%Alkaline%Phosphatase%' ORDER BY date DESC LIMIT 1;
 SELECT * FROM test_results WHERE test_name LIKE '%Calcium%' ORDER BY date DESC LIMIT 1;
+
+-- Lymphatic markers
+SELECT * FROM test_results WHERE test_name LIKE '%Lymphocyte%Absolute%' ORDER BY date DESC LIMIT 1;
+SELECT * FROM test_results WHERE test_name LIKE '%WBC%' ORDER BY date DESC LIMIT 1;
 ```
 
 ### `vitals`
@@ -470,14 +515,44 @@ ORGAN-HEALTH-MONITORING.md        # This documentation
 
 ---
 
+### Case 4: Chemotherapy-Induced Lymphopenia
+
+**Patient:** Receiving FOLFIRINOX for pancreatic cancer
+
+**Automatic Monitoring:**
+- ✅ Lymphatic (chemo suppresses immune system)
+- ✅ Kidneys (5-FU can be nephrotoxic)
+- ❌ Bone (no bone involvement)
+
+**Alerts:**
+- Absolute lymphocyte count 0.5 K/μL → "URGENT: Severe lymphopenia. Infection risk HIGH. Consider growth factors (Neulasta)."
+- WBC 2.1 K/μL → "ALERT: Leukopenia detected. May need dose reduction or prophylactic antibiotics."
+
+---
+
+### Case 5: Lymph Node Metastases
+
+**Patient:** Breast cancer with axillary lymph node involvement
+
+**Automatic Monitoring:**
+- ✅ Lymphatic (lymph node metastases)
+- ✅ Bone (if bone scan shows lesions)
+- ❌ Liver (no liver involvement)
+
+**Alerts:**
+- New enlarged lymph nodes on imaging → "ALERT: Possible disease progression. Oncology review recommended."
+- Lymphedema developing → "Monitor for infection (cellulitis). Compression therapy, physical therapy referral."
+
+---
+
 ## Commit Message
 
 ```
-Add comprehensive organ health monitoring system (liver, lungs, kidneys)
+Add comprehensive organ health monitoring system (liver, lungs, kidneys, lymphatic)
 
-- Created organ-health.js with conditional monitoring for 4 organ systems
+- Created organ-health.js with conditional monitoring for 5 organ systems
 - Triggers based on metastases, lab values, vitals, imaging
-- API endpoints: /api/organ-health/{liver|lungs|kidneys|all|summary}
+- API endpoints: /api/organ-health/{liver|lungs|kidneys|lymphatic|all|summary}
 - Automatic activation when clinical indicators present
 - Reduces noise and prevents unnecessary anxiety
 - Scalable design for future organ additions (brain, adrenal, etc.)
@@ -487,10 +562,11 @@ Organ systems:
 - Liver: mets, elevated AST/ALT/bilirubin, abnormal imaging
 - Lungs: mets/nodules, low O2 sat, abnormal chest imaging
 - Kidneys: mets, elevated creatinine/BUN, low GFR, abnormal imaging
+- Lymphatic: lymph node mets, lymphopenia/lymphocytosis, leukopenia, lymphedema, enlarged nodes on imaging
 
 Files:
-- server/organ-health.js (new, 11KB)
-- server/index.js (updated with API endpoints)
+- server/organ-health.js (updated, 13KB)
+- server/index.js (updated with lymphatic endpoint)
 - ORGAN-HEALTH-MONITORING.md (comprehensive documentation)
 ```
 

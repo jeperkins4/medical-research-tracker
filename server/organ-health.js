@@ -345,6 +345,128 @@ export function shouldMonitorKidneys() {
 }
 
 /**
+ * Check if lymphatic system monitoring is warranted
+ */
+export function shouldMonitorLymphatic() {
+  try {
+    // Check for lymph node metastases or lymphadenopathy
+    const lymphMets = query(`
+      SELECT COUNT(*) as count
+      FROM conditions
+      WHERE active = 1
+        AND (
+          name LIKE '%lymph%node%metast%' OR
+          name LIKE '%lymphadenopathy%' OR
+          name LIKE '%lymphedema%' OR
+          notes LIKE '%lymph%node%metast%' OR
+          notes LIKE '%lymphadenopathy%' OR
+          notes LIKE '%lymphedema%'
+        )
+    `);
+
+    if (lymphMets[0].count > 0) {
+      return {
+        shouldMonitor: true,
+        reason: 'lymph_node_involvement',
+        message: 'Lymph node metastases or lymphadenopathy detected in conditions'
+      };
+    }
+
+    // Check for low lymphocyte count (lymphopenia) - normal: 1.0-4.8 K/μL
+    const lymphocyteAbs = query(`
+      SELECT result FROM test_results 
+      WHERE (test_name LIKE '%Lymphocyte%Absolute%' OR test_name LIKE '%Lymphocytes%Absolute%')
+        AND test_name NOT LIKE '%Large%'
+      ORDER BY date DESC LIMIT 1
+    `);
+
+    if (lymphocyteAbs.length > 0) {
+      const match = lymphocyteAbs[0].result.match(/([\d.]+)/);
+      if (match) {
+        const value = parseFloat(match[1]);
+        if (value < 1.0) {
+          return {
+            shouldMonitor: true,
+            reason: 'lymphopenia',
+            message: `Low Lymphocyte Count: ${value} K/μL (normal: 1.0-4.8) - Lymphopenia`
+          };
+        }
+        if (value > 4.8) {
+          return {
+            shouldMonitor: true,
+            reason: 'lymphocytosis',
+            message: `Elevated Lymphocyte Count: ${value} K/μL (normal: 1.0-4.8) - Lymphocytosis`
+          };
+        }
+      }
+    }
+
+    // Check for abnormal lymph node imaging
+    try {
+      const lymphImaging = query(`
+        SELECT COUNT(*) as count
+        FROM imaging_results
+        WHERE (
+          name LIKE '%lymph%node%' OR
+          name LIKE '%neck%' OR
+          name LIKE '%axilla%' OR
+          name LIKE '%groin%' OR
+          name LIKE '%mediastin%' OR
+          findings LIKE '%lymphadenopathy%'
+        ) AND (
+          findings LIKE '%enlarged%' OR
+          findings LIKE '%metast%' OR
+          findings LIKE '%lymphadenopathy%' OR
+          findings LIKE '%suspicious%'
+        )
+      `);
+
+      if (lymphImaging[0]?.count > 0) {
+        return {
+          shouldMonitor: true,
+          reason: 'abnormal_lymph_imaging',
+          message: 'Enlarged or abnormal lymph nodes on imaging'
+        };
+      }
+    } catch (err) {
+      // imaging_results table might not exist
+    }
+
+    // Check for severely low WBC (often accompanies lymphopenia during chemo)
+    const wbc = query(`
+      SELECT result FROM test_results 
+      WHERE test_name LIKE '%WBC%' OR test_name LIKE '%White Blood%'
+      ORDER BY date DESC LIMIT 1
+    `);
+
+    if (wbc.length > 0) {
+      const match = wbc[0].result.match(/([\d.]+)/);
+      if (match && parseFloat(match[1]) < 3.5) {
+        return {
+          shouldMonitor: true,
+          reason: 'leukopenia',
+          message: `Low WBC: ${match[1]} K/μL (normal: 3.5-10.5) - Increased infection risk`
+        };
+      }
+    }
+
+    return {
+      shouldMonitor: false,
+      reason: 'no_indicators',
+      message: 'No clinical indicators for lymphatic system monitoring'
+    };
+
+  } catch (error) {
+    console.error('Error checking lymphatic system indicators:', error);
+    return {
+      shouldMonitor: false,
+      reason: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
  * Get all organ health statuses at once
  */
 export function getAllOrganStatuses() {
@@ -352,7 +474,8 @@ export function getAllOrganStatuses() {
     bone: shouldMonitorBone(),
     liver: shouldMonitorLiver(),
     lungs: shouldMonitorLungs(),
-    kidneys: shouldMonitorKidneys()
+    kidneys: shouldMonitorKidneys(),
+    lymphatic: shouldMonitorLymphatic()
   };
 }
 

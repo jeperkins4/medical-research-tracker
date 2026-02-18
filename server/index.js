@@ -17,7 +17,7 @@ import * as vault from './vault.js';
 import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
-import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
+import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, shouldMonitorLymphatic, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
 import { setupMedicationRoutes } from './medications-routes.js';
@@ -1202,6 +1202,15 @@ app.get('/api/organ-health/lungs', requireAuth, (req, res) => {
 app.get('/api/organ-health/kidneys', requireAuth, (req, res) => {
   try {
     const status = shouldMonitorKidneys();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/organ-health/lymphatic', requireAuth, (req, res) => {
+  try {
+    const status = shouldMonitorLymphatic();
     res.json(status);
   } catch (error) {
     res.status(500).json({ error: error.message });
