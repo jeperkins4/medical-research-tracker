@@ -6,9 +6,145 @@
 import { query } from './db-secure.js';
 
 /**
+ * Check if bone health monitoring is warranted based on clinical indicators
+ * Returns true if any of these conditions are met:
+ * - Bone metastases or osseous lesions in conditions
+ * - Elevated alkaline phosphatase (>147 U/L)
+ * - Elevated calcium (>10.2 mg/dL)
+ * - Abnormal bone scan or imaging results
+ */
+export function shouldMonitorBoneHealth() {
+  try {
+    // Check for bone metastases or osseous lesions in conditions
+    const boneConditions = query(`
+      SELECT COUNT(*) as count
+      FROM conditions
+      WHERE active = 1
+        AND (
+          name LIKE '%bone%metast%' OR
+          name LIKE '%osseous%' OR
+          name LIKE '%skeletal%metast%' OR
+          notes LIKE '%bone%metast%' OR
+          notes LIKE '%osseous%lesion%' OR
+          notes LIKE '%skeletal%involvement%'
+        )
+    `);
+
+    if (boneConditions[0].count > 0) {
+      return { 
+        shouldMonitor: true, 
+        reason: 'bone_metastases',
+        message: 'Bone metastases or osseous lesions detected in conditions'
+      };
+    }
+
+    // Check for elevated alkaline phosphatase
+    const recentAlkPhos = query(`
+      SELECT result 
+      FROM test_results 
+      WHERE (test_name LIKE '%Alk%Phos%' OR test_name LIKE '%Alkaline%Phosphatase%')
+      ORDER BY date DESC
+      LIMIT 1
+    `);
+
+    if (recentAlkPhos.length > 0) {
+      const match = recentAlkPhos[0].result.match(/([\d.]+)/);
+      if (match) {
+        const value = parseFloat(match[1]);
+        if (value > 147) {
+          return { 
+            shouldMonitor: true, 
+            reason: 'elevated_alk_phos',
+            message: `Elevated Alkaline Phosphatase: ${value} U/L (normal: 39-147)`
+          };
+        }
+      }
+    }
+
+    // Check for elevated calcium
+    const recentCalcium = query(`
+      SELECT result 
+      FROM test_results 
+      WHERE test_name LIKE '%Calcium%' AND test_name NOT LIKE '%Ionized%'
+      ORDER BY date DESC
+      LIMIT 1
+    `);
+
+    if (recentCalcium.length > 0) {
+      const match = recentCalcium[0].result.match(/([\d.]+)/);
+      if (match) {
+        const value = parseFloat(match[1]);
+        if (value > 10.2) {
+          return { 
+            shouldMonitor: true, 
+            reason: 'elevated_calcium',
+            message: `Elevated Calcium: ${value} mg/dL (normal: 8.5-10.2)`
+          };
+        }
+      }
+    }
+
+    // Check for abnormal bone-related imaging (if table exists)
+    try {
+      const boneImaging = query(`
+        SELECT COUNT(*) as count
+        FROM imaging_results
+        WHERE (
+          name LIKE '%bone%scan%' OR
+          name LIKE '%skeletal%' OR
+          name LIKE '%spine%' OR
+          name LIKE '%pelvis%'
+        ) AND (
+          findings LIKE '%metast%' OR
+          findings LIKE '%lesion%' OR
+          findings LIKE '%abnormal%'
+        )
+      `);
+
+      if (boneImaging[0]?.count > 0) {
+        return { 
+          shouldMonitor: true, 
+          reason: 'abnormal_imaging',
+          message: 'Abnormal findings on bone imaging'
+        };
+      }
+    } catch (err) {
+      // Table might not exist - ignore silently
+    }
+
+    // No bone health concerns detected
+    return { 
+      shouldMonitor: false, 
+      reason: 'no_indicators',
+      message: 'No clinical indicators for bone health monitoring'
+    };
+
+  } catch (error) {
+    console.error('Error checking bone health indicators:', error);
+    // Default to false if error
+    return { 
+      shouldMonitor: false, 
+      reason: 'error',
+      message: error.message
+    };
+  }
+}
+
+/**
  * Get bone health data including Alk Phos trend, current supplements, and recommendations
+ * Only returns data if bone health monitoring is warranted
  */
 export function getBoneHealthData() {
+  // Check if bone health monitoring is needed
+  const monitorCheck = shouldMonitorBoneHealth();
+  
+  if (!monitorCheck.shouldMonitor) {
+    return {
+      enabled: false,
+      reason: monitorCheck.reason,
+      message: monitorCheck.message
+    };
+  }
   try {
     // Get Alkaline Phosphatase trend data
     const alkPhosData = query(`
@@ -161,6 +297,9 @@ export function getBoneHealthData() {
     }
 
     return {
+      enabled: true,
+      reason: monitorCheck.reason,
+      message: monitorCheck.message,
       alkPhosData: formattedAlkPhos,
       currentSupplements,
       missingSupplements,

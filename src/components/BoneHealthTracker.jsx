@@ -46,6 +46,8 @@ const supplementSources = {
 };
 
 export default function BoneHealthTracker() {
+  const [enabled, setEnabled] = useState(false);
+  const [disabledReason, setDisabledReason] = useState('');
   const [alkPhosData, setAlkPhosData] = useState([]);
   const [currentSupplements, setCurrentSupplements] = useState([]);
   const [missingSupplements, setMissingSupplements] = useState([]);
@@ -61,11 +63,23 @@ export default function BoneHealthTracker() {
     try {
       const response = await fetch('/api/bone-health');
       const data = await response.json();
+      
+      // Check if bone health monitoring is enabled
+      if (!data.enabled) {
+        setEnabled(false);
+        setDisabledReason(data.message || 'No clinical indicators for bone health monitoring');
+        setLoading(false);
+        return;
+      }
+      
+      setEnabled(true);
       setAlkPhosData(data.alkPhosData || []);
       setCurrentSupplements(data.currentSupplements || []);
       setMissingSupplements(data.missingSupplements || []);
     } catch (error) {
       console.error('Error fetching bone health data:', error);
+      setEnabled(false);
+      setDisabledReason('Error loading bone health data');
     } finally {
       setLoading(false);
     }
@@ -105,6 +119,52 @@ export default function BoneHealthTracker() {
 
   if (loading) {
     return <LinearProgress />;
+  }
+
+  // Show message if bone health monitoring is not enabled
+  if (!enabled) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Card>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <CheckCircleIcon sx={{ color: 'success.main', fontSize: 40, mr: 2 }} />
+              <Box>
+                <Typography variant="h6">
+                  Bone Health Monitoring Not Required
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {disabledReason}
+                </Typography>
+              </Box>
+            </Box>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="body2" color="text.secondary">
+              <strong>Bone health monitoring is triggered when:</strong>
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Bone metastases or osseous lesions are present
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Alkaline Phosphatase is elevated (&gt;147 U/L)
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Calcium is elevated (&gt;10.2 mg/dL)
+              </Typography>
+              <Typography component="li" variant="body2" color="text.secondary">
+                Abnormal bone imaging findings
+              </Typography>
+            </Box>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                If you develop any of these conditions, bone health tracking will automatically activate to help monitor for skeletal-related events.
+              </Typography>
+            </Alert>
+          </CardContent>
+        </Card>
+      </Box>
+    );
   }
 
   return (
