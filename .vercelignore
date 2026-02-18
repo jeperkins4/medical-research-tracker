@@ -1,8 +1,9 @@
-# Ignore everything except landing-page/
+# Ignore everything except website/
 /*
-!/landing-page/
+!/website/
+!/vercel.json
 
-# Explicitly ignore package.json to prevent npm install
+# Explicitly ignore these to prevent build issues
 package.json
 package-lock.json
 node_modules/
@@ -15,9 +16,8 @@ data/
 backups/
 supabase/
 
-# Ignore config files
-*.md
-*.js
-*.cjs
-.env*
-vercel.json
+# Ignore root config files (but not website/*.md)
+/.env*
+/*.md
+/*.js
+/*.cjs

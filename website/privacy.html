@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - MyTreatmentPath</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: #f9fafb;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2563eb;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        
+        .last-updated {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        
+        h2 {
+            color: #1f2937;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        h3 {
+            color: #374151;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+        
+        p, li {
+            margin-bottom: 15px;
+            color: #4b5563;
+        }
+        
+        ul {
+            margin-left: 30px;
+        }
+        
+        .highlight {
+            background: #dbeafe;
+            padding: 15px;
+            border-left: 4px solid #2563eb;
+            margin: 20px 0;
+        }
+        
+        .warning {
+            background: #fef3c7;
+            padding: 15px;
+            border-left: 4px solid #f59e0b;
+            margin: 20px 0;
+        }
+        
+        .success {
+            background: #d1fae5;
+            padding: 15px;
+            border-left: 4px solid #10b981;
+            margin: 20px 0;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 30px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        
+        th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy</h1>
+        <p class="last-updated">Last Updated: February 18, 2026</p>
+        
+        <div class="success">
+            <strong>Privacy-First Design:</strong> MyTreatmentPath stores all your personal health information locally on your computer. We do NOT collect, transmit, or store your Protected Health Information (PHI) on our servers.
+        </div>
+
+        <h2>1. Our Privacy Philosophy</h2>
+        <p>MyTreatmentPath is built on a simple principle: <strong>your health data belongs to you, and only you.</strong></p>
+        
+        <p>Unlike cloud-based health apps, we:</p>
+        <ul>
+            <li>✅ Store all PHI locally on your device</li>
+            <li>✅ Encrypt your data with a password only you know</li>
+            <li>✅ Never transmit your medical records to our servers</li>
+            <li>✅ Give you full control over backups and data export</li>
+            <li>✅ Make analytics participation completely optional</li>
+        </ul>
+
+        <h2>2. Information We Do NOT Collect</h2>
+        <p>MyTreatmentPath <strong>does NOT collect, store, or transmit</strong> the following from your device:</p>
+        <ul>
+            <li>❌ Your name, email, phone number, or contact information</li>
+            <li>❌ Medical diagnoses, test results, or health conditions</li>
+            <li>❌ Genomic data or genetic test results</li>
+            <li>❌ Medication lists or supplement regimens</li>
+            <li>❌ Doctor names, hospital visits, or treatment history</li>
+            <li>❌ Personal research notes or journal entries</li>
+            <li>❌ Browsing history within the app</li>
+            <li>❌ Device identifiers or location data</li>
+        </ul>
+
+        <h2>3. Local Data Storage</h2>
+        <h3>3.1 Where Your Data Lives</h3>
+        <p>All personal health information is stored in an encrypted SQLite database on your computer at:</p>
+        <ul>
+            <li><strong>macOS:</strong> <code>~/Library/Application Support/MyTreatmentPath/data/health-secure.db</code></li>
+            <li><strong>Windows:</strong> <code>%APPDATA%/MyTreatmentPath/data/health-secure.db</code></li>
+            <li><strong>Linux:</strong> <code>~/.config/MyTreatmentPath/data/health-secure.db</code></li>
+        </ul>
+
+        <h3>3.2 Encryption</h3>
+        <p>Your database is encrypted using <strong>AES-256</strong> encryption with a password-derived key (PBKDF2 with 10,000 iterations). This means:</p>
+        <ul>
+            <li>Even if someone steals your computer, they cannot read your data without your password</li>
+            <li>We (MyTreatmentPath developers) cannot decrypt or access your data</li>
+            <li>If you forget your password, your data is permanently unrecoverable</li>
+        </ul>
+
+        <h3>3.3 Backup Responsibility</h3>
+        <p>Because your data lives only on your device:</p>
+        <ul>
+            <li>You are responsible for backing up your data</li>
+            <li>Use the App's "Export Data" feature or your OS backup tools (Time Machine, Windows Backup)</li>
+            <li>We cannot recover lost data if your device is damaged or lost</li>
+        </ul>
+
+        <h2>4. Optional Analytics (Opt-In Only)</h2>
+        <div class="highlight">
+            <p><strong>Analytics is OFF by default.</strong> You must explicitly enable it in Settings.</p>
+        </div>
+
+        <h3>4.1 What Analytics Collects (If You Opt In)</h3>
+        <p>If you choose to participate, we collect <strong>de-identified aggregate statistics only:</strong></p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Data Type</th>
+                    <th>What We Collect</th>
+                    <th>What We DON'T Collect</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Demographics</strong></td>
+                    <td>Age range (18-29, 30-39, etc.), State, Gender (optional)</td>
+                    <td>Name, exact age, city, ZIP code</td>
+                </tr>
+                <tr>
+                    <td><strong>Diagnosis</strong></td>
+                    <td>Cancer type counts (e.g., "50 users with bladder cancer")</td>
+                    <td>Individual diagnoses, dates, stages</td>
+                </tr>
+                <tr>
+                    <td><strong>Mutations</strong></td>
+                    <td>Mutation frequency (e.g., "30% have FGFR3 mutation")</td>
+                    <td>Individual mutation profiles, test results</td>
+                </tr>
+                <tr>
+                    <td><strong>Treatments</strong></td>
+                    <td>Treatment popularity (e.g., "40 users researching checkpoint inhibitors")</td>
+                    <td>Individual treatment plans, doses, outcomes</td>
+                </tr>
+                <tr>
+                    <td><strong>Usage</strong></td>
+                    <td>Number of articles bookmarked, app version</td>
+                    <td>Specific articles read, browsing behavior</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>4.2 HIPAA Safe Harbor De-identification</h3>
+        <p>Analytics data is de-identified using <strong>HIPAA Safe Harbor</strong> standards (45 CFR §164.514(b)(2)), which removes all 18 identifiers:</p>
+        <ol>
+            <li>Names</li>
+            <li>Geographic subdivisions smaller than state</li>
+            <li>Dates (except year)</li>
+            <li>Telephone numbers</li>
+            <li>Fax numbers</li>
+            <li>Email addresses</li>
+            <li>Social Security numbers</li>
+            <li>Medical record numbers</li>
+            <li>Health plan numbers</li>
+            <li>Account numbers</li>
+            <li>Certificate/license numbers</li>
+            <li>Vehicle identifiers</li>
+            <li>Device identifiers</li>
+            <li>URLs</li>
+            <li>IP addresses</li>
+            <li>Biometric identifiers</li>
+            <li>Full-face photos</li>
+            <li>Any unique identifying number/code</li>
+        </ol>
+
+        <h3>4.3 Minimum Cell Size</h3>
+        <p>We apply a <strong>minimum cell size of 11 individuals</strong> to all aggregated data. This means:</p>
+        <ul>
+            <li>If fewer than 11 users share a characteristic (e.g., "BRCA1 mutation in Alaska"), that statistic is suppressed</li>
+            <li>This prevents re-identification through combination of attributes</li>
+            <li>It's a higher standard than HIPAA's minimum (which allows 3+ in some cases)</li>
+        </ul>
+
+        <h3>4.4 How Analytics Works</h3>
+        <ol>
+            <li>Once daily (at 2:00 AM local time), the app generates aggregate statistics from your local database</li>
+            <li>These statistics are de-identified using Safe Harbor rules</li>
+            <li>Aggregates are sent to our Supabase PostgreSQL database (hosted on AWS)</li>
+            <li>Individual records are NEVER transmitted—only counts and percentages</li>
+            <li>You can view exactly what's being shared in Settings → Analytics Dashboard</li>
+        </ol>
+
+        <h3>4.5 Why We Collect Analytics</h3>
+        <p>Aggregate data helps us:</p>
+        <ul>
+            <li>Understand which mutations and treatments are most commonly researched</li>
+            <li>Improve research article recommendations</li>
+            <li>Identify gaps in medical research databases</li>
+            <li>Contribute to broader scientific understanding of patient needs</li>
+        </ul>
+
+        <h3>4.6 Opting Out</h3>
+        <p>To disable analytics:</p>
+        <ol>
+            <li>Open Settings → Privacy</li>
+            <li>Toggle "Participate in Anonymous Analytics" OFF</li>
+            <li>No data will be transmitted (even aggregate statistics)</li>
+            <li>App functionality is unchanged</li>
+        </ol>
+
+        <h2>5. Research Article Access</h2>
+        <p>When you search for research articles, the App queries public APIs (PubMed, Europe PMC). These queries:</p>
+        <ul>
+            <li>Do NOT include your personal health information</li>
+            <li>Use generic search terms (e.g., "FGFR3 bladder cancer treatment")</li>
+            <li>Are sent over HTTPS (encrypted in transit)</li>
+            <li>May be logged by third-party APIs (PubMed, NIH) for their own analytics</li>
+        </ul>
+        <p><strong>We do NOT track which articles you read or bookmark.</strong> That information stays on your device.</p>
+
+        <h2>6. Cookies and Tracking</h2>
+        <div class="warning">
+            <p><strong>MyTreatmentPath does NOT use cookies, trackers, or analytics on this website.</strong></p>
+        </div>
+        <p>Our marketing website (mytreatmentpath.com) does not use:</p>
+        <ul>
+            <li>Google Analytics or similar tracking</li>
+            <li>Advertising pixels (Facebook, Twitter, etc.)</li>
+            <li>Third-party cookies</li>
+            <li>Behavioral tracking or fingerprinting</li>
+        </ul>
+        <p>Downloads are served directly from GitHub Releases. GitHub may log download IPs for abuse prevention.</p>
+
+        <h2>7. Third-Party Services</h2>
+        <p>MyTreatmentPath uses these external services:</p>
+
+        <h3>7.1 PubMed / Europe PMC (Research Articles)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> Fetch research article metadata</li>
+            <li><strong>Data shared:</strong> Search keywords only (no PHI)</li>
+            <li><strong>Privacy policy:</strong> <a href="https://www.nlm.nih.gov/web_policies.html">NIH Privacy Policy</a></li>
+        </ul>
+
+        <h3>7.2 Supabase (Analytics Database)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> Store de-identified aggregate analytics (if opted in)</li>
+            <li><strong>Data shared:</strong> De-identified counts and percentages only</li>
+            <li><strong>Hosting:</strong> AWS (SOC 2 Type II certified)</li>
+            <li><strong>Privacy policy:</strong> <a href="https://supabase.com/privacy">Supabase Privacy Policy</a></li>
+        </ul>
+
+        <h3>7.3 GitHub (App Distribution)</h3>
+        <ul>
+            <li><strong>Purpose:</strong> Host downloadable installers</li>
+            <li><strong>Data shared:</strong> Download IP (logged by GitHub for abuse prevention)</li>
+            <li><strong>Privacy policy:</strong> <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement">GitHub Privacy Statement</a></li>
+        </ul>
+
+        <h2>8. Children's Privacy</h2>
+        <p>MyTreatmentPath is not intended for children under 13. We do not knowingly collect information from children. If you are a parent/guardian and believe your child has used the App, please contact us.</p>
+
+        <h2>9. Data Retention</h2>
+        <h3>9.1 Local Data (PHI)</h3>
+        <p>Your encrypted health data remains on your device until you:</p>
+        <ul>
+            <li>Manually delete it using the App's "Delete All Data" feature</li>
+            <li>Uninstall the App and delete its data folder</li>
+        </ul>
+
+        <h3>9.2 Analytics Data (De-identified)</h3>
+        <p>If you've opted into analytics:</p>
+        <ul>
+            <li>Aggregate statistics are retained indefinitely for research purposes</li>
+            <li>Opting out stops future data transmission but does NOT delete past aggregates (they're already anonymized)</li>
+            <li>You can request deletion by contacting support@mytreatmentpath.com</li>
+        </ul>
+
+        <h2>10. Data Breach Notification</h2>
+        <p>Because your PHI is stored locally and encrypted:</p>
+        <ul>
+            <li>We cannot be breached for <strong>your</strong> data (we don't have it)</li>
+            <li>If de-identified analytics data is breached, we'll notify users within 72 hours</li>
+            <li>Because analytics data is de-identified, re-identification risk is minimal</li>
+        </ul>
+
+        <h2>11. Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+            <li><strong>Access:</strong> View all data stored locally (use the App's "Export Data" feature)</li>
+            <li><strong>Correction:</strong> Edit any information in the App</li>
+            <li><strong>Deletion:</strong> Delete all data via Settings → Delete All Data</li>
+            <li><strong>Portability:</strong> Export data to JSON format for use elsewhere</li>
+            <li><strong>Opt-out:</strong> Disable analytics at any time (Settings → Privacy)</li>
+        </ul>
+
+        <h2>12. International Users</h2>
+        <p>MyTreatmentPath is developed in the United States and complies with:</p>
+        <ul>
+            <li><strong>HIPAA</strong> (USA): Safe Harbor de-identification for analytics</li>
+            <li><strong>GDPR</strong> (EU): Data minimization, consent, right to deletion</li>
+            <li><strong>CCPA</strong> (California): Transparency, opt-out, data deletion</li>
+        </ul>
+        <p>If you are outside the US and opt into analytics, de-identified data is stored on AWS servers in the US.</p>
+
+        <h2>13. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy to reflect changes in:</p>
+        <ul>
+            <li>Legal requirements (new privacy laws)</li>
+            <li>App features (e.g., new data types)</li>
+            <li>Third-party services (e.g., switching analytics providers)</li>
+        </ul>
+        <p>Changes will be posted on this page with an updated "Last Updated" date. Continued use after changes constitutes acceptance.</p>
+
+        <h2>14. Contact Us</h2>
+        <p>If you have questions about this Privacy Policy or data practices:</p>
+        <p><strong>Email:</strong> privacy@mytreatmentpath.com</p>
+        <p><strong>Subject Access Request (GDPR):</strong> sar@mytreatmentpath.com</p>
+        <p><strong>Data Deletion Request:</strong> Include "DELETE MY DATA" in subject line</p>
+
+        <div class="success">
+            <p><strong>Questions about HIPAA compliance?</strong> See our <a href="HIPAA-ANALYTICS-GUIDE.md" target="_blank">HIPAA Analytics Guide</a> for technical details on de-identification.</p>
+        </div>
+
+        <a href="index.html" class="back-link">← Back to MyTreatmentPath</a>
+    </div>
+</body>
+</html>
