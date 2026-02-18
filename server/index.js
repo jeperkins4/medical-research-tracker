@@ -18,6 +18,7 @@ import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, shouldMonitorLymphatic, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
+import { getHealthStatus } from './health-check.js';
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
 import { setupMedicationRoutes } from './medications-routes.js';
@@ -65,8 +66,17 @@ app.use(cookieParser());
 await init();
 
 // Setup enhanced medication routes
-setupMedicationRoutes(app, requireAuth);
-setupAnalyticsRoutes(app, requireAuth);
+try {
+  setupMedicationRoutes(app, requireAuth);
+} catch (err) {
+  console.warn('⚠️  Medication routes failed to initialize:', err.message);
+}
+
+try {
+  setupAnalyticsRoutes(app, requireAuth);
+} catch (err) {
+  console.warn('⚠️  Analytics routes failed to initialize:', err.message);
+}
 
 // Setup automated encrypted backups (HIPAA compliance)
 const backupDir = join(__dirname, '..', 'backups');
@@ -102,8 +112,26 @@ if (process.env.BACKUP_ENCRYPTION_KEY) {
   console.warn('⚠️  BACKUP_ENCRYPTION_KEY not set - automated backups disabled');
 }
 
-// Health check
+// Health check - comprehensive status
 app.get('/api/health', (req, res) => {
+  try {
+    const health = getHealthStatus();
+    const httpStatus = 
+      health.status === 'critical' ? 503 :
+      health.status === 'degraded' ? 500 :
+      200;
+    res.status(httpStatus).json(health);
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Simple ping endpoint (no dependencies)
+app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -1421,4 +1449,22 @@ app.get('/api/nutrition/meal-suggestions', requireAuth, async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏥 Medical Research Tracker API running on http://0.0.0.0:${PORT}`);
   console.log(`   Access from network at http://<your-mac-ip>:${PORT}`);
+  
+  // Run startup health check
+  try {
+    const health = getHealthStatus();
+    console.log(`\n📊 Server Health: ${health.status.toUpperCase()}`);
+    console.log(`   Database: ${health.checks.database.status}`);
+    console.log(`   Core Tables: ${health.checks.coreTables.status} (${health.checks.coreTables.existing}/${health.checks.coreTables.existing + health.checks.coreTables.missing})`);
+    console.log(`   Analytics: ${health.checks.analyticsTables.status} (${health.checks.analyticsTables.tableCount} tables)`);
+    
+    if (health.checks.coreTables.missing > 0) {
+      console.warn(`   ⚠️  Missing tables: ${health.checks.coreTables.missingTables.join(', ')}`);
+    }
+    
+    console.log(`\n✅ Server ready - Health check: ${health.status === 'healthy' ? 'PASS' : health.status.toUpperCase()}\n`);
+  } catch (error) {
+    console.error(`\n❌ Health check failed:`, error.message);
+    console.warn(`   Server is running but may have issues\n`);
+  }
 });

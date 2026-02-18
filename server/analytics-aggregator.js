@@ -16,7 +16,7 @@
 import { getDb, init as initDb, run, query } from './db-secure.js';
 
 // Minimum cell size for HIPAA compliance (prevent re-identification)
-const MIN_CELL_SIZE = 11;
+export const MIN_CELL_SIZE = 11;
 
 /**
  * Generate all analytics aggregates
