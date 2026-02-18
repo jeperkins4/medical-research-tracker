@@ -1,6 +1,7 @@
 import { getCredential, updateSyncStatus } from './portal-credentials.js';
 import { query, run } from './db-secure.js';
 import { syncCareSpace } from './connectors/carespace.js';
+import { syncEpicFHIR } from './connectors/epic-fhir.js';
 
 /**
  * Main sync controller - routes to appropriate portal connector
@@ -92,45 +93,39 @@ export async function syncPortal(credentialId) {
  * Epic MyChart FHIR connector (OAuth + API)
  */
 async function syncEpicMyChart(credential) {
-  // TODO: Implement Epic FHIR OAuth flow + data fetch
-  // For now, return mock data
-  console.log('  → Epic MyChart connector (TODO: implement FHIR OAuth)');
+  console.log('  → Epic MyChart connector (SMART on FHIR)');
   
-  return {
-    recordsImported: 0,
-    summary: {
-      connector: 'Epic MyChart (FHIR)',
-      status: 'Connector not yet implemented',
-      message: 'Epic FHIR OAuth + API connector coming soon!',
-      details: {
-        labResults: 0,
-        imagingReports: 0,
-        pathologyReports: 0,
-        clinicalNotes: 0,
-        signateraReports: 0,
-        medications: 0,
-        vitals: 0
-      },
-      priorities: [
-        '🔬 Lab Results (Observation)',
-        '📊 Imaging/Scans (DiagnosticReport - radiology)',
-        '🔬 Pathology Reports (DiagnosticReport - pathology)',
-        '📄 Doctor Notes (DocumentReference - exclude nursing notes)',
-        '🧬 Signatera Reports (Observation - genomic tumor tracking)',
-        '💊 Medications (MedicationRequest)',
-        '📈 Vitals (Observation - vital signs)'
-      ],
-      nextSteps: [
-        'OAuth 2.0 SMART on FHIR flow',
-        'Fetch Observation (labs, Signatera, vitals)',
-        'Fetch DiagnosticReport (imaging, pathology)',
-        'Fetch DocumentReference (filter for provider notes only)',
-        'Fetch MedicationRequest',
-        'Map FHIR → your schema',
-        'Import to database'
-      ]
-    }
-  };
+  try {
+    return await syncEpicFHIR(credential);
+  } catch (error) {
+    console.error('  ✗ Epic FHIR sync failed:', error.message);
+    
+    return {
+      recordsImported: 0,
+      summary: {
+        connector: 'Epic MyChart (FHIR)',
+        status: 'Failed',
+        message: error.message,
+        details: {
+          labResults: 0,
+          imagingReports: 0,
+          pathologyReports: 0,
+          clinicalNotes: 0,
+          signateraReports: 0,
+          medications: 0,
+          vitals: 0,
+          conditions: 0
+        },
+        error: error.message,
+        troubleshooting: [
+          'Check that you have authorized Epic MyChart access',
+          'Make sure EPIC_CLIENT_ID is configured in .env',
+          'Verify your access token has not expired',
+          'See FHIR-SETUP-GUIDE.md for setup instructions'
+        ]
+      }
+    };
+  }
 }
 
 /**

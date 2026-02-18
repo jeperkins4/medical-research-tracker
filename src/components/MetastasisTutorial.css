@@ -1,0 +1,962 @@
+/* Metastasis Tutorial Styles */
+.metastasis-tutorial {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.tutorial-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.tutorial-header h2 {
+  font-size: 32px;
+  margin-bottom: 10px;
+  color: #1a202c;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #718096;
+}
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  margin-bottom: 30px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3182ce, #805ad5);
+  transition: width 0.3s ease;
+}
+
+/* Slide Container */
+.tutorial-slide {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  min-height: 600px;
+  animation: slideIn 0.4s ease;
+}
+
+.tutorial-slide.danger {
+  border-left: 6px solid #e53e3e;
+}
+
+.tutorial-slide.success {
+  border-left: 6px solid #48bb78;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide Header */
+.slide-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.slide-number {
+  font-size: 14px;
+  color: #718096;
+  font-weight: 600;
+}
+
+.slide-header h3 {
+  font-size: 28px;
+  margin: 0;
+  color: #2d3748;
+  flex: 1;
+}
+
+.mutation-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.mutation-badge.arid1a {
+  background: #e53e3e;
+}
+
+.mutation-badge.pik3ca {
+  background: #805ad5;
+}
+
+.mutation-badge.fgfr3 {
+  background: #dd6b20;
+}
+
+.slide-description {
+  font-size: 18px;
+  line-height: 1.6;
+  color: #4a5568;
+  margin-bottom: 30px;
+}
+
+/* Visual Container */
+.visual-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  margin: 30px 0;
+  background: #f7fafc;
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.visual {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Cell Visualizations */
+.cell {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.cell.healthy {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+  border: 4px solid #2f855a;
+}
+
+.cell.mutated {
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+  border: 4px solid #9b2c2c;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.cell.fast-grow {
+  animation: fastPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fastPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+.nucleus {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.nucleus.chaotic {
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px) rotate(-1deg); }
+  75% { transform: translateX(2px) rotate(1deg); }
+}
+
+.dna {
+  width: 40px;
+  height: 40px;
+  position: relative;
+}
+
+.dna.organized::before,
+.dna.organized::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: #2f855a;
+  animation: twist 2s linear infinite;
+}
+
+.dna.disorganized::before,
+.dna.disorganized::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: #9b2c2c;
+  animation: chaos 1s linear infinite;
+}
+
+@keyframes twist {
+  0%, 100% { transform: translateY(-10px); }
+  50% { transform: translateY(10px); }
+}
+
+@keyframes chaos {
+  0% { transform: translateY(-10px) rotate(0deg); }
+  25% { transform: translateY(5px) rotate(90deg); }
+  50% { transform: translateY(-5px) rotate(180deg); }
+  75% { transform: translateY(10px) rotate(270deg); }
+  100% { transform: translateY(-10px) rotate(360deg); }
+}
+
+.gene {
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin: 2px;
+  color: white;
+}
+
+.gene.arid1a.active {
+  background: #38a169;
+}
+
+.gene.arid1a.broken {
+  background: #e53e3e;
+  animation: blink 1s ease-in-out infinite;
+}
+
+.gene.pik3ca.normal {
+  background: #4299e1;
+}
+
+.gene.pik3ca.mutated,
+.gene.fgfr3.mutated {
+  background: #805ad5;
+  animation: glow 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(128, 90, 213, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(128, 90, 213, 1); }
+}
+
+.pathway {
+  font-size: 10px;
+  font-weight: bold;
+  padding: 3px 6px;
+  border-radius: 8px;
+  margin: 2px;
+  color: white;
+}
+
+.pathway.activated,
+.pathway.active {
+  background: #f56565;
+  animation: flash 1s ease-in-out infinite;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.signal {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e53e3e;
+  animation: bounce 0.6s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.dividing-cells {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cell-copy {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: white;
+  animation: appear 0.5s ease-in-out forwards;
+  opacity: 0;
+}
+
+.cell-copy:nth-child(1) { animation-delay: 0.2s; }
+.cell-copy:nth-child(2) { animation-delay: 0.4s; }
+.cell-copy:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Tumor Visualization */
+.tumor-mass {
+  position: relative;
+  width: 250px;
+  height: 250px;
+}
+
+.tumor-center {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #742a2a, #c53030);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.tumor-center.hypoxic {
+  background: linear-gradient(135deg, #1a202c, #2d3748);
+  animation: hypoxicPulse 2s ease-in-out infinite;
+}
+
+@keyframes hypoxicPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.tumor-outer {
+  position: absolute;
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  border: 3px dashed #e53e3e;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.tumor-outer .cell {
+  width: 40px;
+  height: 40px;
+  font-size: 8px;
+}
+
+.cell.stem {
+  width: 35px;
+  height: 35px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border: 3px solid #d97706;
+  font-size: 7px;
+  animation: shine 1s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 100% { box-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+  50% { box-shadow: 0 0 25px rgba(251, 191, 36, 1); }
+}
+
+.oxygen-symbol {
+  font-size: 16px;
+  font-weight: bold;
+  color: #3182ce;
+}
+
+.oxygen-symbol.low {
+  color: #e53e3e;
+  animation: blink 1s ease-in-out infinite;
+}
+
+.hif-signal {
+  font-size: 9px;
+  font-weight: bold;
+  color: #fbbf24;
+  animation: flash 0.8s ease-in-out infinite;
+}
+
+.blood-vessel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vessel-line {
+  width: 60px;
+  height: 4px;
+  background: #e53e3e;
+  border-radius: 2px;
+}
+
+/* Invasion Visual */
+.tissue-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.normal-tissue,
+.basement-membrane,
+.cancer-cells,
+.blood-vessel {
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  position: relative;
+}
+
+.normal-tissue {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.basement-membrane {
+  background: linear-gradient(90deg, #e2e8f0, #cbd5e0);
+  color: #2d3748;
+  position: relative;
+}
+
+.basement-membrane.breaking {
+  animation: crumble 2s ease-in-out infinite;
+}
+
+@keyframes crumble {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  50% { transform: translateX(3px); }
+  75% { transform: translateX(-2px); }
+}
+
+.enzyme,
+.break-point {
+  position: absolute;
+  font-weight: bold;
+  animation: drop 1.5s ease-in-out infinite;
+}
+
+.enzyme {
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f56565;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+@keyframes drop {
+  0% { transform: translateX(-50%) translateY(-10px); }
+  50% { transform: translateX(-50%) translateY(0); }
+  100% { transform: translateX(-50%) translateY(-10px); }
+}
+
+.break-point {
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  animation: explode 1s ease-in-out infinite;
+}
+
+@keyframes explode {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.5); }
+}
+
+.cancer-cells.invading {
+  background: #fed7d7;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.cancer-cells .cell.cancer {
+  width: 50px;
+  height: 50px;
+  font-size: 10px;
+  animation: moveDown 2s ease-in-out infinite;
+}
+
+@keyframes moveDown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(20px); }
+}
+
+/* Circulation Visual */
+.bloodstream {
+  width: 100%;
+  max-width: 600px;
+}
+
+.vessel-path {
+  width: 100%;
+  height: 100px;
+  background: linear-gradient(90deg, #feb2b2, #fc8181);
+  border-radius: 50px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 30px;
+  margin-bottom: 30px;
+}
+
+.blood-cell,
+.cancer-cell {
+  font-size: 24px;
+  animation: flow 3s linear infinite;
+}
+
+.blood-cell:nth-child(2) { animation-delay: 0.5s; }
+.cancer-cell:nth-child(2) { animation-delay: 1s; }
+.blood-cell:nth-child(3) { animation-delay: 1.5s; }
+.cancer-cell:nth-child(4) { animation-delay: 2s; }
+
+@keyframes flow {
+  0% { transform: translateX(-100px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(500px); opacity: 0; }
+}
+
+.organ-destination {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.organ {
+  padding: 20px;
+  border-radius: 12px;
+  font-weight: bold;
+  color: white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.organ.bone {
+  background: linear-gradient(135deg, #f6ad55, #ed8936);
+}
+
+.organ.liver {
+  background: linear-gradient(135deg, #9f7aea, #805ad5);
+}
+
+.organ.lung {
+  background: linear-gradient(135deg, #4299e1, #3182ce);
+}
+
+/* Bone Metastasis Visual */
+.bone-structure {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.bone-marrow,
+.bone-cortex {
+  flex: 1;
+  padding: 20px;
+  border-radius: 12px;
+  position: relative;
+}
+
+.bone-marrow {
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  border: 3px solid #f59e0b;
+}
+
+.bone-cortex {
+  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+  border: 3px solid #818cf8;
+}
+
+.growth-factor,
+.calcium {
+  display: inline-block;
+  margin: 5px;
+  padding: 6px 10px;
+  background: #22c55e;
+  color: white;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  animation: float 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.lesion {
+  margin-top: 20px;
+  background: #fee2e2;
+  border: 3px dashed #ef4444;
+  border-radius: 12px;
+  padding: 15px;
+  position: relative;
+}
+
+.lesion .cancer-cell {
+  display: inline-block;
+  margin: 3px;
+  font-size: 20px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.bone-destruction {
+  font-size: 11px;
+  font-weight: bold;
+  color: #dc2626;
+  margin-top: 10px;
+}
+
+/* Soft Tissue Metastasis Visual */
+.organs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.organ-card {
+  padding: 30px 20px;
+  border-radius: 16px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.organ-card.liver {
+  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+}
+
+.organ-card.lung {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+}
+
+.organ-card.lymph {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+
+.organ-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.organ-name {
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.met-site {
+  font-size: 24px;
+  color: #ef4444;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Treatment Strategy Visual */
+.treatment-map {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 700px;
+}
+
+.target-box {
+  background: white;
+  border: 3px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.target-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.target-box .mutation {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e53e3e;
+  margin-bottom: 10px;
+}
+
+.target-box .drug {
+  font-size: 18px;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 8px;
+  margin: 10px 0;
+  color: white;
+}
+
+.drug.padcev {
+  background: linear-gradient(135deg, #9333ea, #7c3aed);
+}
+
+.drug.curcumin {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.drug.egcg {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.drug.berberine {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+}
+
+.target-box .effect {
+  font-size: 13px;
+  color: #059669;
+  font-weight: 600;
+}
+
+/* Cell Labels */
+.cell-label {
+  text-align: center;
+  font-size: 14px;
+  color: #4a5568;
+  font-weight: 600;
+  margin-top: 15px;
+}
+
+/* Key Points */
+.key-points {
+  margin-top: 30px;
+}
+
+.key-points h4 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #2d3748;
+}
+
+.key-points ul {
+  list-style: none;
+  padding: 0;
+}
+
+.point-item {
+  padding: 12px 20px;
+  margin-bottom: 10px;
+  background: #f7fafc;
+  border-left: 4px solid #3182ce;
+  border-radius: 6px;
+  animation: fadeIn 0.5s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Tutorial Controls */
+.tutorial-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #e2e8f0;
+}
+
+.control-btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control-btn.prev {
+  background: #e2e8f0;
+  color: #4a5568;
+}
+
+.control-btn.next {
+  background: linear-gradient(135deg, #3182ce, #2c5282);
+  color: white;
+}
+
+.control-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Slide Dots */
+.slide-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #cbd5e0;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.dot.active {
+  background: #3182ce;
+  width: 32px;
+  border-radius: 6px;
+}
+
+.dot:hover {
+  background: #a0aec0;
+}
+
+/* Completion Message */
+.completion-message {
+  margin-top: 30px;
+}
+
+.completion-card {
+  background: linear-gradient(135deg, #48bb78, #38a169);
+  color: white;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.completion-card h3 {
+  font-size: 28px;
+  margin-bottom: 15px;
+}
+
+.completion-card p {
+  font-size: 16px;
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.restart-btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  background: white;
+  color: #38a169;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.restart-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tutorial-slide {
+    padding: 20px;
+  }
+
+  .slide-header h3 {
+    font-size: 22px;
+  }
+
+  .organs-grid,
+  .treatment-map {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .control-btn {
+    width: 100%;
+  }
+}

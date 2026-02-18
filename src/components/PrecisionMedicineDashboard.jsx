@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import MutationDrugNetwork from './MutationDrugNetwork';
+import MetastasisTutorial from './MetastasisTutorial';
 
 export default function PrecisionMedicineDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [selectedMutation, setSelectedMutation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('overview'); // overview, mutation-detail, network, trials
+  const [view, setView] = useState('overview'); // overview, mutation-detail, network, tutorial, trials
 
   useEffect(() => {
     fetchDashboard();
@@ -102,6 +103,21 @@ export default function PrecisionMedicineDashboard() {
           }}
         >
           Network
+        </button>
+        <button
+          onClick={() => setView('tutorial')}
+          className={`px-6 py-3 text-sm font-semibold transition-all ${
+            view === 'tutorial'
+              ? 'bg-blue-600 text-white shadow-md z-10'
+              : 'bg-white text-gray-700 hover:bg-gray-50 border-t border-b border-gray-300'
+          }`}
+          style={{
+            borderLeft: view === 'tutorial' ? '1px solid #2563eb' : 'none',
+            borderRight: view === 'tutorial' ? '1px solid #2563eb' : 'none',
+            marginLeft: view === 'tutorial' ? '0' : '-1px'
+          }}
+        >
+          🎓 Tutorial
         </button>
         <button
           onClick={() => setView('trials')}
@@ -620,6 +636,13 @@ export default function PrecisionMedicineDashboard() {
       {view === 'network' && (
         <div className="min-h-screen">
           <MutationDrugNetwork />
+        </div>
+      )}
+
+      {/* Tutorial Tab */}
+      {view === 'tutorial' && (
+        <div className="min-h-screen">
+          <MetastasisTutorial />
         </div>
       )}
 

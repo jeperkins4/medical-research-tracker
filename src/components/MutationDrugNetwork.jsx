@@ -47,7 +47,11 @@ const MutationDrugNetwork = () => {
         'label': 'data(label)',
         'text-valign': 'center',
         'text-halign': 'center',
-        'font-size': '12px',
+        'font-size': '14px',
+        'font-weight': 'bold',
+        'color': '#fff',
+        'text-outline-color': '#000',
+        'text-outline-width': 2,
         'width': 60,
         'height': 60
       }
@@ -57,13 +61,13 @@ const MutationDrugNetwork = () => {
       style: {
         'background-color': '#e74c3c',
         'shape': 'hexagon',
-        'width': 80,
-        'height': 80,
+        'width': 100,
+        'height': 100,
         'font-weight': 'bold',
-        'font-size': '14px',
+        'font-size': '18px',
         'color': '#fff',
-        'text-outline-color': '#c0392b',
-        'text-outline-width': 2
+        'text-outline-color': '#000',
+        'text-outline-width': 3
       }
     },
     {
@@ -71,24 +75,34 @@ const MutationDrugNetwork = () => {
       style: {
         'background-color': '#3498db',
         'shape': 'roundrectangle',
-        'width': 100,
-        'height': 50,
-        'font-size': '11px',
+        'width': 140,
+        'height': 70,
+        'font-size': '14px',
+        'font-weight': 'bold',
+        'color': '#fff',
         'text-wrap': 'wrap',
-        'text-max-width': 100,
-        'padding': 8
+        'text-max-width': 130,
+        'text-outline-color': '#000',
+        'text-outline-width': 2,
+        'padding': 10
       }
     },
     {
       selector: 'node[treatment_type="Drug"]',
       style: {
-        'background-color': '#9b59b6'
+        'background-color': '#9b59b6',
+        'color': '#fff',
+        'text-outline-color': '#000',
+        'text-outline-width': 2
       }
     },
     {
       selector: 'node[treatment_type="Supplement"]',
       style: {
-        'background-color': '#27ae60'
+        'background-color': '#27ae60',
+        'color': '#fff',
+        'text-outline-color': '#000',
+        'text-outline-width': 2
       }
     },
     {

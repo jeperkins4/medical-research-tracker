@@ -4,6 +4,7 @@ copyright: Copyright © 2026 John Perkins
 npmRebuild: false
 nodeGypRebuild: false
 buildDependenciesFromSource: false
+afterSign: build/notarize.js
 
 directories:
   output: build
@@ -39,13 +40,16 @@ mac:
     - dmg
     - zip
   icon: build/icon.icns
-  hardenedRuntime: false
+  hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  identity: "John Perkins (7UU4H2GZAW)"
+  notarize:
+    teamId: "7UU4H2GZAW"
 
 dmg:
-  sign: false
+  sign: true
   title: MyTreatmentPath ${version}
   
 win:
