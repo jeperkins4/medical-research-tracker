@@ -138,7 +138,7 @@ function Login({ onLogin, needsSetup }) {
           </div>
 
           <div className="trust-badge">
-            <p>Built by a stage 4 bladder cancer patient for patients who want control over their treatment journey.</p>
+            <p>Built by cancer patients for patients who want control over their treatment journey.</p>
           </div>
         </div>
       </div>

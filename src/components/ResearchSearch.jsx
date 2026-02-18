@@ -177,7 +177,7 @@ export default function ResearchSearch() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search: bladder cancer, immunotherapy, clinical trials..."
+              placeholder="Search: your diagnosis, treatment options, clinical trials..."
               className="search-input"
             />
             <button type="submit" disabled={searching || !query.trim()}>
@@ -266,7 +266,7 @@ export default function ResearchSearch() {
               type="text"
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="New tag name (e.g., immunotherapy, Phase 3, bladder cancer)"
+              placeholder="New tag name (e.g., immunotherapy, Phase 3, your diagnosis)"
               onKeyPress={(e) => e.key === 'Enter' && createTag()}
             />
             <button onClick={createTag}>Create Tag</button>
@@ -294,14 +294,14 @@ export default function ResearchSearch() {
               <button onClick={() => { setNewTagName('Phase 1'); }}>Phase 1</button>
               <button onClick={() => { setNewTagName('Phase 2'); }}>Phase 2</button>
               <button onClick={() => { setNewTagName('Phase 3'); }}>Phase 3</button>
-              <button onClick={() => { setNewTagName('bladder cancer'); }}>bladder cancer</button>
-              <button onClick={() => { setNewTagName('urothelial'); }}>urothelial</button>
-              <button onClick={() => { setNewTagName('ARID1A'); }}>ARID1A</button>
-              <button onClick={() => { setNewTagName('ATR inhibitor'); }}>ATR inhibitor</button>
+              <button onClick={() => { setNewTagName('targeted therapy'); }}>targeted therapy</button>
+              <button onClick={() => { setNewTagName('chemotherapy'); }}>chemotherapy</button>
+              <button onClick={() => { setNewTagName('radiation'); }}>radiation</button>
               <button onClick={() => { setNewTagName('checkpoint inhibitor'); }}>checkpoint inhibitor</button>
-              <button onClick={() => { setNewTagName('ADC'); }}>ADC</button>
-              <button onClick={() => { setNewTagName('nectin-4'); }}>nectin-4</button>
+              <button onClick={() => { setNewTagName('CAR-T'); }}>CAR-T</button>
               <button onClick={() => { setNewTagName('integrative'); }}>integrative</button>
+              <button onClick={() => { setNewTagName('nutrition'); }}>nutrition</button>
+              <button onClick={() => { setNewTagName('side effects'); }}>side effects</button>
               <button onClick={() => { setNewTagName('repurposed drug'); }}>repurposed drug</button>
             </div>
           </div>

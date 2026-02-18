@@ -68,6 +68,10 @@ export async function analyzeMeal(mealDescription, mealData = {}) {
   }
   
   try {
+    // Get user's diagnosis
+    const conditions = query('SELECT name FROM conditions WHERE active = 1 ORDER BY diagnosis_date DESC LIMIT 1');
+    const userDiagnosis = conditions.length > 0 ? conditions[0].name : 'cancer';
+    
     // Get user's genomic context
     const mutations = query(`
       SELECT gene, alteration, clinical_significance 
@@ -90,7 +94,7 @@ export async function analyzeMeal(mealDescription, mealData = {}) {
     `);
     
     // Build analysis prompt
-    const prompt = `You are a genomics-driven nutrition AI analyzing a meal for a bladder cancer patient.
+    const prompt = `You are a genomics-driven nutrition AI analyzing a meal for a ${userDiagnosis} patient.
 
 **Patient Context:**
 
@@ -197,6 +201,10 @@ export async function getMealSuggestions(treatmentPhase = 'maintenance') {
   }
   
   try {
+    // Get user's diagnosis
+    const conditions = query('SELECT name FROM conditions WHERE active = 1 ORDER BY diagnosis_date DESC LIMIT 1');
+    const userDiagnosis = conditions.length > 0 ? conditions[0].name : 'cancer';
+    
     const pathways = query(`
       SELECT DISTINCT gp.pathway_name, gp.pathway_category
       FROM genomic_pathways gp
@@ -204,7 +212,7 @@ export async function getMealSuggestions(treatmentPhase = 'maintenance') {
       JOIN genomic_mutations gm ON mpm.mutation_id = gm.id
     `);
     
-    const prompt = `Generate 3 meal ideas for a bladder cancer patient in ${treatmentPhase} phase.
+    const prompt = `Generate 3 meal ideas for a ${userDiagnosis} patient in ${treatmentPhase} phase.
 
 **Active Pathways to Support:**
 ${pathways.map(p => `- ${p.pathway_name}`).join('\n')}

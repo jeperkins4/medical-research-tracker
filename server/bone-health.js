@@ -85,7 +85,7 @@ export function getBoneHealthData() {
       {
         name: 'Bisphosphonates (Zoledronic acid) or Denosumab',
         dosage: 'IV monthly (Zometa) or SubQ monthly (Xgeva)',
-        reason: 'Evidence-based for bladder cancer bone mets. TUGAMO study shows efficacy. Reduces bone resorption and SRE.',
+        reason: 'Evidence-based for cancer bone metastases. Reduces bone resorption and skeletal-related events (SRE).',
         urgency: 'urgent',
         category: 'Prescription'
       },

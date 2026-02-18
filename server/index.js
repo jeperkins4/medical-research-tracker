@@ -19,6 +19,9 @@ import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
+import { setupMedicationRoutes } from './medications-routes.js';
+import { setupAnalyticsRoutes } from './analytics-routes.js';
+import { generateAllAnalytics } from './analytics-aggregator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -60,6 +63,10 @@ app.use(cookieParser());
 // Initialize database before starting server
 await init();
 
+// Setup enhanced medication routes
+setupMedicationRoutes(app, requireAuth);
+setupAnalyticsRoutes(app, requireAuth);
+
 // Setup automated encrypted backups (HIPAA compliance)
 const backupDir = join(__dirname, '..', 'backups');
 if (!existsSync(backupDir)) {
@@ -78,8 +85,13 @@ if (process.env.BACKUP_ENCRYPTION_KEY) {
       
       // Cleanup backups older than 30 days
       cleanupOldBackups(backupDir, 30);
+      
+      // Generate analytics aggregates (HIPAA-compliant, de-identified)
+      console.log('🔄 Running nightly analytics aggregation...');
+      await generateAllAnalytics();
+      console.log('✅ Analytics aggregation complete');
     } catch (err) {
-      console.error('❌ Backup failed:', err.message);
+      console.error('❌ Backup/Analytics failed:', err.message);
       // TODO: Alert admin via email/SMS
     }
   });
@@ -394,8 +406,12 @@ app.get('/api/search/research', requireAuth, async (req, res) => {
   }
   
   try {
-    // Enhanced query for medical research
-    const searchQuery = `${q} site:pubmed.ncbi.nlm.nih.gov OR site:clinicaltrials.gov OR site:nih.gov OR site:cancer.gov OR bladder cancer urothelial`;
+    // Get user's primary diagnosis to enhance search context
+    const conditions = query('SELECT name FROM conditions WHERE active = 1 ORDER BY diagnosis_date DESC LIMIT 1');
+    const userDiagnosis = conditions.length > 0 ? conditions[0].name : 'cancer';
+    
+    // Enhanced query for medical research (uses user's diagnosis dynamically)
+    const searchQuery = `${q} site:pubmed.ncbi.nlm.nih.gov OR site:clinicaltrials.gov OR site:nih.gov OR site:cancer.gov OR ${userDiagnosis}`;
     
     // Note: This is a placeholder - actual implementation would use external API
     // For now, return structure for frontend development
