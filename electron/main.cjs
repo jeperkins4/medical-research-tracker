@@ -44,22 +44,43 @@ function createWindow() {
 
 function startBackendServer() {
   return new Promise((resolve, reject) => {
-    const serverPath = path.join(__dirname, '../server/index.js');
+    const serverPath = isDev 
+      ? path.join(__dirname, '../server/index.js')
+      : path.join(process.resourcesPath, 'app.asar.unpacked/server/index.js');
     
     console.log('[Electron] Starting backend server on port', SERVER_PORT);
+    console.log('[Electron] Server path:', serverPath);
     
-    serverProcess = spawn('node', [serverPath], {
+    // Use Node binary from Electron for ES modules support
+    const nodePath = process.execPath;
+    
+    serverProcess = spawn(nodePath, ['--experimental-specifier-resolution=node', serverPath], {
       env: {
         ...process.env,
         PORT: SERVER_PORT,
-        NODE_ENV: isDev ? 'development' : 'production'
+        NODE_ENV: isDev ? 'development' : 'production',
+        ELECTRON_RUN_AS_NODE: '1'
       },
-      stdio: 'inherit'
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    serverProcess.stdout.on('data', (data) => {
+      console.log('[Server]', data.toString().trim());
+    });
+
+    serverProcess.stderr.on('data', (data) => {
+      console.error('[Server Error]', data.toString().trim());
     });
 
     serverProcess.on('error', (err) => {
       console.error('[Electron] Failed to start backend:', err);
       reject(err);
+    });
+
+    serverProcess.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error('[Electron] Backend exited with code:', code);
+      }
     });
 
     // Give server 2 seconds to start

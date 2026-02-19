@@ -4,6 +4,10 @@ copyright: Copyright © 2026 John Perkins
 npmRebuild: false
 nodeGypRebuild: false
 buildDependenciesFromSource: false
+asarUnpack:
+  - node_modules/better-sqlite3-multiple-ciphers/**/*
+  - server/**/*
+  - data/**/*
 afterSign: build/notarize.js
 
 directories:
