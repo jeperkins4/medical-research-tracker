@@ -521,7 +521,7 @@ async function handleSearchCommand(query_text, userId, channelId) {
 /**
  * Verify Slack request signature (security)
  */
-export function verifySlackSignature(signature, timestamp, body) {
+export async function verifySlackSignature(signature, timestamp, body) {
   if (!SLACK_SIGNING_SECRET) {
     console.warn('[Slack] Signing secret not configured, skipping verification');
     return true; // Allow in development
