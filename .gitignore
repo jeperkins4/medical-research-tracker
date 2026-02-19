@@ -39,3 +39,7 @@ coverage/
 
 # Misc
 .cache/
+
+# Notarization credentials (sensitive)
+notarize-credentials.sh
+developerID_application.cer
