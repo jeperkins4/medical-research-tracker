@@ -25,6 +25,7 @@ import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from 
 import { setupMedicationRoutes } from './medications-routes.js';
 import { setupAnalyticsRoutes } from './analytics-routes.js';
 import { generateAllAnalytics } from './analytics-aggregator.js';
+import { setupSlackRoutes } from './slack-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,6 +81,13 @@ try {
   setupAnalyticsRoutes(app, requireAuth);
 } catch (err) {
   console.warn('⚠️  Analytics routes failed to initialize:', err.message);
+}
+
+// Setup Slack integration routes
+try {
+  setupSlackRoutes(app);
+} catch (err) {
+  console.warn('⚠️  Slack routes failed to initialize:', err.message);
 }
 
 // Setup automated encrypted backups (HIPAA compliance)
