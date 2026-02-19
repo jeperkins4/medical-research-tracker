@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import Login from './Login';
+import Onboarding from './components/Onboarding';
 import PrecisionMedicineDashboard from './components/PrecisionMedicineDashboard';
 import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
@@ -133,6 +134,9 @@ function App() {
   }
 
   if (!authenticated) {
+    if (needsSetup) {
+      return <Onboarding onComplete={handleLogin} />;
+    }
     return <Login onLogin={handleLogin} needsSetup={needsSetup} />;
   }
 
