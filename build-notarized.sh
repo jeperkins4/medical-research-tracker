@@ -15,22 +15,27 @@ if [ -z "$APPLE_ID" ] || [ -z "$APPLE_APP_SPECIFIC_PASSWORD" ]; then
     echo ""
     echo "Looking for credentials file..."
     
-    if [ -f ~/.notarize-credentials ]; then
+    if [ -f ./notarize-credentials.sh ]; then
+        echo "✅ Found ./notarize-credentials.sh"
+        echo "   Loading credentials..."
+        source ./notarize-credentials.sh
+    elif [ -f ~/.notarize-credentials ]; then
         echo "✅ Found ~/.notarize-credentials"
         echo "   Loading credentials..."
         source ~/.notarize-credentials
     else
-        echo "❌ No credentials file found at ~/.notarize-credentials"
+        echo "❌ No credentials file found"
         echo ""
         echo "To set up notarization:"
         echo "1. Create app-specific password at https://appleid.apple.com/"
-        echo "2. Create ~/.notarize-credentials with:"
+        echo "2. Create ./notarize-credentials.sh with:"
         echo ""
         echo "   export APPLE_ID=\"your-apple-id@email.com\""
         echo "   export APPLE_APP_SPECIFIC_PASSWORD=\"xxxx-xxxx-xxxx-xxxx\""
         echo "   export APPLE_TEAM_ID=\"7UU4H2GZAW\""
         echo ""
-        echo "3. Re-run this script"
+        echo "3. Make it executable: chmod +x notarize-credentials.sh"
+        echo "4. Re-run this script"
         echo ""
         read -p "Continue without notarization? (y/N) " -n 1 -r
         echo
