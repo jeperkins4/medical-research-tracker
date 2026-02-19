@@ -158,7 +158,7 @@ Be specific about which foods in the meal support which pathways. Reference the 
     const systemPrompt = 'You are a genomics and nutrition expert specializing in precision oncology nutrition. Analyze meals for cancer patients based on their genomic profile and treatment phase. Be specific, evidence-based, and actionable. Always respond with valid JSON only.';
     
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
       temperature: 0.7,
       system: systemPrompt,
@@ -177,7 +177,7 @@ Be specific about which foods in the meal support which pathways. Reference the 
       analysis,
       meal: mealDescription,
       treatment_phase: mealData.treatment_phase,
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-6',
       timestamp: new Date().toISOString()
     };
     
@@ -239,7 +239,7 @@ ${pathways.map(p => `- ${p.pathway_name}`).join('\n')}
     const systemPrompt = 'You are a genomics-driven nutrition expert creating practical, science-backed meal plans for cancer patients. Always respond with valid JSON only.';
     
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2048,
       temperature: 0.8,
       system: systemPrompt,
