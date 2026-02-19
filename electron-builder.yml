@@ -44,7 +44,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  identity: "Developer ID Application: John Perkins (7UU4H2GZAW)"
+  identity: "DA7B788C70B5FD6A1507950B3F31B7ACC32EDA1B"
   notarize: true
 
 dmg:
