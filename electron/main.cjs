@@ -80,6 +80,9 @@ function createWindow() {
         `Failed to load UI: ${err.message}\n\nPath: ${indexPath}`
       );
     });
+    
+    // TEMPORARY DEBUG: Open DevTools to see errors
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.on('closed', () => {
@@ -109,6 +112,7 @@ function startBackendServer() {
         PORT: SERVER_PORT,
         NODE_ENV: isDev ? 'development' : 'production',
         ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000',
+        USER_DATA_PATH: app.getPath('userData'),
         ELECTRON_RUN_AS_NODE: '1'
       },
       stdio: ['ignore', 'pipe', 'pipe']

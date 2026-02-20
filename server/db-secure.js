@@ -13,7 +13,10 @@ import { existsSync, mkdirSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const dataDir = join(__dirname, '..', 'data');
+// Use Electron's userData path if provided (for production), otherwise use local data/ folder (for dev)
+const dataDir = process.env.USER_DATA_PATH 
+  ? join(process.env.USER_DATA_PATH, 'data')
+  : join(__dirname, '..', 'data');
 const dbPath = join(dataDir, 'health-secure.db');
 
 // Ensure data directory exists

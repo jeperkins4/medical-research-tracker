@@ -6,6 +6,8 @@ nodeGypRebuild: false
 buildDependenciesFromSource: false
 asarUnpack:
   - node_modules/better-sqlite3-multiple-ciphers/**/*
+  - node_modules/bindings/**/*
+  - node_modules/file-uri-to-path/**/*
   - server/**/*
   - data/**/*
 afterSign: build/notarize.js
