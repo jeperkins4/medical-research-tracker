@@ -1,0 +1,8 @@
+{
+  "name": "mytreatmentpath-website",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p public && cp *.html public/ 2>/dev/null || true"
+  }
+}

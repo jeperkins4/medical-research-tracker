@@ -1,6 +1,7 @@
 {
-  "buildCommand": null,
-  "outputDirectory": ".",
+  "version": 2,
+  "buildCommand": "mkdir -p public && cp *.html public/",
+  "outputDirectory": "public",
   "headers": [
     {
       "source": "/(.*)",
