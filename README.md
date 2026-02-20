@@ -4,6 +4,8 @@
 
 Track your health journey, discover relevant research, and make informed treatment decisions with AI-powered insights — all while keeping your data private and secure.
 
+🌐 **Website:** [website-ecru-ten-36.vercel.app](https://website-ecru-ten-36.vercel.app)
+
 [![Download](https://img.shields.io/badge/Download-Latest%20Release-blue)](https://github.com/jeperkins4/medical-research-tracker/releases/latest)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey)](https://github.com/jeperkins4/medical-research-tracker)
@@ -15,8 +17,7 @@ Track your health journey, discover relevant research, and make informed treatme
 ### Download
 
 **macOS (Apple Silicon):**
-- [Download .dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.1/MyTreatmentPath-0.1.1-arm64.dmg) (132 MB)
-- [Download .zip](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.1/MyTreatmentPath-0.1.1-arm64-mac.zip) (127 MB)
+- [Download .dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.2/MyTreatmentPath-0.1.1-arm64.dmg) (137 MB) ✅ **Fully Notarized**
 
 **Install:** Double-click `.dmg` → Drag to Applications → Open
 
