@@ -11,7 +11,7 @@
 ## 📥 Download
 
 **macOS (Apple Silicon):**  
-[⬇️ Download MyTreatmentPath-0.1.3.dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.3/MyTreatmentPath-0.1.1-arm64.dmg) (137 MB)
+[⬇️ Download MyTreatmentPath-0.1.3.dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.3/MyTreatmentPath-0.1.3-arm64.dmg) (137 MB)
 
 ✅ Fully Apple-notarized (no security warnings)  
 ✅ macOS 11.0+ (Big Sur or later)  
