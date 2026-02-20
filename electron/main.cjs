@@ -73,7 +73,9 @@ function createWindow() {
     // Production: load built files from the app resources
     const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
     console.log('[Electron] App path:', app.getAppPath());
+    console.log('[Electron] Resources path:', process.resourcesPath);
     console.log('[Electron] Loading frontend from:', indexPath);
+    console.log('[Electron] Backend server should be at: http://localhost:' + SERVER_PORT);
     
     mainWindow.loadFile(indexPath).catch(err => {
       console.error('[Electron] Failed to load frontend:', err);
@@ -83,7 +85,7 @@ function createWindow() {
       );
     });
     
-    // Open DevTools to debug
+    // Open DevTools to debug (REMOVE IN FINAL BUILD)
     mainWindow.webContents.openDevTools();
   }
 

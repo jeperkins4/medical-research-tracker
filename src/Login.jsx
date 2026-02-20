@@ -3,6 +3,7 @@ import './Login.css';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import About from './pages/About';
+import { apiUrl } from './config';
 
 function Login({ onLogin, needsSetup }) {
   const [username, setUsername] = useState('');
@@ -30,7 +31,7 @@ function Login({ onLogin, needsSetup }) {
       if (isSignupMode) {
         console.log('[Auth] Creating new account...');
         
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(apiUrl('/api/auth/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -82,7 +83,7 @@ function Login({ onLogin, needsSetup }) {
       console.log('[Auth] Attempting local authentication...');
       
       const endpoint = needsSetup ? '/api/auth/setup' : '/api/auth/login';
-      const response = await fetch(endpoint, {
+      const response = await fetch(apiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
