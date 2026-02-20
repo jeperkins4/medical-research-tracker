@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import fileUpload from 'express-fileupload';
 import cron from 'node-cron';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
@@ -27,6 +28,7 @@ import { isCloudSyncAvailable, syncUserToCloud, syncResearchToCloud, fullSync, g
 import { setupAnalyticsRoutes } from './analytics-routes.js';
 import { generateAllAnalytics } from './analytics-aggregator.js';
 import { setupSlackRoutes } from './slack-routes.js';
+import { setupTransferRoutes } from './phi-transfer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -64,6 +66,10 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(fileUpload({
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  abortOnLimit: true,
+}));
 
 // Request timeout (30 seconds)
 app.use(requestTimeout(30000));
@@ -91,6 +97,15 @@ try {
   console.warn('⚠️  Slack routes failed to initialize:', err.message);
 }
 
+// Setup PHI data transfer routes (encrypted export/import)
+const dbPath = join(__dirname, '..', 'data', 'health-secure.db');
+try {
+  setupTransferRoutes(app, dbPath);
+  console.log('✅ PHI transfer routes initialized');
+} catch (err) {
+  console.warn('⚠️  PHI transfer routes failed to initialize:', err.message);
+}
+
 // Setup automated encrypted backups (HIPAA compliance)
 const backupDir = join(__dirname, '..', 'backups');
 if (!existsSync(backupDir)) {
@@ -101,7 +116,6 @@ if (process.env.BACKUP_ENCRYPTION_KEY) {
   // Daily backup at 2 AM
   cron.schedule('0 2 * * *', async () => {
     const timestamp = new Date().toISOString().split('T')[0];
-    const dbPath = join(__dirname, '..', 'data', 'health-secure.db');
     const backupPath = join(backupDir, `health_${timestamp}.db.enc`);
     
     try {

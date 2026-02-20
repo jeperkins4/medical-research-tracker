@@ -1,0 +1,22 @@
+[
+  {"query": "Keytruda pembrolizumab bladder cancer", "category": "conventional"},
+  {"query": "Padcev enfortumab vedotin urothelial cancer", "category": "conventional"},
+  {"query": "pembrolizumab enfortumab combination bladder", "category": "conventional"},
+  {"query": "BT8009 zelenectide pevedotin nectin-4", "category": "pipeline"},
+  {"query": "ETx-22 nectin-4 bladder cancer", "category": "pipeline"},
+  {"query": "nectin-4 ADC urothelial cancer trial", "category": "pipeline"},
+  {"query": "low dose naltrexone LDN bladder cancer", "category": "integrative"},
+  {"query": "IV vitamin C urothelial cancer", "category": "integrative"},
+  {"query": "Angiostop sea cucumber cancer", "category": "integrative"},
+  {"query": "fenbendazole cancer clinical", "category": "integrative"},
+  {"query": "ivermectin cancer research", "category": "integrative"},
+  {"query": "methylene blue cancer mitochondrial", "category": "integrative"},
+  {"query": "bladder cancer clinical trial 2025", "category": "trials"},
+  {"query": "urothelial carcinoma immunotherapy trial", "category": "trials"},
+  {"query": "nectin-4 targeted therapy trial", "category": "trials"},
+  {"query": "stage IV bladder cancer new treatment", "category": "trials"},
+  {"query": "nectin-4 expression bladder cancer", "category": "research"},
+  {"query": "checkpoint inhibitor bladder cancer", "category": "research"},
+  {"query": "OGF-OGFr axis cancer", "category": "research"},
+  {"query": "angiogenesis inhibition bladder cancer", "category": "research"}
+]

@@ -12,6 +12,7 @@ import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import MedicationManager from './components/MedicationManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CloudSync from './components/CloudSync';
+import PHITransfer from './components/PHITransfer';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
 
@@ -1358,6 +1359,9 @@ function OverviewView() {
         <>
           <h2>Settings</h2>
           <CloudSync />
+          <div style={{ marginTop: '2rem' }}>
+            <PHITransfer />
+          </div>
         </>
       )}
     </div>
