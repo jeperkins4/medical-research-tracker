@@ -1,5 +1,6 @@
 {
-  "buildCommand": "echo 'No build needed - static HTML'",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/(.*)",
