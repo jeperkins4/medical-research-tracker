@@ -49,8 +49,13 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(',') || [
 
 app.use(cors({ 
   origin: (origin, callback) => {
-    // Allow requests with no origin (like Postman, mobile apps)
+    // Allow requests with no origin (like Postman, mobile apps, Electron)
     if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow file:// protocol (Electron production builds)
+    if (origin.startsWith('file://')) {
       return callback(null, true);
     }
     
