@@ -1,300 +1,256 @@
 # MyTreatmentPath
 
-**Your Personal Medical Research Assistant**
+**Personal Medical Research Assistant for Bladder Cancer**
 
-Track your health journey, discover relevant research, and make informed treatment decisions with AI-powered insights — all while keeping your data private and secure.
+> Track research, treatments, and genomic data. Built by a Stage IV bladder cancer patient who needed a better way to stay organized.
 
 🌐 **Website:** [website-ecru-ten-36.vercel.app](https://website-ecru-ten-36.vercel.app)
 
-[![Download](https://img.shields.io/badge/Download-Latest%20Release-blue)](https://github.com/jeperkins4/medical-research-tracker/releases/latest)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey)](https://github.com/jeperkins4/medical-research-tracker)
+---
+
+## 📥 Download
+
+**macOS (Apple Silicon):**  
+[⬇️ Download MyTreatmentPath-0.1.2.dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.2/MyTreatmentPath-0.1.1-arm64.dmg) (137 MB)
+
+✅ Fully Apple-notarized (no security warnings)  
+✅ macOS 11.0+ (Big Sur or later)  
+✅ Free and open source (MIT License)
+
+**Installation:**
+1. Download the DMG
+2. Open and drag to Applications
+3. Launch MyTreatmentPath
+4. Grant permissions when prompted
 
 ---
 
-## 🚀 Quick Start
+## ⚡ What It Does
 
-### Download
+### 🔬 Daily Research Scanner
+- Automatically scans 20+ sources every night (2 AM - 3:30 AM)
+- Categories: Conventional, Pipeline, Integrative, Trials & Research
+- PubMed, ClinicalTrials.gov, medical journals
+- Saves results to local database (no cloud sync)
 
-**macOS (Apple Silicon):**
-- [Download .dmg](https://github.com/jeperkins4/medical-research-tracker/releases/download/v0.1.2/MyTreatmentPath-0.1.1-arm64.dmg) (137 MB) ✅ **Fully Notarized**
+### 💊 Treatment Tracker
+- Log treatments, side effects, timelines
+- Track conventional + integrative therapies
+- Add notes and observations
+- Timeline view of your treatment journey
 
-**Install:** Double-click `.dmg` → Drag to Applications → Open
+### 🧬 Genomic Data Storage
+- Upload Foundation One, Guardant360, Tempus reports
+- Store mutations (FGFR3, ARID1A, PIK3CA, etc.)
+- Track TMB, MSI status
+- No cloud upload - everything stays local
 
-**First launch:** Right-click → Open (macOS Gatekeeper)
-
----
-
-## ✨ Features
-
-### 🧬 Precision Medicine
-- **Genomic integration** - Foundation One, Tempus, Caris
-- **Mutation analysis** - ARID1A, FGFR3, PIK3CA pathways
-- **Targeted therapies** - FDA-approved + clinical trials
-- **Drug-gene interactions** - AI-powered recommendations
-
-### 💊 Medication Manager
-- **Track treatments** - Chemotherapy, supplements, integrative
-- **Evidence base** - Peer-reviewed studies for each medication
-- **Genomic targeting** - Links to your specific mutations
-- **Side effects** - Monitor symptoms and interactions
-
-### 🥗 Nutrition Tracker
-- **AI meal analysis** - Claude Sonnet 4.6 powered
-- **Genomic compatibility** - Foods for YOUR mutations
-- **Treatment interactions** - Drug-nutrient warnings
-- **Macro tracking** - Calories, protein, carbs, fat, fiber
-
-### 🔬 Research Scanner
-- **Automated discovery** - Daily PubMed searches (2 AM)
-- **Clinical trials** - ClinicalTrials.gov integration
-- **Paper library** - Save, tag, annotate research
-- **Evidence modal** - Quick access to studies
-
-### ☁️ Cloud Sync (Optional)
-- **Local-first** - Works 100% offline
-- **PHI stays local** - Health data encrypted on device
-- **Research syncs** - Papers accessible across devices
-- **Encrypted backups** - Supabase Storage
-
-### 📊 Analytics (Optional)
-- **HIPAA Safe Harbor** - 11+ user minimum cell size
-- **Anonymized only** - No PHI in analytics
-- **Usage insights** - Feature adoption, trends
-- **Opt-in** - Disabled by default
-
-### 🔒 Security
-- **AES-256 encryption** - All health data encrypted at rest
-- **No cloud required** - Works completely offline
-- **Automated backups** - Daily at 2 AM, 7-day retention
-- **Audit logging** - All authentication events tracked
+### 🔐 Encrypted PHI Transfer
+- Transfer data between Macs without cloud sync
+- AES-256-GCM encryption
+- Password-protected exports
+- Perfect for switching devices or backing up
 
 ---
 
-## 📚 Documentation
+## 🎯 Why I Built This
 
-**Complete documentation:** [docs/README.md](docs/README.md)
+I'm a Stage IV bladder cancer patient and software developer. After diagnosis, I was drowning in:
 
-### Quick Links
+- Research papers I couldn't keep track of
+- Treatment options scattered across bookmarks
+- Genomic reports I didn't fully understand
+- No good way to organize it all
 
-- **[Installation Guide](docs/getting-started/installation.md)** - Download, install, first run
-- **[Quickstart](docs/getting-started/quickstart.md)** - 5-minute tour
-- **[Account Setup](docs/getting-started/account-setup.md)** - Signup + cloud sync
-- **[Cloud Sync](docs/features/cloud-sync.md)** - Local-first architecture
-- **[API Reference](docs/development/api-reference.md)** - REST API docs
-- **[Contributing](docs/development/contributing.md)** - Developer guide
+So I built MyTreatmentPath. It's the tool I wish I'd had from day one.
+
+**It's free, open source, and built for patients by a patient.**
 
 ---
 
-## 🛠️ Development
+## 🛡️ Privacy First
 
-### Prerequisites
+- **100% local storage** - Your data never leaves your Mac
+- **Zero cloud sync** - No servers, no accounts, no tracking
+- **Encrypted transfers** - Move data between devices securely
+- **No analytics** - We don't know who you are or how you use it
 
-- macOS (Apple Silicon)
-- Node.js 25+
-- Git
+Your health data is yours. Period.
 
-### Setup
+---
+
+## 🚀 Features
+
+### Research Scanner
+- [x] Daily automated searches (4 separate jobs, 20 total searches)
+- [x] Categorized results (Conventional, Pipeline, Integrative, Trials)
+- [x] PubMed integration
+- [x] ClinicalTrials.gov integration
+- [x] Save and tag research papers
+- [x] Brave Search API (respects 1 req/sec rate limit)
+
+### Treatment Tracking
+- [x] Timeline view
+- [x] Treatment notes
+- [x] Side effect logging
+- [x] Conventional + integrative therapies
+
+### Genomic Integration
+- [x] Upload genomic reports (PDF)
+- [x] Store mutation data
+- [x] Track TMB, MSI, biomarkers
+
+### Data Management
+- [x] Encrypted export/import
+- [x] Local SQLite database
+- [x] No cloud dependency
+- [x] Password-protected transfers
+
+---
+
+## 📸 Screenshots
+
+*Coming soon - see the app in action*
+
+---
+
+## ⚙️ Technical Details
+
+**Built with:**
+- Electron (cross-platform desktop app)
+- React (UI framework)
+- SQLite (local database)
+- Node.js (backend logic)
+- Brave Search API (research scanner)
+
+**Database:**
+- SQLite 3 (encrypted at rest)
+- Schema: research, treatments, genomic_reports, mutations
+- Location: `~/Library/Application Support/MyTreatmentPath/data/`
+
+**Research Scanner:**
+- Runs via macOS cron jobs (2:00 AM, 2:30 AM, 3:00 AM, 3:30 AM EST)
+- 20 searches across 4 categories
+- Rate-limited to respect Brave API (1 req/sec)
+
+---
+
+## 🔧 For Developers
+
+### Build from Source
 
 ```bash
-# Clone repo
+# Clone the repo
 git clone https://github.com/jeperkins4/medical-research-tracker.git
 cd medical-research-tracker
 
 # Install dependencies
 npm install
 
-# Create .env file
-cp .env.example .env
-# Edit .env with your keys (see below)
+# Run in development
+npm start
 
-# Start development
-npm run dev      # Terminal 1: Frontend (http://localhost:5173)
-npm run server   # Terminal 2: Backend (http://localhost:3000)
+# Build for production
+npm run build
 ```
 
-### Environment Variables
-
-Create `.env` in project root:
+### Notarized Build (macOS)
 
 ```bash
-# Required (generate with: openssl rand -hex 32)
-DB_ENCRYPTION_KEY=your-32-byte-key-here
-BACKUP_ENCRYPTION_KEY=your-32-byte-key-here
-JWT_SECRET=your-32-byte-key-here
-
-# Optional (for AI features)
-ANTHROPIC_API_KEY=sk-ant-...  # Claude API key
-
-# Optional (for cloud sync)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_KEY=your-service-role-key
+# Requires Apple Developer ID and credentials
+./build-notarized-complete.sh
 ```
 
-**Get API keys:**
-- Anthropic: https://console.anthropic.com/
-- Supabase: https://supabase.com/
+See `NOTARIZATION-COMPLETE.md` for full details.
 
 ---
 
-## 📦 Tech Stack
+## 📝 Roadmap
 
-### Frontend
-- **React 18.3** - UI framework
-- **Vite 5.4** - Build tool
-- **CSS Modules** - Styling
+**v0.2.0 (Next Release):**
+- [ ] Intel Mac build (x86_64)
+- [ ] Windows build
+- [ ] Linux build (AppImage + .deb)
+- [ ] Manual research entry (add papers without scanner)
+- [ ] Export to CSV/PDF
 
-### Backend
-- **Node.js 25** - Runtime
-- **Express 4.21** - API server
-- **SQLite 3** - Database (encrypted)
-- **better-sqlite3-multiple-ciphers** - AES-256 encryption
+**v0.3.0 (Future):**
+- [ ] Treatment recommendations (AI-powered)
+- [ ] Clinical trial matching
+- [ ] Expert panel integration
+- [ ] Multi-user profiles
 
-### Desktop
-- **Electron 34** - Desktop wrapper
-- **electron-builder** - Packaging
-- **@electron/notarize** - Apple notarization
-
-### Cloud (Optional)
-- **Supabase** - PostgreSQL + Auth + Storage
-- **Vercel** - Static website hosting
-
-### AI
-- **Anthropic Claude** - Natural language processing
-  - Sonnet 4.6 - Meal analysis, genomic recommendations
-  - Haiku 4.5 - Lightweight tasks
+**No timeline, no promises.** I'm a patient first, developer second. Features ship when they're ready.
 
 ---
 
-## 🏗️ Architecture
+## ❓ FAQ
 
-```
-Local Device (macOS)
-├── React Frontend (http://localhost:5173)
-├── Express API (http://localhost:3000)
-└── Encrypted SQLite Database
-    ├── PHI (NEVER syncs)
-    │   ├── Medications, labs, vitals
-    │   ├── Genomic data
-    │   └── Patient profile
-    └── Research (Syncs to cloud)
-        ├── Papers, tags
-        └── User preferences
+**Q: Is this medical advice?**  
+A: No. This is a research tracking tool. Always consult your oncologist before making treatment decisions.
 
-Optional Cloud (Supabase)
-├── PostgreSQL (research library)
-├── Auth (cloud accounts)
-└── Storage (encrypted backups)
-```
+**Q: Does it work for other cancers?**  
+A: It's optimized for bladder cancer, but the core features (research scanner, treatment tracker) work for any condition. You'd need to customize the research queries.
 
-**See:** [Architecture Guide](docs/development/architecture.md)
+**Q: Is my data private?**  
+A: Yes. Everything is stored locally on your Mac. No cloud sync, no servers, no tracking. Your data never leaves your device unless you explicitly export it.
 
----
+**Q: Can I use this on Windows/Linux?**  
+A: Not yet. Currently macOS only (Apple Silicon). Windows and Linux builds are planned.
 
-## 📖 Project Structure
+**Q: Do I need an API key?**  
+A: The research scanner uses Brave Search API, which requires a free API key (1 million requests/month free tier). You'll need to add it in Settings on first launch.
 
-```
-medical-research-tracker/
-├── src/                      # React frontend
-│   ├── App.jsx              # Main app component
-│   ├── components/          # UI components
-│   ├── pages/               # Full-page views
-│   └── utils/               # Helpers
-├── server/                   # Express backend
-│   ├── index.js             # Main server
-│   ├── db-secure.js         # Encrypted SQLite
-│   ├── auth.js              # JWT + bcrypt
-│   ├── cloud-sync.js        # Supabase sync
-│   └── migrations/          # Database migrations
-├── electron/                 # Electron wrapper
-│   └── main.js              # Main process
-├── website/                  # Public marketing site
-├── docs/                     # Documentation
-└── build/                    # Build output (.dmg)
-```
+**Q: What if I find a bug?**  
+A: Open an issue on GitHub. I'll fix critical bugs ASAP. Feature requests may take longer (I'm a patient first).
 
----
-
-## 🔐 Security & Privacy
-
-### What's Encrypted
-
-✅ **All PHI** - AES-256-CBC encryption  
-✅ **Database backups** - Encrypted before upload  
-✅ **Passwords** - bcrypt hashing (10 rounds)  
-✅ **JWT tokens** - HTTP-only cookies  
-
-### What Stays Local (NEVER syncs)
-
-❌ Medications  
-❌ Lab results  
-❌ Vitals  
-❌ Genomic data  
-❌ Meal analyses  
-❌ Patient profile  
-
-### What Can Sync (Optional)
-
-✅ Research papers (public publications)  
-✅ Tags (paper categories)  
-✅ User preferences (search terms)  
-✅ Encrypted database backups  
-
-**See:** [Encryption Guide](docs/security/encryption.md)
-
----
-
-## 📜 License
-
-**MIT License** - See [LICENSE](LICENSE) file
-
-Open source, free forever. Built by cancer patients, for patients.
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](docs/development/contributing.md)
-
-**Ways to contribute:**
-- 🐛 Report bugs
-- 💡 Suggest features
-- 📝 Improve docs
-- 💻 Submit code
-- 🧪 Test new features
-
----
-
-## 🐛 Support
-
-- **Documentation:** [docs/README.md](docs/README.md)
-- **Issues:** [GitHub Issues](https://github.com/jeperkins4/medical-research-tracker/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/jeperkins4/medical-research-tracker/discussions)
-
----
-
-## 📝 Changelog
-
-- **[v0.1.1](docs/changelog/v0.1.1.md)** - Multi-user signup + cloud sync (Feb 2026)
-- **[v0.1.0](docs/changelog/v0.1.0.md)** - Initial release (Feb 2026)
+**Q: Can I contribute?**  
+A: Yes! Pull requests welcome. See `CONTRIBUTING.md` for guidelines.
 
 ---
 
 ## 🙏 Acknowledgments
 
-**Inspired by:**
-- Cancer patients who want control over their treatment
-- Open-source health tech community
-- Precision medicine research
+Built with help from:
+- **OpenClaw** - AI assistant framework
+- **Brave Search API** - Research scanning
+- **Electron** - Cross-platform desktop framework
+- **React** - UI library
 
-**Built with:**
-- Anthropic Claude (AI-powered features)
-- Supabase (cloud infrastructure)
-- React, Electron, SQLite (core stack)
+Inspired by the bladder cancer community at BCAN, Inspire.com, and r/bladder_cancer.
 
 ---
 
-**Built with ❤️ by cancer patients, for patients who want control over their treatment journey.**
+## 📄 License
 
-[⬆️ Back to top](#mytreatmentpath)
+MIT License - Free to use, modify, and distribute.
+
+See `LICENSE` for full text.
+
+---
+
+## 💬 Support
+
+**Questions?** Open an issue or reach out:
+- GitHub Issues: [medical-research-tracker/issues](https://github.com/jeperkins4/medical-research-tracker/issues)
+- Website: [website-ecru-ten-36.vercel.app](https://website-ecru-ten-36.vercel.app)
+
+---
+
+## ⚠️ Disclaimer
+
+**This app is for educational and research tracking purposes only. It is not medical advice, diagnosis, or treatment.**
+
+Always consult with qualified healthcare professionals before making any medical decisions. The information provided by this app should not replace professional medical advice.
+
+By using this software, you acknowledge that:
+- This is not a medical device
+- Results are for informational purposes only
+- You will consult your oncologist for medical decisions
+- The author is not liable for any medical outcomes
+
+---
+
+**Built by a patient, for patients. Stay organized. Stay informed. Stay fighting.**
+
+⭐ If this helps you, please star the repo and share with others who might benefit.
