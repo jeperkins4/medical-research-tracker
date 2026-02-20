@@ -7,16 +7,48 @@ import About from './pages/About';
 function Login({ onLogin, needsSetup }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState('login'); // 'login' | 'terms' | 'privacy' | 'about'
+  const [currentPage, setCurrentPage] = useState('login'); // 'login' | 'signup' | 'terms' | 'privacy' | 'about'
+  const [isSignupMode, setIsSignupMode] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    // Validation for signup mode
+    if (isSignupMode && password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // For signup mode, always use local auth
+      if (isSignupMode) {
+        console.log('[Auth] Creating new account...');
+        
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          onLogin(data.username);
+        } else {
+          setError(data.error || 'Failed to create account');
+        }
+        setLoading(false);
+        return;
+      }
+      
+      // Login mode (existing logic)
       // Try Supabase auth first (if configured)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -148,7 +180,13 @@ function Login({ onLogin, needsSetup }) {
         <div className="login-card">
           <div className="login-header">
             <h2>MyTreatmentPath</h2>
-            <p>{needsSetup ? 'Create your secure account' : 'Sign in to continue'}</p>
+            <p>
+              {needsSetup 
+                ? 'Create your secure account' 
+                : isSignupMode 
+                  ? 'Create a new account' 
+                  : 'Sign in to continue'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
@@ -174,17 +212,32 @@ function Login({ onLogin, needsSetup }) {
                 required
                 minLength={6}
                 disabled={loading}
-                placeholder={needsSetup ? "At least 6 characters" : "Enter your password"}
+                placeholder={(needsSetup || isSignupMode) ? "At least 6 characters" : "Enter your password"}
               />
-              {needsSetup && (
+              {(needsSetup || isSignupMode) && (
                 <small className="help-text">Must be at least 6 characters</small>
               )}
             </div>
 
+            {isSignupMode && (
+              <div className="form-group">
+                <label>Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  disabled={loading}
+                  placeholder="Re-enter your password"
+                />
+              </div>
+            )}
+
             {error && <div className="error-message">{error}</div>}
 
             <button type="submit" disabled={loading} className="login-button">
-              {loading ? 'Please wait...' : needsSetup ? 'Create Account' : 'Sign In'}
+              {loading ? 'Please wait...' : (needsSetup || isSignupMode) ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
@@ -195,9 +248,31 @@ function Login({ onLogin, needsSetup }) {
             </div>
           )}
 
-          {!needsSetup && (
+          {!needsSetup && !isSignupMode && (
             <div className="login-footer">
-              <p>New here? Contact your oncology team about access.</p>
+              <p>
+                Don't have an account?{' '}
+                <button 
+                  onClick={(e) => { e.preventDefault(); setIsSignupMode(true); setError(''); }}
+                  className="link-button"
+                >
+                  Sign up
+                </button>
+              </p>
+            </div>
+          )}
+
+          {!needsSetup && isSignupMode && (
+            <div className="login-footer">
+              <p>
+                Already have an account?{' '}
+                <button 
+                  onClick={(e) => { e.preventDefault(); setIsSignupMode(false); setError(''); setConfirmPassword(''); }}
+                  className="link-button"
+                >
+                  Sign in
+                </button>
+              </p>
             </div>
           )}
 

@@ -44,3 +44,5 @@ coverage/
 notarize-credentials.sh
 developerID_application.cer
 backups/*.db.enc
+.vercel
+.env*.local

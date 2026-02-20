@@ -11,6 +11,7 @@ import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import MedicationManager from './components/MedicationManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import CloudSync from './components/CloudSync';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
 
@@ -1342,11 +1343,23 @@ function OverviewView() {
         >
           Lab Results
         </button>
+        <button 
+          className={subTab === 'settings' ? 'active' : ''}
+          onClick={() => setSubTab('settings')}
+        >
+          ⚙️ Settings
+        </button>
       </div>
       
       {subTab === 'vitals' && <ProfileView />}
       {subTab === 'patient' && <PatientView />}
       {subTab === 'labs' && <TestResultsView />}
+      {subTab === 'settings' && (
+        <>
+          <h2>Settings</h2>
+          <CloudSync />
+        </>
+      )}
     </div>
   );
 }

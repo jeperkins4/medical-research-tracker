@@ -23,6 +23,7 @@ import { initializeErrorHandlers, expressErrorHandler, requestTimeout } from './
 import * as nutrition from './nutrition.js';
 import { analyzeMeal, getMealSuggestions, getSavedAnalysis, saveAnalysis } from './meal-analyzer.js';
 import { setupMedicationRoutes } from './medications-routes.js';
+import { isCloudSyncAvailable, syncUserToCloud, syncResearchToCloud, fullSync, getSyncStatus } from './cloud-sync.js';
 import { setupAnalyticsRoutes } from './analytics-routes.js';
 import { generateAllAnalytics } from './analytics-aggregator.js';
 import { setupSlackRoutes } from './slack-routes.js';
@@ -230,6 +231,129 @@ app.get('/api/auth/check', requireAuth, (req, res) => {
 app.get('/api/auth/needs-setup', (req, res) => {
   const users = query('SELECT COUNT(*) as count FROM users');
   res.json({ needsSetup: users[0].count === 0 });
+});
+
+// Register new user (multi-user support)
+app.post('/api/auth/register', async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+  
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  
+  // Check if username already exists
+  const existingUsers = query('SELECT id FROM users WHERE username = ?', [username]);
+  
+  if (existingUsers.length > 0) {
+    return res.status(400).json({ error: 'Username already taken' });
+  }
+  
+  try {
+    const passwordHash = await hashPassword(password);
+    const result = run('INSERT INTO users (username, password_hash) VALUES (?, ?)', [username, passwordHash]);
+    
+    const token = generateToken(result.lastInsertRowid, username);
+    res.cookie('auth_token', token, { 
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000 
+    });
+    
+    logAuth(result.lastInsertRowid, username, 'register', 'success', null, req);
+    
+    res.json({ success: true, username });
+  } catch (err) {
+    console.error('[Auth] Registration error:', err);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+// ============================================================================
+// Cloud Sync (Local-first, sync when online)
+// ============================================================================
+
+// Get sync status
+app.get('/api/sync/status', requireAuth, (req, res) => {
+  try {
+    const status = getSyncStatus(req.user.userId);
+    res.json(status);
+  } catch (err) {
+    console.error('[Sync] Status error:', err);
+    res.status(500).json({ error: 'Failed to get sync status' });
+  }
+});
+
+// Connect local account to cloud (create Supabase user)
+app.post('/api/sync/connect', requireAuth, async (req, res) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required' });
+  }
+  
+  if (!isCloudSyncAvailable()) {
+    return res.status(503).json({ error: 'Cloud sync not configured on server' });
+  }
+  
+  try {
+    const result = await syncUserToCloud(req.user.userId, email, password);
+    res.json({ 
+      success: true, 
+      supabaseUserId: result.supabaseUserId,
+      alreadySynced: result.alreadySynced || false
+    });
+  } catch (err) {
+    console.error('[Sync] Connect error:', err);
+    res.status(500).json({ error: err.message || 'Failed to connect to cloud' });
+  }
+});
+
+// Sync research papers to cloud
+app.post('/api/sync/research', requireAuth, async (req, res) => {
+  if (!isCloudSyncAvailable()) {
+    return res.status(503).json({ error: 'Cloud sync not configured on server' });
+  }
+  
+  try {
+    const result = await syncResearchToCloud(req.user.userId);
+    res.json({ 
+      success: true, 
+      synced: result.synced 
+    });
+  } catch (err) {
+    console.error('[Sync] Research sync error:', err);
+    res.status(500).json({ error: err.message || 'Failed to sync research' });
+  }
+});
+
+// Full sync (user + research)
+app.post('/api/sync/full', requireAuth, async (req, res) => {
+  const { email, password } = req.body;
+  
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password required for first sync' });
+  }
+  
+  if (!isCloudSyncAvailable()) {
+    return res.status(503).json({ error: 'Cloud sync not configured on server' });
+  }
+  
+  try {
+    const result = await fullSync(req.user.userId, email, password);
+    res.json({ 
+      success: true, 
+      user: result.user,
+      research: result.research
+    });
+  } catch (err) {
+    console.error('[Sync] Full sync error:', err);
+    res.status(500).json({ error: err.message || 'Failed to sync' });
+  }
 });
 
 // Patient Profile

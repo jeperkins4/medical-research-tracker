@@ -243,6 +243,24 @@
   color: #6b7280;
 }
 
+.link-button {
+  background: none;
+  border: none;
+  color: #3730a3;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  font-family: inherit;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.link-button:hover {
+  color: #1e3a8a;
+  text-decoration: underline;
+}
+
 .footer-links {
   margin-top: 32px;
   padding-top: 24px;
