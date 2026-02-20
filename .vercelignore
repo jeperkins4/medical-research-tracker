@@ -1,7 +1,6 @@
 # Ignore everything except website/
 /*
 !/website/
-!/vercel.json
 
 # Explicitly ignore these to prevent build issues
 package.json
