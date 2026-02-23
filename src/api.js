@@ -350,3 +350,69 @@ export async function deletePortalCredential(id) {
   
   return await res.json();
 }
+
+// ============================================================
+// GENOMICS API
+// ============================================================
+
+const isGenomicsAvailable = typeof window !== 'undefined' && window.electron && window.electron.genomics;
+
+/**
+ * Get genomic dashboard data
+ */
+export async function getGenomicDashboard() {
+  if (isGenomicsAvailable) {
+    return window.electron.genomics.getDashboard();
+  }
+  
+  const res = await fetch('/api/genomics/dashboard', { credentials: 'include' });
+  return await res.json();
+}
+
+/**
+ * Get mutation details by ID
+ */
+export async function getMutationDetails(mutationId) {
+  if (isGenomicsAvailable) {
+    return window.electron.genomics.getMutation(mutationId);
+  }
+  
+  const res = await fetch(`/api/genomics/mutations/${mutationId}`, { credentials: 'include' });
+  return await res.json();
+}
+
+/**
+ * Add genomic mutation
+ */
+export async function addGenomicMutation(data) {
+  if (isGenomicsAvailable) {
+    return window.electron.genomics.addMutation(data);
+  }
+  
+  const res = await fetch('/api/genomics/mutations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}
+
+/**
+ * Add therapy for mutation
+ */
+export async function addMutationTherapy(data) {
+  if (isGenomicsAvailable) {
+    return window.electron.genomics.addTherapy(data);
+  }
+  
+  const res = await fetch('/api/genomics/therapies', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}

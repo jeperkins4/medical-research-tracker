@@ -155,6 +155,46 @@ function createTables() {
       status TEXT DEFAULT 'success',
       error_message TEXT,
       FOREIGN KEY (portal_id) REFERENCES portal_credentials (id) ON DELETE CASCADE
+    )`,
+    
+    // Genomic Mutations
+    `CREATE TABLE IF NOT EXISTS genomic_mutations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      gene TEXT NOT NULL,
+      mutation_type TEXT,
+      mutation_detail TEXT,
+      vaf REAL,
+      clinical_significance TEXT,
+      report_source TEXT,
+      report_date TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Mutation Therapies (targeted treatments)
+    `CREATE TABLE IF NOT EXISTS mutation_therapies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER NOT NULL,
+      therapy_name TEXT NOT NULL,
+      therapy_type TEXT,
+      evidence_level TEXT,
+      clinical_trial_id TEXT,
+      trial_phase TEXT,
+      mechanism TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (mutation_id) REFERENCES genomic_mutations (id) ON DELETE CASCADE
+    )`,
+    
+    // Cellular Pathways affected by mutations
+    `CREATE TABLE IF NOT EXISTS mutation_pathways (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER NOT NULL,
+      pathway_name TEXT NOT NULL,
+      pathway_role TEXT,
+      impact_description TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (mutation_id) REFERENCES genomic_mutations (id) ON DELETE CASCADE
     )`
   ];
   
@@ -378,6 +418,162 @@ function closeDatabase() {
   }
 }
 
+/**
+ * Get genomic dashboard data
+ */
+function getGenomicDashboard() {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    // Get all mutations with their therapies and pathways
+    const mutations = db.prepare(`
+      SELECT id, gene, mutation_type, mutation_detail, vaf, clinical_significance, 
+             report_source, report_date, notes
+      FROM genomic_mutations
+      ORDER BY vaf DESC
+    `).all();
+    
+    // For each mutation, get therapies and pathways
+    const dashboard = {
+      mutations: mutations.map(mutation => {
+        const therapies = db.prepare(`
+          SELECT id, therapy_name, therapy_type, evidence_level, clinical_trial_id, 
+                 trial_phase, mechanism, notes
+          FROM mutation_therapies
+          WHERE mutation_id = ?
+          ORDER BY CASE evidence_level
+            WHEN 'FDA_approved' THEN 1
+            WHEN 'Phase_3' THEN 2
+            WHEN 'Phase_2' THEN 3
+            WHEN 'Phase_1' THEN 4
+            ELSE 5
+          END
+        `).all(mutation.id);
+        
+        const pathways = db.prepare(`
+          SELECT pathway_name, pathway_role, impact_description
+          FROM mutation_pathways
+          WHERE mutation_id = ?
+        `).all(mutation.id);
+        
+        return {
+          ...mutation,
+          therapies,
+          pathways
+        };
+      }),
+      summary: {
+        totalMutations: mutations.length,
+        actionableMutations: mutations.filter(m => m.clinical_significance === 'pathogenic' || m.clinical_significance === 'likely_pathogenic').length,
+        highVAF: mutations.filter(m => m.vaf >= 20).length,
+        mediumVAF: mutations.filter(m => m.vaf >= 10 && m.vaf < 20).length,
+        lowVAF: mutations.filter(m => m.vaf < 10).length
+      }
+    };
+    
+    return dashboard;
+  } catch (err) {
+    console.error('[DB-IPC] Get genomic dashboard failed:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Get mutation details by ID
+ */
+function getMutationDetails(mutationId) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    const mutation = db.prepare(`
+      SELECT * FROM genomic_mutations WHERE id = ?
+    `).get(mutationId);
+    
+    if (!mutation) {
+      throw new Error('Mutation not found');
+    }
+    
+    const therapies = db.prepare(`
+      SELECT * FROM mutation_therapies WHERE mutation_id = ?
+    `).all(mutationId);
+    
+    const pathways = db.prepare(`
+      SELECT * FROM mutation_pathways WHERE mutation_id = ?
+    `).all(mutationId);
+    
+    return {
+      ...mutation,
+      therapies,
+      pathways
+    };
+  } catch (err) {
+    console.error('[DB-IPC] Get mutation details failed:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Add genomic mutation
+ */
+function addGenomicMutation(data) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO genomic_mutations 
+      (gene, mutation_type, mutation_detail, vaf, clinical_significance, report_source, report_date, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      data.gene,
+      data.mutation_type,
+      data.mutation_detail,
+      data.vaf,
+      data.clinical_significance,
+      data.report_source,
+      data.report_date,
+      data.notes
+    );
+    
+    return { success: true, id: result.lastInsertRowid };
+  } catch (err) {
+    console.error('[DB-IPC] Add genomic mutation failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Add therapy for mutation
+ */
+function addMutationTherapy(data) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    const stmt = db.prepare(`
+      INSERT INTO mutation_therapies
+      (mutation_id, therapy_name, therapy_type, evidence_level, clinical_trial_id, trial_phase, mechanism, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      data.mutation_id,
+      data.therapy_name,
+      data.therapy_type,
+      data.evidence_level,
+      data.clinical_trial_id,
+      data.trial_phase,
+      data.mechanism,
+      data.notes
+    );
+    
+    return { success: true, id: result.lastInsertRowid };
+  } catch (err) {
+    console.error('[DB-IPC] Add mutation therapy failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   initDatabase,
   needsSetup,
@@ -391,5 +587,9 @@ module.exports = {
   addCondition,
   addMedication,
   addVitals,
+  getGenomicDashboard,
+  getMutationDetails,
+  addGenomicMutation,
+  addMutationTherapy,
   closeDatabase
 };

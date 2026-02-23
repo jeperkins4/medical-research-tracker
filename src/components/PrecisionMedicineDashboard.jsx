@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import MutationDrugNetwork from './MutationDrugNetwork';
 import MetastasisTutorial from './MetastasisTutorial';
+import * as api from '../api';
 
 export default function PrecisionMedicineDashboard() {
   const [dashboard, setDashboard] = useState(null);
@@ -14,10 +15,7 @@ export default function PrecisionMedicineDashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const response = await fetch('/api/genomics/dashboard', {
-        credentials: 'include'
-      });
-      const data = await response.json();
+      const data = await api.getGenomicDashboard();
       setDashboard(data);
       setLoading(false);
     } catch (error) {
@@ -28,10 +26,7 @@ export default function PrecisionMedicineDashboard() {
 
   const fetchMutationDetails = async (mutationId) => {
     try {
-      const response = await fetch(`/api/genomics/mutations/${mutationId}`, {
-        credentials: 'include'
-      });
-      const data = await response.json();
+      const data = await api.getMutationDetails(mutationId);
       setSelectedMutation(data);
       setView('mutation-detail');
     } catch (error) {

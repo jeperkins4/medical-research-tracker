@@ -38,6 +38,14 @@ contextBridge.exposeInMainWorld('electron', {
     getCredentials: () => ipcRenderer.invoke('vault:get-credentials'),
     saveCredential: (data) => ipcRenderer.invoke('vault:save-credential', data),
     deleteCredential: (id) => ipcRenderer.invoke('vault:delete-credential', id)
+  },
+  
+  // Genomics operations
+  genomics: {
+    getDashboard: () => ipcRenderer.invoke('genomics:get-dashboard'),
+    getMutation: (mutationId) => ipcRenderer.invoke('genomics:get-mutation', mutationId),
+    addMutation: (data) => ipcRenderer.invoke('genomics:add-mutation', data),
+    addTherapy: (data) => ipcRenderer.invoke('genomics:add-therapy', data)
   }
 });
 

@@ -185,12 +185,20 @@ export default function PortalManager() {
       return;
     }
     
+    // Check if we're in Electron mode (sync not yet implemented for Electron)
+    const isElectron = typeof window !== 'undefined' && window.electron;
+    if (isElectron) {
+      setError('Portal sync is not yet available in the desktop app. This feature is coming in v0.1.21.');
+      return;
+    }
+    
     setSyncing(prev => ({ ...prev, [credentialId]: true }));
     setError(null);
     
     try {
-      const res = await apiFetch(`/api/portals/credentials/${credentialId}/sync`, {
-        method: 'POST'
+      const res = await fetch(`/api/portals/credentials/${credentialId}/sync`, {
+        method: 'POST',
+        credentials: 'include'
       });
       
       const data = await res.json();

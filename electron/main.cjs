@@ -237,6 +237,27 @@ ipcMain.handle('vault:delete-credential', (event, id) => {
   return vault.deletePortalCredential(id);
 });
 
+// Genomics IPC handlers
+ipcMain.handle('genomics:get-dashboard', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getGenomicDashboard();
+});
+
+ipcMain.handle('genomics:get-mutation', (event, mutationId) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getMutationDetails(mutationId);
+});
+
+ipcMain.handle('genomics:add-mutation', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addGenomicMutation(data);
+});
+
+ipcMain.handle('genomics:add-therapy', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addMutationTherapy(data);
+});
+
 // Error handling
 process.on('uncaughtException', (error) => {
   console.error('[Electron] Uncaught exception:', error);
