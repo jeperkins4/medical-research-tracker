@@ -18,7 +18,41 @@ function getDB() {
   if (!db) {
     const userDataPath = app.getPath('userData');
     const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    console.log('[Vault IPC] Opening database at:', dbPath);
+    
+    // Open database (will create if doesn't exist)
     db = new Database(dbPath);
+    
+    // Verify vault tables exist
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vault_master'").all();
+    if (tables.length === 0) {
+      console.error('[Vault IPC] vault_master table not found! Creating it now...');
+      // Create vault tables if they don't exist (should be created by db-ipc.cjs, but just in case)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS vault_master (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          password_hash TEXT NOT NULL,
+          salt TEXT NOT NULL,
+          iterations INTEGER DEFAULT 100000,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS portal_credentials (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          portal_name TEXT NOT NULL,
+          username TEXT NOT NULL,
+          password_encrypted TEXT,
+          url TEXT,
+          notes TEXT,
+          last_synced TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('[Vault IPC] Vault tables created successfully');
+    }
+    
+    console.log('[Vault IPC] Database opened successfully');
   }
   return db;
 }

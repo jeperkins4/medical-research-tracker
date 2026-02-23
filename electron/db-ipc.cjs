@@ -123,6 +123,38 @@ function createTables() {
       provider TEXT,
       notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Vault Master (for portal credential encryption)
+    `CREATE TABLE IF NOT EXISTS vault_master (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      password_hash TEXT NOT NULL,
+      salt TEXT NOT NULL,
+      iterations INTEGER DEFAULT 100000,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Portal Credentials (encrypted storage)
+    `CREATE TABLE IF NOT EXISTS portal_credentials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      portal_name TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password_encrypted TEXT,
+      url TEXT,
+      notes TEXT,
+      last_synced TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`,
+    
+    // Portal Sync Log
+    `CREATE TABLE IF NOT EXISTS portal_sync_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      portal_id INTEGER,
+      sync_date TEXT DEFAULT CURRENT_TIMESTAMP,
+      records_synced INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'success',
+      error_message TEXT,
+      FOREIGN KEY (portal_id) REFERENCES portal_credentials (id) ON DELETE CASCADE
     )`
   ];
   
