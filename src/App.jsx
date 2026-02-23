@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import Login from './Login';
 import Onboarding from './components/Onboarding';
+import FirstRunWizard from './components/FirstRunWizard';
 import PrecisionMedicineDashboard from './components/PrecisionMedicineDashboard';
 import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
@@ -15,8 +16,9 @@ import CloudSync from './components/CloudSync';
 import PHITransfer from './components/PHITransfer';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
+import * as api from './api';
 
-// Simple apiFetch for components that don't use retry yet
+// Simple apiFetch for components that don't use retry yet (legacy - will be migrated)
 const apiFetch = (url, options = {}) => {
   return fetch(url, {
     ...options,
@@ -35,50 +37,74 @@ function App() {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
+  const [showFirstRunWizard, setShowFirstRunWizard] = useState(false);
 
   useEffect(() => {
-    checkAuth();
+    checkFirstRun();
   }, []);
+
+  const checkFirstRun = async () => {
+    try {
+      // Check if user account exists
+      const needsSetupResult = await api.needsSetup();
+      
+      if (!needsSetupResult) {
+        // User exists - skip wizard, go straight to login
+        console.log('[App] User account exists, skipping wizard');
+        checkAuth();
+        return;
+      }
+      
+      // Check if wizard has been completed/dismissed before
+      const wizardCompleted = localStorage.getItem('firstRunWizardCompleted');
+      
+      if (wizardCompleted === 'true') {
+        // Wizard already shown - skip it, go to login/setup
+        console.log('[App] Wizard already completed, skipping to auth');
+        checkAuth();
+        return;
+      }
+      
+      // First time ever - show wizard
+      console.log('[App] First run detected, showing wizard');
+      setShowFirstRunWizard(true);
+      setLoading(false);
+    } catch (err) {
+      console.error('[App] First run check failed:', err);
+      // If everything fails, proceed with normal auth flow
+      checkAuth();
+    }
+  };
+
+  const handleFirstRunComplete = () => {
+    // Mark wizard as completed (never show again)
+    localStorage.setItem('firstRunWizardCompleted', 'true');
+    setShowFirstRunWizard(false);
+    checkAuth();
+  };
 
   const checkAuth = async () => {
     console.log('[App] Starting auth check...');
     try {
       // Check if setup is needed
       console.log('[App] Checking if setup is needed...');
-      const setupRes = await apiFetch('/api/auth/needs-setup', {
-        credentials: 'include'
-      });
-      console.log('[App] Setup response status:', setupRes.status);
-      const setupData = await setupRes.json();
-      console.log('[App] Setup data:', setupData);
+      const needsSetupResult = await api.needsSetup();
+      console.log('[App] Setup needed:', needsSetupResult);
       
-      if (setupData.needsSetup) {
+      if (needsSetupResult) {
         console.log('[App] Setup needed, showing setup screen');
         setNeedsSetup(true);
         setLoading(false);
         return;
       }
 
-      // Check authentication
-      console.log('[App] Checking authentication...');
-      const authRes = await apiFetch('/api/auth/check', {
-        credentials: 'include'
-      });
-      console.log('[App] Auth response status:', authRes.status);
-
-      if (authRes.ok) {
-        const authData = await authRes.json();
-        console.log('[App] Authenticated as:', authData.username);
-        setAuthenticated(true);
-        setUsername(authData.username);
-        
-        // Fetch health status
-        const healthRes = await apiFetch('/api/health');
-        const healthData = await healthRes.json();
-        setHealth(healthData);
-      } else {
-        console.log('[App] Not authenticated, showing login');
-      }
+      // For embedded database (Electron), we just check if user is logged in
+      // User will be prompted to login if not authenticated
+      console.log('[App] No setup needed, user can login');
+      
+      // Fetch health status
+      const healthData = await api.getHealthStatus();
+      setHealth(healthData);
     } catch (err) {
       console.error('[App] Auth check failed:', err);
     } finally {
@@ -87,39 +113,25 @@ function App() {
     }
   };
 
-  const handleLogin = (user) => {
+  const handleLogin = async (user) => {
     console.log('[App] Login successful, user:', user);
     setUsername(user);
     setAuthenticated(true);
     setNeedsSetup(false);
     
-    // Try to fetch health status (will fail if backend not authenticated, but that's OK for now)
-    apiFetch('/api/health')
-      .then(res => {
-        if (res.ok) {
-          return res.json();
-        } else {
-          console.log('[App] Backend API not authenticated (expected with Supabase login)');
-          // Set a basic health status for cloud-only mode
-          return { status: 'cloud', message: 'Using cloud authentication' };
-        }
-      })
-      .then(data => {
-        console.log('[App] Health status:', data);
-        setHealth(data);
-      })
-      .catch(err => {
-        console.log('[App] API connection failed (expected with Supabase-only login):', err.message);
-        // Set a basic health status even if backend fails
-        setHealth({ status: 'cloud', message: 'Cloud mode - local backend unavailable' });
-      });
+    // Fetch health status
+    try {
+      const healthData = await api.getHealthStatus();
+      console.log('[App] Health status:', healthData);
+      setHealth(healthData);
+    } catch (err) {
+      console.log('[App] Health status check failed:', err.message);
+      setHealth({ status: 'embedded', message: 'Using local database' });
+    }
   };
 
   const handleLogout = async () => {
-    await apiFetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include'
-    });
+    await api.logoutUser();
     setAuthenticated(false);
     setUsername('');
     setHealth(null);
@@ -133,6 +145,11 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Show first-run wizard before anything else
+  if (showFirstRunWizard) {
+    return <FirstRunWizard open={true} onComplete={handleFirstRunComplete} />;
   }
 
   if (!authenticated) {
@@ -210,7 +227,25 @@ function App() {
         {activeTab === 'portals' && <PortalManager />}
         {activeTab === 'analytics' && <AnalyticsDashboard apiFetch={apiFetch} />}
       </main>
+
+      <AppFooter />
     </div>
+  );
+}
+
+function AppFooter() {
+  const [version, setVersion] = useState('');
+
+  useEffect(() => {
+    if (window.electron) {
+      window.electron.getAppVersion().then(v => setVersion(v));
+    }
+  }, []);
+
+  return (
+    <footer className="app-footer">
+      {version && <span className="version">v{version}</span>}
+    </footer>
   );
 }
 
@@ -396,8 +431,7 @@ function PatientView() {
   }, []);
 
   const loadProfile = () => {
-    apiFetch('/api/profile')
-      .then(r => r.json())
+    api.getProfile()
       .then(data => {
         setProfile(data);
         setFormData(data);
@@ -411,11 +445,7 @@ function PatientView() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    await apiFetch('/api/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
+    await api.updateProfile(formData);
     loadProfile();
     setEditing(false);
   };
@@ -756,8 +786,7 @@ function ProfileView() {
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
   useEffect(() => {
-    apiFetch('/api/conditions')
-      .then(r => r.json())
+    api.getConditions()
       .then(data => {
         if (Array.isArray(data)) {
           setConditions(data);
@@ -771,8 +800,7 @@ function ProfileView() {
         setConditions([]);
       });
     
-    apiFetch('/api/medications')
-      .then(r => r.json())
+    api.getMedications()
       .then(data => {
         if (Array.isArray(data)) {
           setMedications(data);
@@ -786,8 +814,7 @@ function ProfileView() {
         setMedications([]);
       });
     
-    apiFetch('/api/vitals?limit=10')
-      .then(r => r.json())
+    api.getVitals(10)
       .then(data => {
         if (Array.isArray(data)) {
           setVitals(data);
@@ -803,22 +830,19 @@ function ProfileView() {
   }, []);
 
   const refreshVitals = () => {
-    apiFetch('/api/vitals?limit=10')
-      .then(r => r.json())
+    api.getVitals(10)
       .then(data => Array.isArray(data) ? setVitals(data) : setVitals([]))
       .catch(() => setVitals([]));
   };
 
   const refreshMedications = () => {
-    apiFetch('/api/medications')
-      .then(r => r.json())
+    api.getMedications()
       .then(data => Array.isArray(data) ? setMedications(data) : setMedications([]))
       .catch(() => setMedications([]));
   };
 
   const refreshConditions = () => {
-    apiFetch('/api/conditions')
-      .then(r => r.json())
+    api.getConditions()
       .then(data => Array.isArray(data) ? setConditions(data) : setConditions([]))
       .catch(() => setConditions([]));
   };
@@ -974,11 +998,7 @@ function ConditionForm({ onSave, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    await apiFetch('/api/conditions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
+    await api.addCondition(formData);
 
     onSave();
     onClose();
@@ -1057,11 +1077,7 @@ function MedicationForm({ onSave, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    await apiFetch('/api/medications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
+    await api.addMedication(formData);
 
     onSave();
     onClose();
@@ -1214,11 +1230,7 @@ function VitalForm({ conditions, onSave, onClose }) {
       payload[field] = payload[field] === '' ? null : parseFloat(payload[field]);
     });
 
-    await apiFetch('/api/vitals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    await api.addVitals(payload);
 
     onSave();
     onClose();

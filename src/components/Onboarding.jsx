@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import './Onboarding.css';
+import { createUser, updateProfile, addCondition } from '../api';
 
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
@@ -67,22 +68,12 @@ function Onboarding({ onComplete }) {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/auth/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          username: accountData.username,
-          password: accountData.password
-        })
-      });
+      const result = await createUser(accountData.username, accountData.password);
 
-      const data = await response.json();
-
-      if (response.ok) {
+      if (result.success) {
         handleNext();
       } else {
-        setError(data.error || 'Failed to create account');
+        setError(result.error || 'Failed to create account');
       }
     } catch (err) {
       console.error('Account creation error:', err);
@@ -103,28 +94,18 @@ function Onboarding({ onComplete }) {
     
     try {
       // Save patient profile
-      await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          date_of_birth: profileData.dateOfBirth
-        })
+      await updateProfile({
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        date_of_birth: profileData.dateOfBirth
       });
 
       // Save diagnosis if provided
       if (profileData.diagnosis) {
-        await fetch('/api/conditions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            name: profileData.diagnosis,
-            diagnosis_date: profileData.diagnosisDate || new Date().toISOString().split('T')[0],
-            status: 'active'
-          })
+        await addCondition({
+          name: profileData.diagnosis,
+          diagnosed_date: profileData.diagnosisDate || new Date().toISOString().split('T')[0],
+          status: 'active'
         });
       }
 

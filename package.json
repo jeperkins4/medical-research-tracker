@@ -1,6 +1,6 @@
 {
   "name": "medical-research-tracker",
-  "version": "0.1.7",
+  "version": "0.1.17",
   "private": true,
   "description": "Personal health records and medical research discovery tool",
   "author": "John Perkins <john@mytreatmentpath.com>",
@@ -13,10 +13,12 @@
     "server": "node server/index.js",
     "start": "npm run server & npm run dev",
     "electron:dev": "concurrently -k \"cross-env NODE_ENV=development npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
-    "electron:build": "npm run build && electron-builder",
-    "electron:build:mac": "npm run build && electron-builder --mac",
+    "electron:build": "npm run build && node build-server.js && electron-builder",
+    "electron:build:mac": "npm run build && node build-server.js && electron-builder --mac",
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:linux": "npm run build && electron-builder --linux",
+    "electron:rebuild": "echo 'Native modules will be rebuilt during electron:build (npmRebuild: true)'",
+    "postinstall": "npx @electron/rebuild -f -m ./node_modules/better-sqlite3",
     "notarize": "./build-notarized.sh"
   },
   "dependencies": {
@@ -27,6 +29,7 @@
     "@mui/material": "^7.3.8",
     "@supabase/supabase-js": "^2.95.3",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "cytoscape": "^3.33.1",
@@ -41,10 +44,6 @@
     "react-cytoscapejs": "^2.0.0",
     "reactflow": "^11.11.4",
     "recharts": "^3.7.0"
-  },
-  "optionalDependencies": {
-    "better-sqlite3": "^12.6.2",
-    "better-sqlite3-multiple-ciphers": "^11.10.0"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",

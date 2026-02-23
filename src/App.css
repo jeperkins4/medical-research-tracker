@@ -1312,3 +1312,18 @@ fieldset legend {
     align-self: flex-start;
   }
 }
+
+/* App Footer */
+.app-footer {
+  margin-top: 40px;
+  padding: 20px 0;
+  text-align: center;
+  color: #6b7280;
+  font-size: 13px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.app-footer .version {
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  color: #9ca3af;
+}

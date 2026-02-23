@@ -3,7 +3,8 @@ import './Login.css';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import About from './pages/About';
-import { apiUrl } from './config';
+import { createUser, loginUser } from './api';
+import packageJson from '../package.json';
 
 function Login({ onLogin, needsSetup }) {
   const [username, setUsername] = useState('');
@@ -27,75 +28,30 @@ function Login({ onLogin, needsSetup }) {
     }
 
     try {
-      // For signup mode, always use local auth
-      if (isSignupMode) {
+      // For signup mode or initial setup, create new user
+      if (isSignupMode || needsSetup) {
         console.log('[Auth] Creating new account...');
         
-        const response = await fetch(apiUrl('/api/auth/register'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ username, password })
-        });
+        const result = await createUser(username, password);
 
-        const data = await response.json();
-
-        if (response.ok) {
-          onLogin(data.username);
+        if (result.success) {
+          onLogin(username);
         } else {
-          setError(data.error || 'Failed to create account');
+          setError(result.error || 'Failed to create account');
         }
         setLoading(false);
         return;
       }
       
-      // Login mode (existing logic)
-      // Try Supabase auth first (if configured)
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      // Login mode
+      console.log('[Auth] Attempting authentication...');
       
-      if (supabaseUrl && supabaseAnonKey) {
-        console.log('[Auth] Attempting Supabase authentication...');
-        
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabase = createClient(supabaseUrl, supabaseAnonKey);
-        
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: username, // Username field accepts email for cloud auth
-          password: password
-        });
-        
-        if (!error && data.user) {
-          console.log('[Auth] Supabase authentication successful');
-          // Store session info locally
-          localStorage.setItem('supabase_user', JSON.stringify(data.user));
-          onLogin(data.user.email);
-          return;
-        }
-        
-        if (error) {
-          console.log('[Auth] Supabase auth failed:', error.message);
-          // Fall through to local auth
-        }
-      }
-      
-      // Fall back to local auth (for offline use or if Supabase auth failed)
-      console.log('[Auth] Attempting local authentication...');
-      
-      const endpoint = needsSetup ? '/api/auth/setup' : '/api/auth/login';
-      const response = await fetch(apiUrl(endpoint), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ username, password })
-      });
+      const result = await loginUser(username, password);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        onLogin(data.username);
+      if (result.success) {
+        onLogin(username);
       } else {
-        setError(data.error || 'Invalid credentials');
+        setError(result.error || 'Invalid credentials');
       }
     } catch (err) {
       console.error('[Auth] Login error:', err);
@@ -298,6 +254,9 @@ function Login({ onLogin, needsSetup }) {
             >
               About Us
             </button>
+          </div>
+          <div className="footer-version">
+            v{packageJson.version}
           </div>
         </div>
       </div>

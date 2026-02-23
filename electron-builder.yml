@@ -5,12 +5,14 @@ npmRebuild: false
 nodeGypRebuild: false
 buildDependenciesFromSource: false
 asarUnpack:
-  - node_modules/better-sqlite3-multiple-ciphers/**/*
+  - node_modules/better-sqlite3/**/*
   - node_modules/bindings/**/*
   - node_modules/file-uri-to-path/**/*
-  - server/**/*
+  - dist-server/**/*
   - data/**/*
-afterSign: build/notarize.js
+# Application-level AES-256-GCM encryption (server/encryption.js)
+# SQLCipher not used due to C++20 compilation issues with Electron 40.4.1
+# afterSign: build/notarize.js  # Disabled for debug builds
 
 directories:
   output: build
@@ -19,9 +21,11 @@ directories:
 files:
   - dist/**/*
   - electron/**/*
-  - server/**/*
+  - dist-server/**/*
   - data/**/*
-  - node_modules/**/*
+  - node_modules/better-sqlite3/**/*
+  - node_modules/bindings/**/*
+  - node_modules/file-uri-to-path/**/*
   - package.json
   - "!**/.git/*"
   - "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md}"

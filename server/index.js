@@ -1,4 +1,13 @@
-import 'dotenv/config';
+// Load environment variables in development (Electron sets them in production)
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const dotenv = await import('dotenv');
+    dotenv.config();
+  } catch (err) {
+    console.warn('[Server] Could not load dotenv (OK in production):', err.message);
+  }
+}
+
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -29,9 +38,19 @@ import { setupAnalyticsRoutes } from './analytics-routes.js';
 import { generateAllAnalytics } from './analytics-aggregator.js';
 import { setupSlackRoutes } from './slack-routes.js';
 import { setupTransferRoutes } from './phi-transfer.js';
+import testEncryptionRoute from './test-encryption-route.js';
+import { initConfig, getConfig, updateConfig, isFirstRunComplete, getConfigAsEnv } from './config-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Initialize configuration (must happen before database init)
+const userDataPath = process.env.USER_DATA_PATH || join(__dirname, '..', 'data');
+initConfig(userDataPath);
+
+// Merge config-based environment variables with process.env
+const configEnv = getConfigAsEnv();
+Object.assign(process.env, configEnv);
 
 // Validate security configuration before starting
 validateConfig();
@@ -167,6 +186,9 @@ app.get('/api/ping', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Encryption test endpoint
+app.use('/api/test', testEncryptionRoute);
+
 // Auth routes
 app.post('/api/auth/setup', async (req, res) => {
   // Check if any users exist
@@ -290,6 +312,58 @@ app.post('/api/auth/register', async (req, res) => {
     console.error('[Auth] Registration error:', err);
     res.status(500).json({ error: 'Failed to create account' });
   }
+});
+
+// ============================================================================
+// Configuration Management
+// ============================================================================
+
+// Get current configuration
+app.get('/api/config', (req, res) => {
+  try {
+    const config = getConfig();
+    
+    // Don't send sensitive keys to frontend, just send enabled status
+    res.json({
+      firstRunComplete: config.firstRunComplete,
+      features: {
+        researchScanner: !!config.apiKeys?.brave,
+        aiMealAnalysis: !!config.apiKeys?.anthropic,
+        cloudSync: config.cloudSync?.enabled || false,
+      },
+      preferences: config.preferences || {},
+    });
+  } catch (err) {
+    console.error('[Config] Get error:', err);
+    res.status(500).json({ error: 'Failed to load configuration' });
+  }
+});
+
+// Update configuration
+app.post('/api/config', (req, res) => {
+  try {
+    const updates = req.body;
+    const newConfig = updateConfig(updates);
+    
+    // Return sanitized config (no API keys)
+    res.json({
+      firstRunComplete: newConfig.firstRunComplete,
+      features: {
+        researchScanner: !!newConfig.apiKeys?.brave,
+        aiMealAnalysis: !!newConfig.apiKeys?.anthropic,
+        cloudSync: newConfig.cloudSync?.enabled || false,
+      },
+      preferences: newConfig.preferences || {},
+    });
+  } catch (err) {
+    console.error('[Config] Update error:', err);
+    res.status(500).json({ error: 'Failed to save configuration' });
+  }
+});
+
+// Check if first run is complete
+app.get('/api/config/first-run', (req, res) => {
+  res.json({ firstRunComplete: isFirstRunComplete() });
 });
 
 // ============================================================================

@@ -1,13 +1,12 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
 const crypto = require('crypto');
+const db = require('./db-ipc.cjs');
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
-let serverProcess;
-const SERVER_PORT = 3000;
+let currentUserId = null;
 const VITE_PORT = 5173;
 
 // Get or generate app secrets
@@ -80,9 +79,6 @@ function createWindow() {
         `Failed to load UI: ${err.message}\n\nPath: ${indexPath}`
       );
     });
-    
-    // TEMPORARY DEBUG: Open DevTools to see errors
-    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.on('closed', () => {
@@ -90,82 +86,33 @@ function createWindow() {
   });
 }
 
-function startBackendServer() {
-  return new Promise((resolve, reject) => {
-    const serverPath = isDev 
-      ? path.join(__dirname, '../server/index.js')
-      : path.join(process.resourcesPath, 'app.asar.unpacked/server/index.js');
-    
-    console.log('[Electron] Starting backend server on port', SERVER_PORT);
-    console.log('[Electron] Server path:', serverPath);
-    
-    // Get app secrets (auto-generated on first run)
-    const secrets = getAppSecrets();
-    
-    // Use Node binary from Electron for ES modules support
-    const nodePath = process.execPath;
-    
-    serverProcess = spawn(nodePath, ['--experimental-specifier-resolution=node', serverPath], {
-      env: {
-        ...process.env,
-        ...secrets,
-        PORT: SERVER_PORT,
-        NODE_ENV: isDev ? 'development' : 'production',
-        ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000',
-        USER_DATA_PATH: app.getPath('userData'),
-        ELECTRON_RUN_AS_NODE: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    });
-
-    serverProcess.stdout.on('data', (data) => {
-      console.log('[Server]', data.toString().trim());
-    });
-
-    serverProcess.stderr.on('data', (data) => {
-      console.error('[Server Error]', data.toString().trim());
-    });
-
-    serverProcess.on('error', (err) => {
-      console.error('[Electron] Failed to start backend:', err);
-      reject(err);
-    });
-
-    serverProcess.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        console.error('[Electron] Backend exited with code:', code);
-      }
-    });
-
-    // Give server 2 seconds to start
-    setTimeout(() => {
-      console.log('[Electron] Backend server should be running');
-      resolve();
-    }, 2000);
-  });
-}
-
-function stopBackendServer() {
-  if (serverProcess) {
-    console.log('[Electron] Stopping backend server');
-    serverProcess.kill();
-    serverProcess = null;
+// Initialize database
+function initializeDatabase() {
+  const userDataPath = app.getPath('userData');
+  console.log('[Electron] Initializing database at:', userDataPath);
+  
+  try {
+    db.initDatabase(userDataPath);
+    console.log('[Electron] Database initialized successfully');
+    return true;
+  } catch (err) {
+    console.error('[Electron] Database initialization failed:', err);
+    dialog.showErrorBox(
+      'Database Error',
+      `Failed to initialize database: ${err.message}`
+    );
+    return false;
   }
 }
 
 // App lifecycle
 app.whenReady().then(async () => {
-  try {
-    await startBackendServer();
-    createWindow();
-  } catch (err) {
-    console.error('[Electron] Failed to start app:', err);
-    dialog.showErrorBox(
-      'Startup Error',
-      'Failed to start the backend server. Please check the logs.'
-    );
+  if (!initializeDatabase()) {
     app.quit();
+    return;
   }
+
+  createWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -175,14 +122,14 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  stopBackendServer();
+  db.closeDatabase();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
 app.on('before-quit', () => {
-  stopBackendServer();
+  db.closeDatabase();
 });
 
 // IPC handlers
@@ -192,6 +139,72 @@ ipcMain.handle('get-app-version', () => {
 
 ipcMain.handle('get-app-path', () => {
   return app.getPath('userData');
+});
+
+// Database IPC handlers
+ipcMain.handle('db:needs-setup', () => {
+  return db.needsSetup();
+});
+
+ipcMain.handle('db:create-user', async (event, username, password) => {
+  const result = db.createUser(username, password);
+  if (result.success) {
+    currentUserId = result.userId;
+  }
+  return result;
+});
+
+ipcMain.handle('db:verify-user', async (event, username, password) => {
+  const result = db.verifyUser(username, password);
+  if (result.success) {
+    currentUserId = result.userId;
+  }
+  return result;
+});
+
+ipcMain.handle('db:get-profile', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getProfile(currentUserId);
+});
+
+ipcMain.handle('db:update-profile', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.updateProfile(currentUserId, data);
+});
+
+ipcMain.handle('db:get-conditions', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getConditions(currentUserId);
+});
+
+ipcMain.handle('db:add-condition', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addCondition(currentUserId, data);
+});
+
+ipcMain.handle('db:get-medications', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getMedications(currentUserId);
+});
+
+ipcMain.handle('db:add-medication', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addMedication(currentUserId, data);
+});
+
+ipcMain.handle('db:get-vitals', (event, limit) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getVitals(currentUserId, limit || 10);
+});
+
+ipcMain.handle('db:add-vitals', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addVitals(currentUserId, data);
+});
+
+ipcMain.handle('db:logout', () => {
+  currentUserId = null;
+  return { success: true };
 });
 
 // Error handling

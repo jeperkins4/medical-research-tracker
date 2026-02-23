@@ -295,6 +295,14 @@
   user-select: none;
 }
 
+.footer-version {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
 /* Legal Pages */
 .legal-page {
   min-height: 100vh;
