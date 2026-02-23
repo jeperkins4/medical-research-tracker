@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-};
+import * as api from '../api';
 
 export default function PortalManager() {
   const [vaultStatus, setVaultStatus] = useState({ initialized: false, unlocked: false });
@@ -52,8 +42,7 @@ export default function PortalManager() {
 
   const loadVaultStatus = async () => {
     try {
-      const res = await apiFetch('/api/vault/status');
-      const data = await res.json();
+      const data = await api.getVaultStatus();
       setVaultStatus(data);
     } catch (err) {
       setError('Failed to check vault status');
@@ -64,8 +53,7 @@ export default function PortalManager() {
 
   const loadCredentials = async () => {
     try {
-      const res = await apiFetch('/api/portals/credentials');
-      const data = await res.json();
+      const data = await api.getPortalCredentials();
       setCredentials(data);
     } catch (err) {
       setError('Failed to load credentials');
@@ -87,21 +75,17 @@ export default function PortalManager() {
     }
 
     try {
-      const res = await apiFetch('/api/vault/setup', {
-        method: 'POST',
-        body: JSON.stringify({ password: masterPassword })
-      });
+      const result = await api.setupVault(masterPassword);
 
-      if (res.ok) {
+      if (result.success) {
         setMasterPassword('');
         setConfirmPassword('');
         loadVaultStatus();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to setup vault');
+        setError(result.error || 'Failed to setup vault');
       }
     } catch (err) {
-      setError('Failed to setup vault');
+      setError(err.message || 'Failed to setup vault');
     }
   };
 
@@ -110,26 +94,22 @@ export default function PortalManager() {
     setError(null);
 
     try {
-      const res = await apiFetch('/api/vault/unlock', {
-        method: 'POST',
-        body: JSON.stringify({ password: masterPassword })
-      });
+      const result = await api.unlockVault(masterPassword);
 
-      if (res.ok) {
+      if (result.success) {
         setMasterPassword('');
         loadVaultStatus();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Invalid password');
+        setError(result.error || 'Invalid password');
       }
     } catch (err) {
-      setError('Failed to unlock vault');
+      setError(err.message || 'Failed to unlock vault');
     }
   };
 
   const handleLockVault = async () => {
     try {
-      await apiFetch('/api/vault/lock', { method: 'POST' });
+      await api.lockVault();
       setCredentials([]);
       loadVaultStatus();
     } catch (err) {
@@ -142,20 +122,16 @@ export default function PortalManager() {
     setError(null);
 
     try {
-      const res = await apiFetch('/api/portals/credentials', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
+      const result = await api.savePortalCredential(formData);
 
-      if (res.ok) {
+      if (result.success) {
         resetForm();
         loadCredentials();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to add credential');
+        setError(result.error || 'Failed to add credential');
       }
     } catch (err) {
-      setError('Failed to add credential');
+      setError(err.message || 'Failed to add credential');
     }
   };
 
@@ -164,20 +140,16 @@ export default function PortalManager() {
     setError(null);
 
     try {
-      const res = await apiFetch(`/api/portals/credentials/${editingId}`, {
-        method: 'PUT',
-        body: JSON.stringify(formData)
-      });
+      const result = await api.savePortalCredential({ ...formData, id: editingId });
 
-      if (res.ok) {
+      if (result.success) {
         resetForm();
         loadCredentials();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to update credential');
+        setError(result.error || 'Failed to update credential');
       }
     } catch (err) {
-      setError('Failed to update credential');
+      setError(err.message || 'Failed to update credential');
     }
   };
 
@@ -185,9 +157,7 @@ export default function PortalManager() {
     if (!confirm('Delete this portal credential? This cannot be undone.')) return;
 
     try {
-      await apiFetch(`/api/portals/credentials/${id}`, {
-        method: 'DELETE'
-      });
+      await api.deletePortalCredential(id);
       loadCredentials();
     } catch (err) {
       setError('Failed to delete credential');
@@ -196,11 +166,13 @@ export default function PortalManager() {
 
   const startEdit = async (id) => {
     try {
-      const res = await apiFetch(`/api/portals/credentials/${id}`);
-      const data = await res.json();
-      setFormData(data);
-      setEditingId(id);
-      setShowAddForm(true);
+      // Find credential in existing credentials array
+      const credential = credentials.find(c => c.id === id);
+      if (credential) {
+        setFormData(credential);
+        setEditingId(id);
+        setShowAddForm(true);
+      }
     } catch (err) {
       setError('Failed to load credential');
     }

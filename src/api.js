@@ -219,3 +219,119 @@ export async function getHealthStatus() {
     return { status: 'offline', message: err.message };
   }
 }
+
+// ============================================================
+// VAULT API (Portal Credentials Encryption)
+// ============================================================
+
+const isVaultAvailable = typeof window !== 'undefined' && window.electron && window.electron.vault;
+
+/**
+ * Get vault status (initialized, unlocked)
+ */
+export async function getVaultStatus() {
+  if (isVaultAvailable) {
+    return window.electron.vault.getStatus();
+  }
+  
+  const res = await fetch('/api/vault/status', { credentials: 'include' });
+  return await res.json();
+}
+
+/**
+ * Setup master password (first time only)
+ */
+export async function setupVault(password) {
+  if (isVaultAvailable) {
+    return window.electron.vault.setup(password);
+  }
+  
+  const res = await fetch('/api/vault/setup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}
+
+/**
+ * Unlock vault with master password
+ */
+export async function unlockVault(password) {
+  if (isVaultAvailable) {
+    return window.electron.vault.unlock(password);
+  }
+  
+  const res = await fetch('/api/vault/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}
+
+/**
+ * Lock vault (clear encryption key from memory)
+ */
+export async function lockVault() {
+  if (isVaultAvailable) {
+    return window.electron.vault.lock();
+  }
+  
+  const res = await fetch('/api/vault/lock', {
+    method: 'POST',
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}
+
+/**
+ * Get portal credentials (decrypted)
+ */
+export async function getPortalCredentials() {
+  if (isVaultAvailable) {
+    return window.electron.vault.getCredentials();
+  }
+  
+  const res = await fetch('/api/portals/credentials', { credentials: 'include' });
+  return await res.json();
+}
+
+/**
+ * Save portal credential (encrypts password)
+ */
+export async function savePortalCredential(data) {
+  if (isVaultAvailable) {
+    return window.electron.vault.saveCredential(data);
+  }
+  
+  const res = await fetch('/api/portals/credentials', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}
+
+/**
+ * Delete portal credential
+ */
+export async function deletePortalCredential(id) {
+  if (isVaultAvailable) {
+    return window.electron.vault.deleteCredential(id);
+  }
+  
+  const res = await fetch(`/api/portals/credentials/${id}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  
+  return await res.json();
+}

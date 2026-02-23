@@ -27,6 +27,17 @@ contextBridge.exposeInMainWorld('electron', {
     getVitals: (limit) => ipcRenderer.invoke('db:get-vitals', limit),
     addVitals: (data) => ipcRenderer.invoke('db:add-vitals', data),
     logout: () => ipcRenderer.invoke('db:logout')
+  },
+  
+  // Vault operations (portal credentials encryption)
+  vault: {
+    getStatus: () => ipcRenderer.invoke('vault:status'),
+    setup: (password) => ipcRenderer.invoke('vault:setup', password),
+    unlock: (password) => ipcRenderer.invoke('vault:unlock', password),
+    lock: () => ipcRenderer.invoke('vault:lock'),
+    getCredentials: () => ipcRenderer.invoke('vault:get-credentials'),
+    saveCredential: (data) => ipcRenderer.invoke('vault:save-credential', data),
+    deleteCredential: (id) => ipcRenderer.invoke('vault:delete-credential', id)
   }
 });
 

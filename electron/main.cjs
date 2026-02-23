@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const db = require('./db-ipc.cjs');
+const vault = require('./vault-ipc.cjs');
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
@@ -205,6 +206,35 @@ ipcMain.handle('db:add-vitals', (event, data) => {
 ipcMain.handle('db:logout', () => {
   currentUserId = null;
   return { success: true };
+});
+
+// Vault IPC handlers
+ipcMain.handle('vault:status', () => {
+  return vault.getVaultStatus();
+});
+
+ipcMain.handle('vault:setup', async (event, password) => {
+  return vault.setupMasterPassword(password);
+});
+
+ipcMain.handle('vault:unlock', async (event, password) => {
+  return vault.unlockVault(password);
+});
+
+ipcMain.handle('vault:lock', () => {
+  return vault.lockVault();
+});
+
+ipcMain.handle('vault:get-credentials', () => {
+  return vault.getPortalCredentials();
+});
+
+ipcMain.handle('vault:save-credential', (event, data) => {
+  return vault.savePortalCredential(data);
+});
+
+ipcMain.handle('vault:delete-credential', (event, id) => {
+  return vault.deletePortalCredential(id);
 });
 
 // Error handling
