@@ -294,26 +294,41 @@ export async function lockVault() {
  * Get portal credentials (decrypted)
  */
 export async function getPortalCredentials() {
+  let credentials;
+  
   if (isVaultAvailable) {
-    return window.electron.vault.getCredentials();
+    credentials = await window.electron.vault.getCredentials();
+  } else {
+    const res = await fetch('/api/portals/credentials', { credentials: 'include' });
+    credentials = await res.json();
   }
   
-  const res = await fetch('/api/portals/credentials', { credentials: 'include' });
-  return await res.json();
+  // Map portal_name to service_name for UI compatibility
+  return credentials.map(cred => ({
+    ...cred,
+    service_name: cred.portal_name || cred.service_name
+  }));
 }
 
 /**
  * Save portal credential (encrypts password)
  */
 export async function savePortalCredential(data) {
+  // Map service_name to portal_name for database compatibility
+  const mappedData = {
+    ...data,
+    portal_name: data.service_name || data.portal_name,
+    service_name: undefined // Remove to avoid confusion
+  };
+  
   if (isVaultAvailable) {
-    return window.electron.vault.saveCredential(data);
+    return window.electron.vault.saveCredential(mappedData);
   }
   
   const res = await fetch('/api/portals/credentials', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify(mappedData),
     credentials: 'include'
   });
   
