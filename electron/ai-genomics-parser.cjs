@@ -104,29 +104,60 @@ async function parseWithVision(client, pdfBuffer) {
 
   console.log('[AI Parser] Image-based PDF detected — sending to Claude as document');
 
-  const message = await client.messages.create({
-    model:      'claude-opus-4-6',
-    max_tokens: 4096,
-    system:     SYSTEM_PROMPT,
-    messages: [{
-      role:    'user',
-      content: [
-        {
-          type:   'document',
-          source: {
-            type:       'base64',
-            media_type: 'application/pdf',
-            data:       base64,
+  // PDF document support may be GA in newer SDK versions.
+  // Pass the beta flag as an HTTP header (not a body field) for compatibility.
+  let message;
+  try {
+    message = await client.messages.create({
+      model:      'claude-opus-4-6',
+      max_tokens: 4096,
+      system:     SYSTEM_PROMPT,
+      messages: [{
+        role:    'user',
+        content: [
+          {
+            type:   'document',
+            source: {
+              type:       'base64',
+              media_type: 'application/pdf',
+              data:       base64,
+            },
           },
-        },
-        {
-          type: 'text',
-          text: `Extract ALL genetic findings from this genomic report PDF.\n\n${JSON_SCHEMA}`,
-        },
-      ],
-    }],
-    betas: ['pdfs-2024-09-25'],
-  });
+          {
+            type: 'text',
+            text: `Extract ALL genetic findings from this genomic report PDF.\n\n${JSON_SCHEMA}`,
+          },
+        ],
+      }],
+    }, {
+      headers: { 'anthropic-beta': 'pdfs-2024-09-25' },
+    });
+  } catch (betaErr) {
+    // If beta header also fails, try without it (PDF may be GA)
+    console.warn('[AI Parser] Beta header failed, retrying without beta flag:', betaErr.message);
+    message = await client.messages.create({
+      model:      'claude-opus-4-6',
+      max_tokens: 4096,
+      system:     SYSTEM_PROMPT,
+      messages: [{
+        role:    'user',
+        content: [
+          {
+            type:   'document',
+            source: {
+              type:       'base64',
+              media_type: 'application/pdf',
+              data:       base64,
+            },
+          },
+          {
+            type: 'text',
+            text: `Extract ALL genetic findings from this genomic report PDF.\n\n${JSON_SCHEMA}`,
+          },
+        ],
+      }],
+    });
+  }
 
   return parseAIJson(message.content[0]?.text || '');
 }
