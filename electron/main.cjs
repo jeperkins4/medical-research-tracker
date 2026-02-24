@@ -290,15 +290,14 @@ ipcMain.handle('portal:sync', async (event, credentialId) => {
   }
 });
 
-// AI-powered genomic report parser (replaces regex-based Foundation One parser)
-const { parseGenomicReportWithAI } = require('./ai-genomics-parser.cjs');
-
+// AI-powered genomic report parser (lazy-loaded to prevent startup crash if module fails)
 ipcMain.handle('genomics:parse-foundation-one', async (event, filePath) => {
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return { success: false, error: 'ANTHROPIC_API_KEY not configured. Add it to your .env file.' };
     }
+    const { parseGenomicReportWithAI } = require('./ai-genomics-parser.cjs');
     const result = await parseGenomicReportWithAI(filePath, apiKey);
     return {
       success:      true,
