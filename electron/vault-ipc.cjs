@@ -52,6 +52,39 @@ function getDB() {
       console.log('[Vault IPC] Vault tables created successfully');
     }
     
+    // ── Schema migration: ensure portal_credentials has all expected columns ──
+    // Run this every time regardless of which layer created the table first.
+    try {
+      const existingCols = new Set(
+        db.prepare('PRAGMA table_info(portal_credentials)').all().map(c => c.name)
+      );
+      const needed = [
+        ['service_name',          'TEXT'],
+        ['username_encrypted',    'TEXT'],
+        ['notes_encrypted',       'TEXT'],
+        ['totp_secret_encrypted', 'TEXT'],
+        ['updated_at',            'TEXT DEFAULT CURRENT_TIMESTAMP'],
+        ['last_sync',             'TEXT'],
+        ['last_sync_status',      "TEXT DEFAULT 'never'"],
+        ['portal_type',           "TEXT DEFAULT 'generic'"],
+        ['base_url',              'TEXT'],
+        ['mfa_method',            "TEXT DEFAULT 'none'"],
+      ];
+      for (const [col, def] of needed) {
+        if (!existingCols.has(col)) {
+          db.exec(`ALTER TABLE portal_credentials ADD COLUMN ${col} ${def}`);
+          console.log(`[Vault IPC] Migration: added portal_credentials.${col}`);
+        }
+      }
+      // Backfill old column names → new column names
+      if (!existingCols.has('service_name')) {
+        db.exec("UPDATE portal_credentials SET service_name = portal_name WHERE service_name IS NULL AND portal_name IS NOT NULL");
+        db.exec("UPDATE portal_credentials SET base_url = url WHERE base_url IS NULL AND url IS NOT NULL");
+        db.exec("UPDATE portal_credentials SET username_encrypted = username WHERE username_encrypted IS NULL AND username IS NOT NULL");
+      }
+    } catch (migErr) {
+      console.error('[Vault IPC] Schema migration warning:', migErr.message);
+    }
     console.log('[Vault IPC] Database opened successfully');
   }
   return db;

@@ -4,15 +4,9 @@
  * from FoundationOne CDx PDF reports (Foundation Medicine standard format).
  */
 
-// Use lib path directly — avoids pdf-parse loading test fixtures at require time
-// (a known issue in packaged Electron apps that causes "pdfParse is not a function")
-let pdfParse;
-try {
-  pdfParse = require('pdf-parse/lib/pdf-parse.js');
-} catch {
-  const raw = require('pdf-parse');
-  pdfParse = (typeof raw === 'function') ? raw : (raw.default || raw);
-}
+// pdf-parse v1.1.1 — exports a function directly
+// v2.x changed the API completely; we pin to v1.1.1 via package.json
+const pdfParse = require('pdf-parse');
 const fs = require('fs');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

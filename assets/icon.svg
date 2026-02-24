@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <clipPath id="squircle">
+      <rect width="1024" height="1024" rx="225" ry="225"/>
+    </clipPath>
+
+    <!-- Deep steel-blue to near-black gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#0a1628"/>
+      <stop offset="55%"  stop-color="#0d2847"/>
+      <stop offset="100%" stop-color="#051018"/>
+    </linearGradient>
+
+    <!-- Accent gradient for the helix strands (cyan-to-white) -->
+    <linearGradient id="strand1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#00c8ff"/>
+      <stop offset="100%" stop-color="#0084cc"/>
+    </linearGradient>
+
+    <linearGradient id="strand2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#88ccee"/>
+    </linearGradient>
+
+    <!-- Arrow gradient -->
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#0099cc"/>
+    </linearGradient>
+
+    <!-- Subtle top-left highlight -->
+    <radialGradient id="toplight" cx="25%" cy="20%" r="50%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <!-- Background -->
+    <rect width="1024" height="1024" fill="url(#bg)"/>
+    <rect width="1024" height="1024" fill="url(#toplight)"/>
+
+    <!-- ============================================================
+         BOLD ANGULAR DNA  →  ARROW
+         Two straight-segment zig-zag strands (not sine curves)
+         Hard angles = masculine, technical, structured
+    ============================================================ -->
+
+    <!-- LEFT STRAND — bold angular zig-zag -->
+    <polyline
+      points="
+        392,100
+        472,230
+        392,360
+        472,490
+        392,620
+        472,750
+        512,820
+      "
+      fill="none"
+      stroke="url(#strand1)"
+      stroke-width="28"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+    />
+
+    <!-- RIGHT STRAND — mirrored bold angular zig-zag -->
+    <polyline
+      points="
+        632,100
+        552,230
+        632,360
+        552,490
+        632,620
+        552,750
+        512,820
+      "
+      fill="none"
+      stroke="url(#strand2)"
+      stroke-width="28"
+      stroke-linejoin="round"
+      stroke-linecap="round"
+      opacity="0.85"
+    />
+
+    <!-- BASE PAIR RUNGS — thick horizontal bars at each crossing -->
+    <!-- Rung 1: top (strands meet near 100) -->
+    <line x1="392" y1="100" x2="632" y2="100"
+      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
+    <!-- Rung 2: widest spread ~y=230 -->
+    <line x1="472" y1="230" x2="552" y2="230"
+      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+    <!-- Rung 3: crossover ~y=360 -->
+    <line x1="392" y1="360" x2="632" y2="360"
+      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
+    <!-- Rung 4: widest spread ~y=490 -->
+    <line x1="472" y1="490" x2="552" y2="490"
+      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+    <!-- Rung 5: crossover ~y=620 -->
+    <line x1="392" y1="620" x2="632" y2="620"
+      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
+    <!-- Rung 6: narrowing ~y=750 -->
+    <line x1="472" y1="750" x2="552" y2="750"
+      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+
+    <!-- ============================================================
+         BOLD DOWNWARD ARROW — "The Path"
+         Solid filled chevron below the helix terminus
+    ============================================================ -->
+    <polygon
+      points="512,940  420,840  465,840  465,820  559,820  559,840  604,840"
+      fill="url(#arrowGrad)"
+      opacity="0.97"
+    />
+
+    <!-- Thin accent lines framing the icon (rule of thirds grid — subtle) -->
+    <line x1="100" y1="512" x2="924" y2="512"
+      stroke="white" stroke-width="1" opacity="0.04"/>
+    <line x1="512" y1="100" x2="512" y2="924"
+      stroke="white" stroke-width="1" opacity="0.04"/>
+  </g>
+</svg>
