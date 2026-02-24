@@ -1,6 +1,6 @@
 {
   "name": "medical-research-tracker",
-  "version": "0.1.22",
+  "version": "0.1.30",
   "private": true,
   "description": "Personal health records and medical research discovery tool",
   "author": "John Perkins <john@mytreatmentpath.com>",
@@ -19,7 +19,10 @@
     "electron:build:linux": "npm run build && electron-builder --linux",
     "electron:rebuild": "echo 'Native modules will be rebuilt during electron:build (npmRebuild: true)'",
     "postinstall": "npx @electron/rebuild -f -m ./node_modules/better-sqlite3",
-    "notarize": "./build-notarized.sh"
+    "notarize": "./build-notarized.sh",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
@@ -40,6 +43,7 @@
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "openai": "^6.21.0",
+    "pdf-parse": "^2.4.5",
     "playwright": "^1.58.2",
     "react-cytoscapejs": "^2.0.0",
     "reactflow": "^11.11.4",
@@ -48,6 +52,7 @@
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
     "@electron/rebuild": "^4.0.3",
+    "@playwright/test": "^1.58.2",
     "@vitejs/plugin-react": "^4.2.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",

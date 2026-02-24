@@ -7,6 +7,7 @@ import PrecisionMedicineDashboard from './components/PrecisionMedicineDashboard'
 import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
+import SubscriptionManager from './components/SubscriptionManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
 import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
@@ -216,6 +217,12 @@ function App() {
         >
           📊 Analytics
         </button>
+        <button
+          className={activeTab === 'subscriptions' ? 'active' : ''}
+          onClick={() => setActiveTab('subscriptions')}
+        >
+          💳 Subscriptions
+        </button>
       </nav>
 
       <main>
@@ -226,6 +233,7 @@ function App() {
         {activeTab === 'summary' && <HealthcareSummary />}
         {activeTab === 'portals' && <PortalManager />}
         {activeTab === 'analytics' && <AnalyticsDashboard apiFetch={apiFetch} />}
+        {activeTab === 'subscriptions' && <SubscriptionManager />}
       </main>
 
       <AppFooter />

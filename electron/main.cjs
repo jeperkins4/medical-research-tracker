@@ -151,6 +151,8 @@ ipcMain.handle('db:create-user', async (event, username, password) => {
   const result = db.createUser(username, password);
   if (result.success) {
     currentUserId = result.userId;
+    // Auto-unlock vault with user's password
+    vault.autoUnlockVault(password);
   }
   return result;
 });
@@ -159,6 +161,8 @@ ipcMain.handle('db:verify-user', async (event, username, password) => {
   const result = db.verifyUser(username, password);
   if (result.success) {
     currentUserId = result.userId;
+    // Auto-unlock vault with user's password
+    vault.autoUnlockVault(password);
   }
   return result;
 });
@@ -236,6 +240,68 @@ ipcMain.handle('vault:save-credential', (event, data) => {
 ipcMain.handle('vault:delete-credential', (event, id) => {
   return vault.deletePortalCredential(id);
 });
+
+// Portal sync IPC handlers
+const portalSync = require('./portal-sync-ipc.cjs');
+
+ipcMain.handle('portal:sync', async (event, credentialId) => {
+  try {
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    const result = await portalSync.syncPortal(credentialId, dbPath);
+    return result;
+  } catch (error) {
+    console.error('[Electron] Portal sync error:', error);
+    return {
+      success: false,
+      recordsImported: 0,
+      summary: {
+        connector: 'Portal Sync',
+        status: 'Failed',
+        message: error.message,
+        details: {},
+        errors: [error.message]
+      }
+    };
+  }
+});
+
+// Foundation One PDF Parser
+const { parseFoundationOneReport } = require('./foundation-one-parser.cjs');
+
+ipcMain.handle('genomics:parse-foundation-one', async (event, filePath) => {
+  try {
+    return await parseFoundationOneReport(filePath);
+  } catch (err) {
+    console.error('[Main] Foundation One parse failed:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('genomics:import-mutations', (event, mutations, replaceExisting) => {
+  return db.importFoundationOneMutations(mutations, replaceExisting || false);
+});
+
+// File dialog for report upload
+ipcMain.handle('dialog:open-file', async (event, options) => {
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(mainWindow, options || {
+    title: 'Open Foundation One Report',
+    filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+    properties: ['openFile'],
+  });
+  return result;
+});
+
+// Subscription IPC handlers
+ipcMain.handle('subscriptions:categories', () => db.SUBSCRIPTION_CATEGORIES);
+ipcMain.handle('subscriptions:list',    (e, filters)  => db.getSubscriptions(filters || {}));
+ipcMain.handle('subscriptions:summary', ()            => db.getSubscriptionSummary());
+ipcMain.handle('subscriptions:add',     (e, data)     => db.addSubscription(data));
+ipcMain.handle('subscriptions:update',  (e, id, data) => db.updateSubscription(id, data));
+ipcMain.handle('subscriptions:delete',  (e, id)       => db.deleteSubscription(id));
+ipcMain.handle('subscriptions:payments:list', (e, subId) => db.getSubscriptionPayments(subId));
+ipcMain.handle('subscriptions:payments:add',  (e, subId, data) => db.addSubscriptionPayment(subId, data));
 
 // Genomics IPC handlers (authentication gated at UI login, not IPC level)
 ipcMain.handle('genomics:get-dashboard', () => {

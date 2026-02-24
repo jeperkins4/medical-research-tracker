@@ -30197,6 +30197,52 @@ var init_db_secure = __esm({
       FOREIGN KEY (tag_id) REFERENCES tags(id)
     );
 
+    -- \u2500\u2500 Subscription Tracker \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      service_name        TEXT    NOT NULL,
+      provider            TEXT,
+      category            TEXT    DEFAULT 'Other',
+      status              TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active','trial','paused','cancelled','inactive')),
+      cost                REAL    NOT NULL DEFAULT 0,
+      currency            TEXT    NOT NULL DEFAULT 'USD',
+      billing_cycle       TEXT    NOT NULL DEFAULT 'monthly'
+                            CHECK (billing_cycle IN ('monthly','annual','quarterly','biannual','weekly','one_time')),
+      billing_day         INTEGER CHECK (billing_day BETWEEN 1 AND 31),
+      billing_month       INTEGER CHECK (billing_month BETWEEN 1 AND 12),
+      next_billing_date   TEXT,
+      trial_ends_at       TEXT,
+      auto_renews         INTEGER NOT NULL DEFAULT 1,
+      reminder_days       INTEGER NOT NULL DEFAULT 3,
+      payment_method      TEXT,
+      account_email       TEXT,
+      account_username    TEXT,
+      dashboard_url       TEXT,
+      support_url         TEXT,
+      notes               TEXT,
+      tags                TEXT    DEFAULT '[]',
+      cancelled_at        TEXT,
+      created_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS subscription_payments (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id       INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      amount                REAL    NOT NULL,
+      currency              TEXT    NOT NULL DEFAULT 'USD',
+      paid_at               TEXT,
+      billing_period_start  TEXT,
+      billing_period_end    TEXT,
+      status                TEXT    NOT NULL DEFAULT 'paid'
+                              CHECK (status IN ('paid','failed','pending','refunded')),
+      transaction_id        TEXT,
+      notes                 TEXT,
+      created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- HIPAA Audit Log (immutable)
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30232,6 +30278,19 @@ var init_db_secure = __esm({
       END;
   `);
       console.log("\u2705 Secure database initialized (PHI encrypted at rest)");
+      const runMigration = (table, column, definition) => {
+        try {
+          const cols = db2.prepare(`PRAGMA table_info(${table})`).all();
+          const exists = cols.some((c) => c.name === column);
+          if (!exists) {
+            db2.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+            console.log(`\u2705 Migration: added ${table}.${column}`);
+          }
+        } catch (e2) {
+        }
+      };
+      runMigration("portal_credentials", "last_sync", "TEXT");
+      runMigration("portal_credentials", "last_sync_status", "TEXT DEFAULT 'never'");
       return db2;
     };
     query = (sql, params = []) => {
@@ -71915,6 +71974,379 @@ async function handleSlackInteraction(payload) {
   }
 }
 
+// server/subscription-routes.js
+init_db_secure();
+var SUBSCRIPTION_CATEGORIES = [
+  "AI & Machine Learning",
+  "Cloud Infrastructure",
+  "Communication & Collaboration",
+  "Database & Storage",
+  "Development Tools",
+  "Domain & Hosting",
+  "Finance & Banking",
+  "Healthcare & Medical",
+  "Media & Entertainment",
+  "Productivity",
+  "Security & Privacy",
+  "Software / SaaS",
+  "Other"
+];
+function computeNextBillingDate(billing_cycle, billing_day, billing_month) {
+  const now = /* @__PURE__ */ new Date();
+  let next = new Date(now);
+  switch (billing_cycle) {
+    case "monthly": {
+      const day = billing_day || 1;
+      next.setDate(day);
+      if (next <= now) next.setMonth(next.getMonth() + 1);
+      break;
+    }
+    case "annual": {
+      const month = (billing_month || 1) - 1;
+      const day = billing_day || 1;
+      next.setMonth(month);
+      next.setDate(day);
+      if (next <= now) next.setFullYear(next.getFullYear() + 1);
+      break;
+    }
+    case "quarterly": {
+      next.setMonth(next.getMonth() + 3);
+      if (billing_day) next.setDate(billing_day);
+      break;
+    }
+    case "biannual": {
+      next.setMonth(next.getMonth() + 6);
+      if (billing_day) next.setDate(billing_day);
+      break;
+    }
+    case "weekly": {
+      next.setDate(next.getDate() + 7);
+      break;
+    }
+    case "one_time":
+    default:
+      return null;
+  }
+  return next.toISOString().split("T")[0];
+}
+function setupSubscriptionRoutes(app2, requireAuth2) {
+  app2.get("/api/subscriptions/categories", requireAuth2, (req, res) => {
+    res.json(SUBSCRIPTION_CATEGORIES);
+  });
+  app2.get("/api/subscriptions", requireAuth2, (req, res) => {
+    try {
+      const { status, category } = req.query;
+      let sql = "SELECT * FROM subscriptions WHERE user_id = ?";
+      const params = [req.user.id];
+      if (status) {
+        sql += " AND status = ?";
+        params.push(status);
+      }
+      if (category) {
+        sql += " AND category = ?";
+        params.push(category);
+      }
+      sql += " ORDER BY service_name ASC";
+      const subs = query(sql, params);
+      const result = subs.map((s2) => ({ ...s2, tags: JSON.parse(s2.tags || "[]") }));
+      res.json(result);
+    } catch (err) {
+      console.error("[subscriptions] GET error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/subscriptions/summary", requireAuth2, (req, res) => {
+    try {
+      const subs = query(
+        `SELECT * FROM subscriptions WHERE user_id = ? AND status IN ('active','trial')`,
+        [req.user.id]
+      );
+      let monthlyTotal = 0;
+      let annualTotal = 0;
+      subs.forEach((s2) => {
+        const cost = s2.cost || 0;
+        switch (s2.billing_cycle) {
+          case "monthly":
+            monthlyTotal += cost;
+            annualTotal += cost * 12;
+            break;
+          case "annual":
+            monthlyTotal += cost / 12;
+            annualTotal += cost;
+            break;
+          case "quarterly":
+            monthlyTotal += cost / 3;
+            annualTotal += cost * 4;
+            break;
+          case "biannual":
+            monthlyTotal += cost / 6;
+            annualTotal += cost * 2;
+            break;
+          case "weekly":
+            monthlyTotal += cost * 4.33;
+            annualTotal += cost * 52;
+            break;
+          default:
+            break;
+        }
+      });
+      const byCategory = {};
+      subs.forEach((s2) => {
+        const cat = s2.category || "Other";
+        if (!byCategory[cat]) byCategory[cat] = { count: 0, monthly: 0 };
+        byCategory[cat].count++;
+        let m2 = 0;
+        switch (s2.billing_cycle) {
+          case "monthly":
+            m2 = s2.cost;
+            break;
+          case "annual":
+            m2 = s2.cost / 12;
+            break;
+          case "quarterly":
+            m2 = s2.cost / 3;
+            break;
+          case "biannual":
+            m2 = s2.cost / 6;
+            break;
+          case "weekly":
+            m2 = s2.cost * 4.33;
+            break;
+        }
+        byCategory[cat].monthly += m2;
+      });
+      res.json({
+        total_active: subs.length,
+        monthly_total: Math.round(monthlyTotal * 100) / 100,
+        annual_total: Math.round(annualTotal * 100) / 100,
+        by_category: byCategory
+      });
+    } catch (err) {
+      console.error("[subscriptions] summary error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/subscriptions/:id", requireAuth2, (req, res) => {
+    try {
+      const rows = query(
+        "SELECT * FROM subscriptions WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id]
+      );
+      if (!rows.length) return res.status(404).json({ error: "Not found" });
+      const sub = { ...rows[0], tags: JSON.parse(rows[0].tags || "[]") };
+      res.json(sub);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.post("/api/subscriptions", requireAuth2, (req, res) => {
+    try {
+      const {
+        service_name,
+        provider,
+        category = "Other",
+        status = "active",
+        cost,
+        currency = "USD",
+        billing_cycle = "monthly",
+        billing_day,
+        billing_month,
+        next_billing_date,
+        trial_ends_at,
+        auto_renews = true,
+        reminder_days = 3,
+        payment_method,
+        account_email,
+        account_username,
+        dashboard_url,
+        support_url,
+        notes,
+        tags = []
+      } = req.body;
+      if (!service_name) return res.status(400).json({ error: "service_name is required" });
+      if (cost == null) return res.status(400).json({ error: "cost is required" });
+      const nextBill = next_billing_date || computeNextBillingDate(billing_cycle, billing_day, billing_month);
+      const result = run(`
+        INSERT INTO subscriptions (
+          user_id, service_name, provider, category, status,
+          cost, currency, billing_cycle, billing_day, billing_month,
+          next_billing_date, trial_ends_at, auto_renews, reminder_days,
+          payment_method, account_email, account_username,
+          dashboard_url, support_url, notes, tags
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `, [
+        req.user.id,
+        service_name,
+        provider || null,
+        category,
+        status,
+        cost,
+        currency,
+        billing_cycle,
+        billing_day || null,
+        billing_month || null,
+        nextBill || null,
+        trial_ends_at || null,
+        auto_renews ? 1 : 0,
+        reminder_days,
+        payment_method || null,
+        account_email || null,
+        account_username || null,
+        dashboard_url || null,
+        support_url || null,
+        notes || null,
+        JSON.stringify(tags)
+      ]);
+      res.status(201).json({ id: result.lastInsertRowid, service_name });
+    } catch (err) {
+      console.error("[subscriptions] POST error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.put("/api/subscriptions/:id", requireAuth2, (req, res) => {
+    try {
+      const existing = query(
+        "SELECT * FROM subscriptions WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id]
+      );
+      if (!existing.length) return res.status(404).json({ error: "Not found" });
+      const current = existing[0];
+      const updated = { ...current, ...req.body };
+      if (req.body.status === "cancelled" && current.status !== "cancelled") {
+        updated.cancelled_at = (/* @__PURE__ */ new Date()).toISOString();
+      }
+      if (!req.body.next_billing_date) {
+        updated.next_billing_date = computeNextBillingDate(updated.billing_cycle, updated.billing_day, updated.billing_month) || current.next_billing_date;
+      }
+      run(`
+        UPDATE subscriptions SET
+          service_name = ?, provider = ?, category = ?, status = ?,
+          cost = ?, currency = ?, billing_cycle = ?,
+          billing_day = ?, billing_month = ?,
+          next_billing_date = ?, trial_ends_at = ?,
+          auto_renews = ?, reminder_days = ?,
+          payment_method = ?, account_email = ?, account_username = ?,
+          dashboard_url = ?, support_url = ?, notes = ?,
+          tags = ?, cancelled_at = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND user_id = ?
+      `, [
+        updated.service_name,
+        updated.provider,
+        updated.category,
+        updated.status,
+        updated.cost,
+        updated.currency,
+        updated.billing_cycle,
+        updated.billing_day,
+        updated.billing_month,
+        updated.next_billing_date,
+        updated.trial_ends_at,
+        updated.auto_renews ? 1 : 0,
+        updated.reminder_days,
+        updated.payment_method,
+        updated.account_email,
+        updated.account_username,
+        updated.dashboard_url,
+        updated.support_url,
+        updated.notes,
+        JSON.stringify(Array.isArray(updated.tags) ? updated.tags : JSON.parse(updated.tags || "[]")),
+        updated.cancelled_at || null,
+        req.params.id,
+        req.user.id
+      ]);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("[subscriptions] PUT error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.delete("/api/subscriptions/:id", requireAuth2, (req, res) => {
+    try {
+      const result = run(
+        "DELETE FROM subscriptions WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id]
+      );
+      if (!result.changes) return res.status(404).json({ error: "Not found" });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/subscriptions/:id/payments", requireAuth2, (req, res) => {
+    try {
+      const sub = query(
+        "SELECT id FROM subscriptions WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id]
+      );
+      if (!sub.length) return res.status(404).json({ error: "Not found" });
+      const payments = query(
+        "SELECT * FROM subscription_payments WHERE subscription_id = ? ORDER BY paid_at DESC",
+        [req.params.id]
+      );
+      res.json(payments);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.post("/api/subscriptions/:id/payments", requireAuth2, (req, res) => {
+    try {
+      const sub = query(
+        "SELECT id FROM subscriptions WHERE id = ? AND user_id = ?",
+        [req.params.id, req.user.id]
+      );
+      if (!sub.length) return res.status(404).json({ error: "Not found" });
+      const {
+        amount,
+        currency = "USD",
+        paid_at,
+        billing_period_start,
+        billing_period_end,
+        status = "paid",
+        transaction_id,
+        notes
+      } = req.body;
+      if (amount == null) return res.status(400).json({ error: "amount is required" });
+      const result = run(`
+        INSERT INTO subscription_payments (
+          subscription_id, amount, currency,
+          paid_at, billing_period_start, billing_period_end,
+          status, transaction_id, notes
+        ) VALUES (?,?,?,?,?,?,?,?,?)
+      `, [
+        req.params.id,
+        amount,
+        currency,
+        paid_at || (/* @__PURE__ */ new Date()).toISOString(),
+        billing_period_start || null,
+        billing_period_end || null,
+        status,
+        transaction_id || null,
+        notes || null
+      ]);
+      if (status === "paid") {
+        const subRow = query("SELECT * FROM subscriptions WHERE id = ?", [req.params.id])[0];
+        const nextBill = computeNextBillingDate(
+          subRow.billing_cycle,
+          subRow.billing_day,
+          subRow.billing_month
+        );
+        if (nextBill) {
+          run(
+            "UPDATE subscriptions SET next_billing_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [nextBill, req.params.id]
+          );
+        }
+      }
+      res.status(201).json({ id: result.lastInsertRowid });
+    } catch (err) {
+      console.error("[subscriptions] payment POST error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+  console.log("\u2705 Subscription routes registered");
+}
+
 // server/phi-transfer.js
 import { createCipheriv as createCipheriv2, createDecipheriv as createDecipheriv2, randomBytes as randomBytes3, scryptSync } from "crypto";
 import Database3 from "better-sqlite3";
@@ -72334,6 +72766,7 @@ try {
 } catch (err) {
   console.warn("\u26A0\uFE0F  Slack routes failed to initialize:", err.message);
 }
+setupSubscriptionRoutes(app, requireAuth);
 var dbPath3 = join7(__dirname5, "..", "data", "health-secure.db");
 try {
   setupTransferRoutes(app, dbPath3);
@@ -73178,47 +73611,130 @@ app.get("/api/genomics/mutation-drug-network", requireAuth, (req, res) => {
   res.json({ nodes, edges });
 });
 app.get("/api/genomics/dashboard", requireAuth, (req, res) => {
-  const mutations = query(`
-    SELECT 
-      gm.*,
-      COUNT(DISTINCT mp.pathway_id) as pathway_count,
-      COUNT(DISTINCT mt.id) as treatment_count,
-      COUNT(DISTINCT gt.id) as trial_count
-    FROM genomic_mutations gm
-    LEFT JOIN mutation_pathways mp ON gm.id = mp.mutation_id
-    LEFT JOIN mutation_treatments mt ON gm.id = mt.mutation_id
-    LEFT JOIN genomic_trials gt ON gm.id = gt.mutation_id AND gt.status = 'recruiting'
-    GROUP BY gm.id
-    ORDER BY gm.variant_allele_frequency DESC
-  `);
-  const biomarkers = query("SELECT * FROM biomarkers ORDER BY report_date DESC");
-  const topTrials = query(`
-    SELECT gt.*, gm.gene, gm.alteration
-    FROM genomic_trials gt
-    LEFT JOIN genomic_mutations gm ON gt.mutation_id = gm.id
-    WHERE gt.status = 'recruiting'
-    ORDER BY gt.priority_score DESC
-    LIMIT 5
-  `);
-  const treatmentOpportunities = query(`
-    SELECT 
-      mt.*,
-      gm.gene,
-      gm.alteration,
-      gm.variant_allele_frequency
-    FROM mutation_treatments mt
-    JOIN genomic_mutations gm ON mt.mutation_id = gm.id
-    WHERE mt.sensitivity_or_resistance = 'sensitivity'
-    AND mt.clinical_evidence IN ('FDA_approved', 'Phase_3', 'Phase_2')
-    ORDER BY 
-      CASE mt.clinical_evidence
-        WHEN 'FDA_approved' THEN 1
-        WHEN 'Phase_3' THEN 2
-        WHEN 'Phase_2' THEN 3
-        ELSE 4
-      END
-  `);
-  res.json({ mutations, biomarkers, topTrials, treatmentOpportunities });
+  try {
+    const mutations = query(`
+      SELECT
+        gm.*,
+        gm.mutation_detail  AS alteration,
+        gm.vaf              AS variant_allele_frequency,
+        COUNT(DISTINCT mp.id)  as pathway_count,
+        COUNT(DISTINCT mth.id) as treatment_count,
+        0                      as trial_count
+      FROM genomic_mutations gm
+      LEFT JOIN mutation_pathways  mp  ON gm.id = mp.mutation_id
+      LEFT JOIN mutation_therapies mth ON gm.id = mth.mutation_id
+      GROUP BY gm.id
+      ORDER BY gm.vaf DESC NULLS LAST
+    `);
+    const enriched = mutations.map((m2) => {
+      const therapies = query(
+        "SELECT * FROM mutation_therapies WHERE mutation_id = ? ORDER BY id",
+        [m2.id]
+      );
+      const pathways = query(
+        "SELECT * FROM mutation_pathways WHERE mutation_id = ?",
+        [m2.id]
+      );
+      return { ...m2, therapies, pathways };
+    });
+    let biomarkers = [];
+    let topTrials = [];
+    let treatmentOpportunities = [];
+    try {
+      biomarkers = query("SELECT * FROM biomarkers ORDER BY report_date DESC LIMIT 20");
+    } catch {
+    }
+    try {
+      topTrials = query(`
+        SELECT gt.*, gm.gene, gm.mutation_detail AS alteration
+        FROM genomic_trials gt
+        LEFT JOIN genomic_mutations gm ON gt.mutation_id = gm.id
+        WHERE gt.status = 'recruiting'
+        ORDER BY gt.priority_score DESC LIMIT 5
+      `);
+    } catch {
+    }
+    try {
+      treatmentOpportunities = query(`
+        SELECT mth.*, gm.gene, gm.mutation_detail AS alteration, gm.vaf AS variant_allele_frequency
+        FROM mutation_therapies mth
+        JOIN genomic_mutations gm ON mth.mutation_id = gm.id
+        WHERE mth.evidence_level IN ('FDA_approved','Phase_3','Phase_2')
+        ORDER BY CASE mth.evidence_level
+          WHEN 'FDA_approved' THEN 1
+          WHEN 'Phase_3' THEN 2
+          WHEN 'Phase_2' THEN 3
+          ELSE 4 END
+      `);
+    } catch {
+    }
+    res.json({
+      mutations: enriched,
+      biomarkers,
+      topTrials,
+      treatmentOpportunities,
+      summary: {
+        totalMutations: enriched.length,
+        actionableMutations: enriched.filter((m2) => /pathogenic/i.test(m2.clinical_significance || "")).length,
+        highVAF: enriched.filter((m2) => (m2.vaf ?? 0) >= 20).length,
+        mediumVAF: enriched.filter((m2) => (m2.vaf ?? 0) >= 10 && (m2.vaf ?? 0) < 20).length,
+        lowVAF: enriched.filter((m2) => (m2.vaf ?? 0) < 10).length
+      }
+    });
+  } catch (err) {
+    console.error("[GET /api/genomics/dashboard] error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.post("/api/genomics/import-mutations", requireAuth, (req, res) => {
+  try {
+    const { mutations = [], replaceExisting = false } = req.body;
+    if (!Array.isArray(mutations)) {
+      return res.status(400).json({ error: "mutations must be an array" });
+    }
+    const checkStmt = query;
+    let imported = 0, skipped = 0;
+    for (const m2 of mutations) {
+      const existing = query(
+        "SELECT id FROM genomic_mutations WHERE gene = ? AND mutation_detail = ? AND mutation_type = ?",
+        [m2.gene, m2.mutation_detail || "", m2.mutation_type || ""]
+      );
+      if (existing.length) {
+        if (replaceExisting) {
+          run(
+            `UPDATE genomic_mutations SET vaf=?, report_date=?, report_source=?, clinical_significance=? WHERE id=?`,
+            [m2.vaf, m2.report_date, m2.report_source, m2.clinical_significance, existing[0].id]
+          );
+          imported++;
+        } else {
+          skipped++;
+        }
+      } else {
+        run(
+          `INSERT INTO genomic_mutations
+          (gene, mutation_type, mutation_detail, vaf, clinical_significance, report_source, report_date, notes, transcript_id, coding_effect)
+          VALUES (?,?,?,?,?,?,?,?,?,?)`,
+          [
+            m2.gene,
+            m2.mutation_type || "Short Variant",
+            m2.mutation_detail || "",
+            m2.vaf ?? null,
+            m2.clinical_significance || "unknown",
+            m2.report_source || "FoundationOne CDx",
+            m2.report_date || null,
+            m2.notes || null,
+            m2.transcript_id || null,
+            m2.coding_effect || null
+          ]
+        );
+        imported++;
+      }
+    }
+    res.json({ success: true, imported, skipped, total: mutations.length });
+  } catch (err) {
+    console.error("[POST /api/genomics/import-mutations] error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 app.get("/api/genomics/vus", requireAuth, (req, res) => {
   const vusVariants = query("SELECT * FROM vus_variants ORDER BY gene");

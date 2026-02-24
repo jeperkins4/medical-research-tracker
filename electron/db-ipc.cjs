@@ -149,12 +149,13 @@ function createTables() {
     // Portal Sync Log
     `CREATE TABLE IF NOT EXISTS portal_sync_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      portal_id INTEGER,
-      sync_date TEXT DEFAULT CURRENT_TIMESTAMP,
-      records_synced INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'success',
+      credential_id INTEGER,
+      sync_started TEXT,
+      sync_completed TEXT,
+      records_imported INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'pending',
       error_message TEXT,
-      FOREIGN KEY (portal_id) REFERENCES portal_credentials (id) ON DELETE CASCADE
+      FOREIGN KEY (credential_id) REFERENCES portal_credentials (id) ON DELETE CASCADE
     )`,
     
     // Genomic Mutations
@@ -195,6 +196,53 @@ function createTables() {
       impact_description TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (mutation_id) REFERENCES genomic_mutations (id) ON DELETE CASCADE
+    )`,
+
+    // ── Subscription Tracker ─────────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS subscriptions (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id             INTEGER,
+      service_name        TEXT    NOT NULL,
+      provider            TEXT,
+      category            TEXT    DEFAULT 'Other',
+      status              TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active','trial','paused','cancelled','inactive')),
+      cost                REAL    NOT NULL DEFAULT 0,
+      currency            TEXT    NOT NULL DEFAULT 'USD',
+      billing_cycle       TEXT    NOT NULL DEFAULT 'monthly'
+                            CHECK (billing_cycle IN ('monthly','annual','quarterly','biannual','weekly','one_time')),
+      billing_day         INTEGER CHECK (billing_day BETWEEN 1 AND 31),
+      billing_month       INTEGER CHECK (billing_month BETWEEN 1 AND 12),
+      next_billing_date   TEXT,
+      trial_ends_at       TEXT,
+      auto_renews         INTEGER NOT NULL DEFAULT 1,
+      reminder_days       INTEGER NOT NULL DEFAULT 3,
+      payment_method      TEXT,
+      account_email       TEXT,
+      account_username    TEXT,
+      dashboard_url       TEXT,
+      support_url         TEXT,
+      notes               TEXT,
+      tags                TEXT    DEFAULT '[]',
+      cancelled_at        TEXT,
+      created_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS subscription_payments (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id       INTEGER NOT NULL,
+      amount                REAL    NOT NULL,
+      currency              TEXT    NOT NULL DEFAULT 'USD',
+      paid_at               TEXT,
+      billing_period_start  TEXT,
+      billing_period_end    TEXT,
+      status                TEXT    NOT NULL DEFAULT 'paid'
+                              CHECK (status IN ('paid','failed','pending','refunded')),
+      transaction_id        TEXT,
+      notes                 TEXT,
+      created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE
     )`
   ];
   
@@ -205,6 +253,111 @@ function createTables() {
       console.error('[DB-IPC] Failed to create table:', err.message);
     }
   });
+  
+  // Run migrations for existing databases
+  migratePortalSyncLog();
+  migratePortalCredentialColumns();
+  migrateGenomicMutationColumns();
+}
+
+function migrateGenomicMutationColumns() {
+  const needed = [
+    ['transcript_id',        'TEXT'],
+    ['coding_effect',        'TEXT'],
+    ['exon',                 'TEXT'],
+    ['protein_change',       'TEXT'],
+    ['chromosome',           'TEXT'],
+    ['position',             'TEXT'],
+    ['allele_fraction',      'REAL'],
+  ];
+  try {
+    const cols = db.prepare('PRAGMA table_info(genomic_mutations)').all();
+    const existing = new Set(cols.map(c => c.name));
+    for (const [col, def] of needed) {
+      if (!existing.has(col)) {
+        db.exec(`ALTER TABLE genomic_mutations ADD COLUMN ${col} ${def}`);
+        console.log(`[DB-IPC] Migration: added genomic_mutations.${col}`);
+      }
+    }
+  } catch (err) {
+    console.error('[DB-IPC] migrateGenomicMutationColumns failed:', err.message);
+  }
+}
+
+/**
+ * Add missing columns to portal_credentials (safe, idempotent).
+ * Aligns the schema used by portal-sync-ipc.cjs with what the DB actually has.
+ */
+function migratePortalCredentialColumns() {
+  const needed = [
+    ['last_sync',         'TEXT'],
+    ['last_sync_status',  "TEXT DEFAULT 'never'"],
+    ['last_sync_records', 'INTEGER DEFAULT 0'],
+    ['portal_type',       "TEXT DEFAULT 'generic'"],
+    ['base_url',          'TEXT'],
+    ['mfa_method',        "TEXT DEFAULT 'none'"],
+    ['auto_sync_on_open', 'INTEGER DEFAULT 0'],
+  ];
+
+  try {
+    const cols = db.prepare('PRAGMA table_info(portal_credentials)').all();
+    const existing = new Set(cols.map(c => c.name));
+
+    for (const [col, def] of needed) {
+      if (!existing.has(col)) {
+        db.exec(`ALTER TABLE portal_credentials ADD COLUMN ${col} ${def}`);
+        console.log(`[DB-IPC] Migration: added portal_credentials.${col}`);
+      }
+    }
+  } catch (err) {
+    console.error('[DB-IPC] migratePortalCredentialColumns failed:', err.message);
+  }
+}
+
+/**
+ * Migrate portal_sync_log table schema (portal_id → credential_id)
+ */
+function migratePortalSyncLog() {
+  try {
+    // Check if table exists and has old schema
+    const tableInfo = db.prepare("PRAGMA table_info(portal_sync_log)").all();
+    const hasOldSchema = tableInfo.some(col => col.name === 'portal_id');
+    const hasNewSchema = tableInfo.some(col => col.name === 'credential_id');
+    
+    if (hasOldSchema && !hasNewSchema) {
+      console.log('[DB-IPC] Migrating portal_sync_log schema...');
+      
+      // SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+      db.exec(`
+        -- Create new table with correct schema
+        CREATE TABLE portal_sync_log_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          credential_id INTEGER,
+          sync_started TEXT,
+          sync_completed TEXT,
+          records_imported INTEGER DEFAULT 0,
+          status TEXT DEFAULT 'pending',
+          error_message TEXT,
+          FOREIGN KEY (credential_id) REFERENCES portal_credentials (id) ON DELETE CASCADE
+        );
+        
+        -- Copy data from old table (map portal_id to credential_id)
+        INSERT INTO portal_sync_log_new (id, credential_id, sync_started, sync_completed, records_imported, status, error_message)
+        SELECT id, portal_id, sync_date, sync_date, records_synced, status, error_message
+        FROM portal_sync_log;
+        
+        -- Drop old table
+        DROP TABLE portal_sync_log;
+        
+        -- Rename new table
+        ALTER TABLE portal_sync_log_new RENAME TO portal_sync_log;
+      `);
+      
+      console.log('[DB-IPC] portal_sync_log migration complete');
+    }
+  } catch (err) {
+    console.error('[DB-IPC] portal_sync_log migration failed:', err.message);
+  }
 }
 
 /**
@@ -458,16 +611,33 @@ function getGenomicDashboard() {
         
         return {
           ...mutation,
+          // Normalised aliases for UI field names
+          alteration: mutation.mutation_detail || mutation.mutation_type || '',
+          variant_allele_frequency: mutation.vaf ?? null,
+          transcript_id: mutation.transcript_id || null,
+          coding_effect: mutation.coding_effect || null,
+          pathway_count: pathways.length,
+          treatment_count: therapies.length,
+          trial_count: therapies.filter(t => t.clinical_trial_id).length,
           therapies,
           pathways
         };
       }),
+      // Safe defaults for sections the IPC doesn't populate yet
+      biomarkers: [],
+      treatmentOpportunities: [],
+      topTrials: [],
       summary: {
         totalMutations: mutations.length,
-        actionableMutations: mutations.filter(m => m.clinical_significance === 'pathogenic' || m.clinical_significance === 'likely_pathogenic').length,
-        highVAF: mutations.filter(m => m.vaf >= 20).length,
-        mediumVAF: mutations.filter(m => m.vaf >= 10 && m.vaf < 20).length,
-        lowVAF: mutations.filter(m => m.vaf < 10).length
+        actionableMutations: mutations.filter(m =>
+          m.clinical_significance === 'pathogenic' ||
+          m.clinical_significance === 'likely_pathogenic' ||
+          m.clinical_significance === 'Pathogenic' ||
+          m.clinical_significance === 'Likely pathogenic'
+        ).length,
+        highVAF: mutations.filter(m => (m.vaf ?? 0) >= 20).length,
+        mediumVAF: mutations.filter(m => (m.vaf ?? 0) >= 10 && (m.vaf ?? 0) < 20).length,
+        lowVAF: mutations.filter(m => (m.vaf ?? 0) < 10).length
       }
     };
     
@@ -517,29 +687,82 @@ function getMutationDetails(mutationId) {
  */
 function addGenomicMutation(data) {
   if (!db) throw new Error('Database not initialized');
-  
   try {
-    const stmt = db.prepare(`
+    const result = db.prepare(`
       INSERT INTO genomic_mutations 
-      (gene, mutation_type, mutation_detail, vaf, clinical_significance, report_source, report_date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const result = stmt.run(
-      data.gene,
-      data.mutation_type,
-      data.mutation_detail,
-      data.vaf,
-      data.clinical_significance,
-      data.report_source,
-      data.report_date,
-      data.notes
+      (gene, mutation_type, mutation_detail, vaf, clinical_significance,
+       report_source, report_date, notes,
+       transcript_id, coding_effect, exon, protein_change, chromosome, position)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      data.gene, data.mutation_type, data.mutation_detail, data.vaf,
+      data.clinical_significance, data.report_source, data.report_date, data.notes,
+      data.transcript_id || null, data.coding_effect || null,
+      data.exon || null, data.protein_change || null,
+      data.chromosome || null, data.position || null
     );
-    
     return { success: true, id: result.lastInsertRowid };
   } catch (err) {
     console.error('[DB-IPC] Add genomic mutation failed:', err.message);
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Import mutations from a parsed Foundation One report.
+ * Returns counts of imported and skipped (duplicate) mutations.
+ */
+function importFoundationOneMutations(mutations, replaceExisting = false) {
+  if (!db) throw new Error('Database not initialized');
+  try {
+    const checkStmt = db.prepare(
+      'SELECT id FROM genomic_mutations WHERE gene = ? AND mutation_detail = ? AND mutation_type = ?'
+    );
+
+    let imported = 0;
+    let skipped  = 0;
+
+    const insertStmt = db.prepare(`
+      INSERT INTO genomic_mutations
+        (gene, mutation_type, mutation_detail, vaf, clinical_significance,
+         report_source, report_date, notes,
+         transcript_id, coding_effect, exon, protein_change)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `);
+
+    db.transaction(() => {
+      for (const m of mutations) {
+        const existing = checkStmt.get(m.gene, m.mutation_detail || '', m.mutation_type || '');
+        if (existing) {
+          if (replaceExisting) {
+            db.prepare(`
+              UPDATE genomic_mutations SET
+                vaf = ?, report_date = ?, report_source = ?,
+                clinical_significance = ?
+              WHERE id = ?
+            `).run(m.vaf, m.report_date, m.report_source, m.clinical_significance, existing.id);
+            imported++;
+          } else {
+            skipped++;
+          }
+        } else {
+          insertStmt.run(
+            m.gene, m.mutation_type || 'Short Variant', m.mutation_detail || '',
+            m.vaf ?? null, m.clinical_significance || 'unknown',
+            m.report_source || 'FoundationOne CDx', m.report_date || null,
+            m.notes || null,
+            m.transcript_id || null, m.coding_effect || null,
+            m.exon || null, m.protein_change || null
+          );
+          imported++;
+        }
+      }
+    })();
+
+    return { success: true, imported, skipped, total: mutations.length };
+  } catch (err) {
+    console.error('[DB-IPC] importFoundationOneMutations failed:', err.message);
+    return { success: false, error: err.message, imported: 0, skipped: 0 };
   }
 }
 
@@ -574,6 +797,230 @@ function addMutationTherapy(data) {
   }
 }
 
+// ── Subscription Tracker ─────────────────────────────────────────────────────
+
+const SUBSCRIPTION_CATEGORIES = [
+  'AI & Machine Learning','Cloud Infrastructure','Communication & Collaboration',
+  'Database & Storage','Development Tools','Domain & Hosting','Finance & Banking',
+  'Healthcare & Medical','Media & Entertainment','Productivity','Security & Privacy',
+  'Software / SaaS','Other',
+];
+
+function computeNextBillingDate(billing_cycle, billing_day, billing_month) {
+  const now  = new Date();
+  const next = new Date(now);
+  switch (billing_cycle) {
+    case 'monthly': {
+      const day = billing_day || 1;
+      next.setDate(day);
+      if (next <= now) next.setMonth(next.getMonth() + 1);
+      break;
+    }
+    case 'annual': {
+      next.setMonth((billing_month || 1) - 1);
+      next.setDate(billing_day || 1);
+      if (next <= now) next.setFullYear(next.getFullYear() + 1);
+      break;
+    }
+    case 'quarterly': { next.setMonth(next.getMonth() + 3); break; }
+    case 'biannual':  { next.setMonth(next.getMonth() + 6); break; }
+    case 'weekly':    { next.setDate(next.getDate() + 7);   break; }
+    case 'one_time':
+    default: return null;
+  }
+  return next.toISOString().split('T')[0];
+}
+
+function getSubscriptions(filters = {}) {
+  try {
+    let sql = 'SELECT * FROM subscriptions';
+    const params = [];
+    const clauses = [];
+    if (filters.status)   { clauses.push('status = ?');   params.push(filters.status); }
+    if (filters.category) { clauses.push('category = ?'); params.push(filters.category); }
+    if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+    sql += ' ORDER BY service_name ASC';
+    const rows = db.prepare(sql).all(...params);
+    return rows.map(r => ({ ...r, tags: JSON.parse(r.tags || '[]') }));
+  } catch (err) {
+    console.error('[DB-IPC] getSubscriptions failed:', err.message);
+    return [];
+  }
+}
+
+function getSubscriptionSummary() {
+  try {
+    const subs = db.prepare(
+      `SELECT * FROM subscriptions WHERE status IN ('active','trial')`
+    ).all();
+    let monthlyTotal = 0, annualTotal = 0;
+    const byCategory = {};
+    subs.forEach(s => {
+      const cost = s.cost || 0;
+      let m = 0;
+      switch (s.billing_cycle) {
+        case 'monthly':   m = cost;        annualTotal += cost * 12;  break;
+        case 'annual':    m = cost / 12;   annualTotal += cost;       break;
+        case 'quarterly': m = cost / 3;    annualTotal += cost * 4;   break;
+        case 'biannual':  m = cost / 6;    annualTotal += cost * 2;   break;
+        case 'weekly':    m = cost * 4.33; annualTotal += cost * 52;  break;
+      }
+      monthlyTotal += m;
+      const cat = s.category || 'Other';
+      if (!byCategory[cat]) byCategory[cat] = { count: 0, monthly: 0 };
+      byCategory[cat].count++;
+      byCategory[cat].monthly += m;
+    });
+    return {
+      total_active:  subs.length,
+      monthly_total: Math.round(monthlyTotal * 100) / 100,
+      annual_total:  Math.round(annualTotal  * 100) / 100,
+      by_category:   byCategory,
+    };
+  } catch (err) {
+    console.error('[DB-IPC] getSubscriptionSummary failed:', err.message);
+    return { total_active: 0, monthly_total: 0, annual_total: 0, by_category: {} };
+  }
+}
+
+function addSubscription(data) {
+  try {
+    const {
+      service_name, provider, category = 'Other', status = 'active',
+      cost, currency = 'USD', billing_cycle = 'monthly',
+      billing_day, billing_month, next_billing_date, trial_ends_at,
+      auto_renews = 1, reminder_days = 3,
+      payment_method, account_email, account_username,
+      dashboard_url, support_url, notes, tags = [],
+    } = data;
+    if (!service_name) throw new Error('service_name is required');
+    if (cost == null)  throw new Error('cost is required');
+
+    const nextBill = next_billing_date ||
+      computeNextBillingDate(billing_cycle, billing_day, billing_month);
+
+    const result = db.prepare(`
+      INSERT INTO subscriptions (
+        service_name, provider, category, status,
+        cost, currency, billing_cycle, billing_day, billing_month,
+        next_billing_date, trial_ends_at, auto_renews, reminder_days,
+        payment_method, account_email, account_username,
+        dashboard_url, support_url, notes, tags
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `).run(
+      service_name, provider || null, category, status,
+      cost, currency, billing_cycle,
+      billing_day || null, billing_month || null,
+      nextBill || null, trial_ends_at || null,
+      auto_renews ? 1 : 0, reminder_days,
+      payment_method || null, account_email || null, account_username || null,
+      dashboard_url || null, support_url || null, notes || null,
+      JSON.stringify(tags),
+    );
+    return { success: true, id: result.lastInsertRowid, service_name };
+  } catch (err) {
+    console.error('[DB-IPC] addSubscription failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+function updateSubscription(id, data) {
+  try {
+    const current = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(id);
+    if (!current) return { success: false, error: 'Not found' };
+    const u = { ...current, ...data };
+    if (data.status === 'cancelled' && current.status !== 'cancelled') {
+      u.cancelled_at = new Date().toISOString();
+    }
+    if (!data.next_billing_date) {
+      u.next_billing_date =
+        computeNextBillingDate(u.billing_cycle, u.billing_day, u.billing_month)
+        || current.next_billing_date;
+    }
+    db.prepare(`
+      UPDATE subscriptions SET
+        service_name=?, provider=?, category=?, status=?,
+        cost=?, currency=?, billing_cycle=?, billing_day=?, billing_month=?,
+        next_billing_date=?, trial_ends_at=?, auto_renews=?, reminder_days=?,
+        payment_method=?, account_email=?, account_username=?,
+        dashboard_url=?, support_url=?, notes=?, tags=?,
+        cancelled_at=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).run(
+      u.service_name, u.provider, u.category, u.status,
+      u.cost, u.currency, u.billing_cycle, u.billing_day, u.billing_month,
+      u.next_billing_date, u.trial_ends_at,
+      u.auto_renews ? 1 : 0, u.reminder_days,
+      u.payment_method, u.account_email, u.account_username,
+      u.dashboard_url, u.support_url, u.notes,
+      JSON.stringify(Array.isArray(u.tags) ? u.tags : JSON.parse(u.tags || '[]')),
+      u.cancelled_at || null, id
+    );
+    return { success: true };
+  } catch (err) {
+    console.error('[DB-IPC] updateSubscription failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+function deleteSubscription(id) {
+  try {
+    const result = db.prepare('DELETE FROM subscriptions WHERE id = ?').run(id);
+    return { success: result.changes > 0 };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function getSubscriptionPayments(subscriptionId) {
+  try {
+    return db.prepare(
+      'SELECT * FROM subscription_payments WHERE subscription_id = ? ORDER BY paid_at DESC'
+    ).all(subscriptionId);
+  } catch (err) {
+    return [];
+  }
+}
+
+function addSubscriptionPayment(subscriptionId, data) {
+  try {
+    const {
+      amount, currency = 'USD', paid_at,
+      billing_period_start, billing_period_end,
+      status = 'paid', transaction_id, notes,
+    } = data;
+    if (amount == null) throw new Error('amount is required');
+
+    const result = db.prepare(`
+      INSERT INTO subscription_payments (
+        subscription_id, amount, currency,
+        paid_at, billing_period_start, billing_period_end,
+        status, transaction_id, notes
+      ) VALUES (?,?,?,?,?,?,?,?,?)
+    `).run(
+      subscriptionId, amount, currency,
+      paid_at || new Date().toISOString(),
+      billing_period_start || null, billing_period_end || null,
+      status, transaction_id || null, notes || null,
+    );
+
+    if (status === 'paid') {
+      const sub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(subscriptionId);
+      if (sub) {
+        const nextBill = computeNextBillingDate(sub.billing_cycle, sub.billing_day, sub.billing_month);
+        if (nextBill) {
+          db.prepare('UPDATE subscriptions SET next_billing_date=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+            .run(nextBill, subscriptionId);
+        }
+      }
+    }
+
+    return { success: true, id: result.lastInsertRowid };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   initDatabase,
   needsSetup,
@@ -591,5 +1038,15 @@ module.exports = {
   getMutationDetails,
   addGenomicMutation,
   addMutationTherapy,
+  importFoundationOneMutations,
+  // Subscriptions
+  SUBSCRIPTION_CATEGORIES,
+  getSubscriptions,
+  getSubscriptionSummary,
+  addSubscription,
+  updateSubscription,
+  deleteSubscription,
+  getSubscriptionPayments,
+  addSubscriptionPayment,
   closeDatabase
 };

@@ -40,12 +40,31 @@ contextBridge.exposeInMainWorld('electron', {
     deleteCredential: (id) => ipcRenderer.invoke('vault:delete-credential', id)
   },
   
+  // Portal sync operations
+  portal: {
+    sync: (credentialId) => ipcRenderer.invoke('portal:sync', credentialId)
+  },
+  
   // Genomics operations
   genomics: {
-    getDashboard: () => ipcRenderer.invoke('genomics:get-dashboard'),
-    getMutation: (mutationId) => ipcRenderer.invoke('genomics:get-mutation', mutationId),
-    addMutation: (data) => ipcRenderer.invoke('genomics:add-mutation', data),
-    addTherapy: (data) => ipcRenderer.invoke('genomics:add-therapy', data)
+    getDashboard:       ()                    => ipcRenderer.invoke('genomics:get-dashboard'),
+    getMutation:        (mutationId)           => ipcRenderer.invoke('genomics:get-mutation', mutationId),
+    addMutation:        (data)                 => ipcRenderer.invoke('genomics:add-mutation', data),
+    addTherapy:         (data)                 => ipcRenderer.invoke('genomics:add-therapy', data),
+    parseFoundationOne: (filePath)             => ipcRenderer.invoke('genomics:parse-foundation-one', filePath),
+    importMutations:    (mutations, replace)   => ipcRenderer.invoke('genomics:import-mutations', mutations, replace),
+    openFile:           (opts)                 => ipcRenderer.invoke('dialog:open-file', opts),
+  },
+
+  subscriptions: {
+    getCategories: ()             => ipcRenderer.invoke('subscriptions:categories'),
+    list:          (filters)      => ipcRenderer.invoke('subscriptions:list', filters),
+    summary:       ()             => ipcRenderer.invoke('subscriptions:summary'),
+    add:           (data)         => ipcRenderer.invoke('subscriptions:add', data),
+    update:        (id, data)     => ipcRenderer.invoke('subscriptions:update', id, data),
+    remove:        (id)           => ipcRenderer.invoke('subscriptions:delete', id),
+    listPayments:  (subId)        => ipcRenderer.invoke('subscriptions:payments:list', subId),
+    addPayment:    (subId, data)  => ipcRenderer.invoke('subscriptions:payments:add', subId, data),
   }
 });
 

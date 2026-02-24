@@ -83,7 +83,7 @@ fi
 npm run electron:build:mac
 
 # Check if build succeeded
-if [ -f "build/MyTreatmentPath.app/Contents/MacOS/MyTreatmentPath" ]; then
+if [ -f "build/mac-arm64/MyTreatmentPath.app/Contents/MacOS/MyTreatmentPath" ] || [ -f "build/MyTreatmentPath.app/Contents/MacOS/MyTreatmentPath" ]; then
     echo ""
     echo "✅ Build complete!"
     echo ""
@@ -103,11 +103,13 @@ if [ -f "build/MyTreatmentPath.app/Contents/MacOS/MyTreatmentPath" ]; then
     
     echo ""
     echo "📤 Ready to distribute:"
-    if [ -f "build/MyTreatmentPath-0.1.0.dmg" ]; then
-        echo "   • DMG: build/MyTreatmentPath-0.1.0.dmg"
+    DMG_FILE=$(ls build/MyTreatmentPath-*.dmg 2>/dev/null | grep -v blockmap | tail -1)
+    if [ -n "$DMG_FILE" ]; then
+        echo "   • DMG: $DMG_FILE"
     fi
-    if [ -f "build/MyTreatmentPath-0.1.0-mac.zip" ]; then
-        echo "   • ZIP: build/MyTreatmentPath-0.1.0-mac.zip"
+    ZIP_FILE=$(ls build/MyTreatmentPath-*-mac.zip 2>/dev/null | tail -1)
+    if [ -n "$ZIP_FILE" ]; then
+        echo "   • ZIP: $ZIP_FILE"
     fi
     
     echo ""

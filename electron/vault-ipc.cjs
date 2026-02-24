@@ -96,6 +96,54 @@ function isVaultUnlocked() {
 }
 
 /**
+ * Auto-unlock vault using user's login password
+ * Called after successful login
+ */
+function autoUnlockVault(password) {
+  try {
+    const database = getDB();
+    
+    // Check if vault is initialized
+    const vaultRow = database.prepare('SELECT * FROM vault_master WHERE id = 1').get();
+    
+    if (!vaultRow) {
+      // Vault not initialized - set it up with the login password
+      console.log('[Vault IPC] Auto-initializing vault with login password');
+      const salt = generateSalt();
+      const passwordHash = hashPassword(password, salt);
+      
+      database.prepare(`
+        INSERT INTO vault_master (id, password_hash, salt, iterations)
+        VALUES (1, ?, ?, ?)
+      `).run(passwordHash, salt, PBKDF2_ITERATIONS);
+      
+      // Derive and store encryption key
+      encryptionKey = deriveKey(password, salt);
+      console.log('[Vault IPC] Vault auto-initialized and unlocked');
+      return { success: true };
+    }
+    
+    // Vault exists - verify password and unlock
+    const providedHash = hashPassword(password, vaultRow.salt);
+    
+    if (providedHash !== vaultRow.password_hash) {
+      console.error('[Vault IPC] Auto-unlock failed - password mismatch');
+      return { success: false, error: 'Password mismatch' };
+    }
+    
+    // Derive encryption key and store in memory
+    encryptionKey = deriveKey(password, vaultRow.salt);
+    console.log('[Vault IPC] Vault auto-unlocked successfully');
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('[Vault IPC] Auto-unlock error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Get vault status
  */
 function getVaultStatus() {
@@ -230,43 +278,66 @@ function getPortalCredentials() {
 
   const database = getDB();
   const credentials = database.prepare(`
-    SELECT id, portal_name, username, password_encrypted, url, notes, last_synced
+    SELECT id, service_name, portal_type, base_url,
+           username_encrypted, password_encrypted,
+           mfa_method, totp_secret_encrypted, notes_encrypted,
+           last_sync, last_sync_status,
+           created_at, updated_at
     FROM portal_credentials
-    ORDER BY portal_name
+    ORDER BY service_name
   `).all();
 
-  // Decrypt passwords
+  // Decrypt sensitive fields and normalize for UI
   return credentials.map(cred => ({
     ...cred,
-    password: cred.password_encrypted ? decryptField(cred.password_encrypted) : null,
-    password_encrypted: undefined // Remove encrypted field from response
+    portal_name: cred.service_name,   // legacy compat for older UI code
+    username: cred.username_encrypted ? (() => { try { return decryptField(cred.username_encrypted); } catch { return ''; } })() : '',
+    notes: cred.notes_encrypted ? (() => { try { return decryptField(cred.notes_encrypted); } catch { return ''; } })() : '',
+    url: cred.base_url,
+    last_synced: cred.last_sync,      // legacy compat
+    password: cred.password_encrypted ? (() => { try { return decryptField(cred.password_encrypted); } catch { return null; } })() : null,
+    password_encrypted: undefined,
+    username_encrypted: undefined,
+    notes_encrypted: undefined,
+    totp_secret_encrypted: undefined,
   }));
 }
 
 /**
  * Add or update portal credential
  */
-function savePortalCredential({ id, portal_name, username, password, url, notes }) {
+function savePortalCredential({ id, service_name, portal_name, portal_type, base_url, url,
+                                  username, password, mfa_method, notes }) {
   if (!isVaultUnlocked()) {
     throw new Error('Vault is locked. Unlock with master password first.');
   }
 
   const database = getDB();
+  const name = service_name || portal_name || '';
+  const resolvedUrl = base_url || url || null;
   const password_encrypted = password ? encryptField(password) : null;
+  const username_encrypted = username ? encryptField(username) : null;
+  const notes_encrypted = notes ? encryptField(notes) : null;
 
   if (id) {
-    // Update existing
     database.prepare(`
       UPDATE portal_credentials
-      SET portal_name = ?, username = ?, password_encrypted = ?, url = ?, notes = ?
+      SET service_name = ?, portal_type = ?, base_url = ?,
+          username_encrypted = ?, password_encrypted = ?,
+          mfa_method = ?, notes_encrypted = ?,
+          updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(portal_name, username, password_encrypted, url, notes || null, id);
+    `).run(name, portal_type || 'generic', resolvedUrl,
+           username_encrypted, password_encrypted,
+           mfa_method || 'none', notes_encrypted, id);
   } else {
-    // Insert new
     const result = database.prepare(`
-      INSERT INTO portal_credentials (portal_name, username, password_encrypted, url, notes)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(portal_name, username, password_encrypted, url, notes || null);
+      INSERT INTO portal_credentials
+        (service_name, portal_type, base_url, username_encrypted, password_encrypted, mfa_method, notes_encrypted)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(name, portal_type || 'generic', resolvedUrl,
+           username_encrypted, password_encrypted,
+           mfa_method || 'none', notes_encrypted);
     id = result.lastInsertRowid;
   }
 
@@ -291,7 +362,9 @@ module.exports = {
   setupMasterPassword,
   unlockVault,
   lockVault,
+  autoUnlockVault,
   getPortalCredentials,
   savePortalCredential,
-  deletePortalCredential
+  deletePortalCredential,
+  getVault: () => ({ isUnlocked: isVaultUnlocked, decrypt: decryptField })
 };

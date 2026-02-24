@@ -275,6 +275,52 @@ const initDb = () => {
       FOREIGN KEY (tag_id) REFERENCES tags(id)
     );
 
+    -- ── Subscription Tracker ──────────────────────────────────────────────
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id             INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      service_name        TEXT    NOT NULL,
+      provider            TEXT,
+      category            TEXT    DEFAULT 'Other',
+      status              TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active','trial','paused','cancelled','inactive')),
+      cost                REAL    NOT NULL DEFAULT 0,
+      currency            TEXT    NOT NULL DEFAULT 'USD',
+      billing_cycle       TEXT    NOT NULL DEFAULT 'monthly'
+                            CHECK (billing_cycle IN ('monthly','annual','quarterly','biannual','weekly','one_time')),
+      billing_day         INTEGER CHECK (billing_day BETWEEN 1 AND 31),
+      billing_month       INTEGER CHECK (billing_month BETWEEN 1 AND 12),
+      next_billing_date   TEXT,
+      trial_ends_at       TEXT,
+      auto_renews         INTEGER NOT NULL DEFAULT 1,
+      reminder_days       INTEGER NOT NULL DEFAULT 3,
+      payment_method      TEXT,
+      account_email       TEXT,
+      account_username    TEXT,
+      dashboard_url       TEXT,
+      support_url         TEXT,
+      notes               TEXT,
+      tags                TEXT    DEFAULT '[]',
+      cancelled_at        TEXT,
+      created_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at          TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS subscription_payments (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id       INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      amount                REAL    NOT NULL,
+      currency              TEXT    NOT NULL DEFAULT 'USD',
+      paid_at               TEXT,
+      billing_period_start  TEXT,
+      billing_period_end    TEXT,
+      status                TEXT    NOT NULL DEFAULT 'paid'
+                              CHECK (status IN ('paid','failed','pending','refunded')),
+      transaction_id        TEXT,
+      notes                 TEXT,
+      created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- HIPAA Audit Log (immutable)
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -311,7 +357,25 @@ const initDb = () => {
   `);
 
   console.log('✅ Secure database initialized (PHI encrypted at rest)');
-  
+
+  // --- Migrations (safe, idempotent) ---
+  const runMigration = (table, column, definition) => {
+    try {
+      const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+      const exists = cols.some(c => c.name === column);
+      if (!exists) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+        console.log(`✅ Migration: added ${table}.${column}`);
+      }
+    } catch (e) {
+      // Table may not exist yet — skip
+    }
+  };
+
+  runMigration('portal_credentials', 'last_sync', 'TEXT');
+  runMigration('portal_credentials', 'last_sync_status', "TEXT DEFAULT 'never'");
+  // --- End migrations ---
+
   return db;
 };
 

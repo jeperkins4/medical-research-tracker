@@ -37,6 +37,7 @@ import { isCloudSyncAvailable, syncUserToCloud, syncResearchToCloud, fullSync, g
 import { setupAnalyticsRoutes } from './analytics-routes.js';
 import { generateAllAnalytics } from './analytics-aggregator.js';
 import { setupSlackRoutes } from './slack-routes.js';
+import { setupSubscriptionRoutes } from './subscription-routes.js';
 import { setupTransferRoutes } from './phi-transfer.js';
 import testEncryptionRoute from './test-encryption-route.js';
 import { initConfig, getConfig, updateConfig, isFirstRunComplete, getConfigAsEnv } from './config-manager.js';
@@ -120,6 +121,8 @@ try {
 } catch (err) {
   console.warn('⚠️  Slack routes failed to initialize:', err.message);
 }
+
+setupSubscriptionRoutes(app, requireAuth);
 
 // Setup PHI data transfer routes (encrypted export/import)
 const dbPath = join(__dirname, '..', 'data', 'health-secure.db');
@@ -1144,51 +1147,125 @@ app.get('/api/genomics/mutation-drug-network', requireAuth, (req, res) => {
 
 // Get Precision Medicine Dashboard summary
 app.get('/api/genomics/dashboard', requireAuth, (req, res) => {
-  const mutations = query(`
-    SELECT 
-      gm.*,
-      COUNT(DISTINCT mp.pathway_id) as pathway_count,
-      COUNT(DISTINCT mt.id) as treatment_count,
-      COUNT(DISTINCT gt.id) as trial_count
-    FROM genomic_mutations gm
-    LEFT JOIN mutation_pathways mp ON gm.id = mp.mutation_id
-    LEFT JOIN mutation_treatments mt ON gm.id = mt.mutation_id
-    LEFT JOIN genomic_trials gt ON gm.id = gt.mutation_id AND gt.status = 'recruiting'
-    GROUP BY gm.id
-    ORDER BY gm.variant_allele_frequency DESC
-  `);
-  
-  const biomarkers = query('SELECT * FROM biomarkers ORDER BY report_date DESC');
-  
-  const topTrials = query(`
-    SELECT gt.*, gm.gene, gm.alteration
-    FROM genomic_trials gt
-    LEFT JOIN genomic_mutations gm ON gt.mutation_id = gm.id
-    WHERE gt.status = 'recruiting'
-    ORDER BY gt.priority_score DESC
-    LIMIT 5
-  `);
-  
-  const treatmentOpportunities = query(`
-    SELECT 
-      mt.*,
-      gm.gene,
-      gm.alteration,
-      gm.variant_allele_frequency
-    FROM mutation_treatments mt
-    JOIN genomic_mutations gm ON mt.mutation_id = gm.id
-    WHERE mt.sensitivity_or_resistance = 'sensitivity'
-    AND mt.clinical_evidence IN ('FDA_approved', 'Phase_3', 'Phase_2')
-    ORDER BY 
-      CASE mt.clinical_evidence
-        WHEN 'FDA_approved' THEN 1
-        WHEN 'Phase_3' THEN 2
-        WHEN 'Phase_2' THEN 3
-        ELSE 4
-      END
-  `);
-  
-  res.json({ mutations, biomarkers, topTrials, treatmentOpportunities });
+  try {
+    const mutations = query(`
+      SELECT
+        gm.*,
+        gm.mutation_detail  AS alteration,
+        gm.vaf              AS variant_allele_frequency,
+        COUNT(DISTINCT mp.id)  as pathway_count,
+        COUNT(DISTINCT mth.id) as treatment_count,
+        0                      as trial_count
+      FROM genomic_mutations gm
+      LEFT JOIN mutation_pathways  mp  ON gm.id = mp.mutation_id
+      LEFT JOIN mutation_therapies mth ON gm.id = mth.mutation_id
+      GROUP BY gm.id
+      ORDER BY gm.vaf DESC NULLS LAST
+    `);
+
+    // Fetch therapies + pathways per mutation
+    const enriched = mutations.map(m => {
+      const therapies = query(
+        'SELECT * FROM mutation_therapies WHERE mutation_id = ? ORDER BY id',
+        [m.id]
+      );
+      const pathways = query(
+        'SELECT * FROM mutation_pathways WHERE mutation_id = ?',
+        [m.id]
+      );
+      return { ...m, therapies, pathways };
+    });
+
+    // Safe fallback for tables that may not exist yet
+    let biomarkers = [];
+    let topTrials = [];
+    let treatmentOpportunities = [];
+
+    try { biomarkers = query('SELECT * FROM biomarkers ORDER BY report_date DESC LIMIT 20'); } catch {}
+    try {
+      topTrials = query(`
+        SELECT gt.*, gm.gene, gm.mutation_detail AS alteration
+        FROM genomic_trials gt
+        LEFT JOIN genomic_mutations gm ON gt.mutation_id = gm.id
+        WHERE gt.status = 'recruiting'
+        ORDER BY gt.priority_score DESC LIMIT 5
+      `);
+    } catch {}
+    try {
+      treatmentOpportunities = query(`
+        SELECT mth.*, gm.gene, gm.mutation_detail AS alteration, gm.vaf AS variant_allele_frequency
+        FROM mutation_therapies mth
+        JOIN genomic_mutations gm ON mth.mutation_id = gm.id
+        WHERE mth.evidence_level IN ('FDA_approved','Phase_3','Phase_2')
+        ORDER BY CASE mth.evidence_level
+          WHEN 'FDA_approved' THEN 1
+          WHEN 'Phase_3' THEN 2
+          WHEN 'Phase_2' THEN 3
+          ELSE 4 END
+      `);
+    } catch {}
+
+    res.json({
+      mutations: enriched,
+      biomarkers,
+      topTrials,
+      treatmentOpportunities,
+      summary: {
+        totalMutations:      enriched.length,
+        actionableMutations: enriched.filter(m =>
+          /pathogenic/i.test(m.clinical_significance || '')).length,
+        highVAF:   enriched.filter(m => (m.vaf ?? 0) >= 20).length,
+        mediumVAF: enriched.filter(m => (m.vaf ?? 0) >= 10 && (m.vaf ?? 0) < 20).length,
+        lowVAF:    enriched.filter(m => (m.vaf ?? 0) < 10).length,
+      }
+    });
+  } catch (err) {
+    console.error('[GET /api/genomics/dashboard] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/genomics/import-mutations — bulk import from Foundation One parser
+app.post('/api/genomics/import-mutations', requireAuth, (req, res) => {
+  try {
+    const { mutations = [], replaceExisting = false } = req.body;
+    if (!Array.isArray(mutations)) {
+      return res.status(400).json({ error: 'mutations must be an array' });
+    }
+    const checkStmt = query;
+    let imported = 0, skipped = 0;
+
+    for (const m of mutations) {
+      const existing = query(
+        'SELECT id FROM genomic_mutations WHERE gene = ? AND mutation_detail = ? AND mutation_type = ?',
+        [m.gene, m.mutation_detail || '', m.mutation_type || '']
+      );
+      if (existing.length) {
+        if (replaceExisting) {
+          run(`UPDATE genomic_mutations SET vaf=?, report_date=?, report_source=?, clinical_significance=? WHERE id=?`,
+            [m.vaf, m.report_date, m.report_source, m.clinical_significance, existing[0].id]);
+          imported++;
+        } else {
+          skipped++;
+        }
+      } else {
+        run(`INSERT INTO genomic_mutations
+          (gene, mutation_type, mutation_detail, vaf, clinical_significance, report_source, report_date, notes, transcript_id, coding_effect)
+          VALUES (?,?,?,?,?,?,?,?,?,?)`,
+          [m.gene, m.mutation_type || 'Short Variant', m.mutation_detail || '',
+           m.vaf ?? null, m.clinical_significance || 'unknown',
+           m.report_source || 'FoundationOne CDx', m.report_date || null,
+           m.notes || null, m.transcript_id || null, m.coding_effect || null]
+        );
+        imported++;
+      }
+    }
+
+    res.json({ success: true, imported, skipped, total: mutations.length });
+  } catch (err) {
+    console.error('[POST /api/genomics/import-mutations] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Get VUS variants

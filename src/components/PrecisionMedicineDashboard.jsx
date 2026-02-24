@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import MutationDrugNetwork from './MutationDrugNetwork';
 import MetastasisTutorial from './MetastasisTutorial';
+import FoundationOneUploader from './FoundationOneUploader';
 import * as api from '../api';
 
 export default function PrecisionMedicineDashboard() {
@@ -8,6 +9,7 @@ export default function PrecisionMedicineDashboard() {
   const [selectedMutation, setSelectedMutation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('overview'); // overview, mutation-detail, network, tutorial, trials
+  const [showUploader, setShowUploader] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -38,8 +40,24 @@ export default function PrecisionMedicineDashboard() {
     return <div className="p-8">Loading genomic data...</div>;
   }
 
-  if (!dashboard) {
-    return <div className="p-8">No genomic data available.</div>;
+  if (!dashboard || showUploader || dashboard.mutations?.length === 0) {
+    return (
+      <div className="p-8">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#1e293b' }}>🧬 Genomics Dashboard</h2>
+          {dashboard && dashboard.mutations?.length > 0 && (
+            <button
+              onClick={() => setShowUploader(false)}
+              style={{ padding: '8px 16px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+            >
+              ← Back to Dashboard
+            </button>
+          )}
+        </div>
+        <FoundationOneUploader onImported={() => { setShowUploader(false); fetchDashboard(); }} />
+        {!dashboard && <p style={{ color: '#94a3b8', textAlign: 'center', marginTop: '16px' }}>No genomic data yet. Upload a Foundation One CDx report to get started.</p>}
+      </div>
+    );
   }
 
   const getVAFColor = (vaf) => {
@@ -62,9 +80,26 @@ export default function PrecisionMedicineDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">🧬 Precision Medicine Dashboard</h1>
-        <p className="text-gray-600">Foundation One CDx Genomic Profile & Treatment Opportunities</p>
+      <div className="mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 className="text-3xl font-bold mb-2">🧬 Precision Medicine Dashboard</h1>
+          <p className="text-gray-600">
+            Foundation One CDx Genomic Profile &amp; Treatment Opportunities
+            <span style={{ color: '#94a3b8', marginLeft: '10px' }}>
+              {dashboard.summary?.totalMutations} mutation{dashboard.summary?.totalMutations !== 1 ? 's' : ''}
+            </span>
+          </p>
+        </div>
+        <button
+          onClick={() => setShowUploader(true)}
+          style={{
+            padding: '8px 16px', background: '#6366f1', color: '#fff',
+            border: 'none', borderRadius: '8px', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 600, marginTop: '4px',
+          }}
+        >
+          📄 Upload New Report
+        </button>
       </div>
 
       {/* Navigation Button Group */}
@@ -137,7 +172,7 @@ export default function PrecisionMedicineDashboard() {
         <>
           {/* Biomarkers Section */}
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dashboard.biomarkers.map((biomarker) => (
+            {(dashboard.biomarkers || []).map((biomarker) => (
               <div key={biomarker.id} className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
                 <h3 className="font-semibold text-lg mb-2">{biomarker.biomarker_name}</h3>
                 <div className="flex items-baseline space-x-2 mb-2">
@@ -158,7 +193,7 @@ export default function PrecisionMedicineDashboard() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-6">Genomic Mutations</h2>
             <div className="space-y-6">
-              {dashboard.mutations.map((mutation) => (
+              {(dashboard.mutations || []).map((mutation) => (
                 <div
                   key={mutation.id}
                   className="bg-white rounded-lg cursor-pointer"
@@ -229,7 +264,7 @@ export default function PrecisionMedicineDashboard() {
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-6">Treatment Opportunities</h2>
             <div className="space-y-6">
-              {dashboard.treatmentOpportunities.map((treatment) => (
+              {(dashboard.treatmentOpportunities || []).map((treatment) => (
                 <div 
                   key={treatment.id} 
                   className="bg-white rounded-lg"
@@ -287,7 +322,7 @@ export default function PrecisionMedicineDashboard() {
           <div>
             <h2 className="text-2xl font-bold mb-6">Top Priority Clinical Trials</h2>
             <div className="space-y-6">
-              {dashboard.topTrials.map((trial) => (
+              {(dashboard.topTrials || []).map((trial) => (
                 <div 
                   key={trial.id} 
                   className="bg-white rounded-lg"
@@ -418,7 +453,7 @@ export default function PrecisionMedicineDashboard() {
           <div className="mb-6">
             <h3 className="text-2xl font-bold mb-6">Affected Biological Pathways</h3>
             <div className="space-y-6">
-              {selectedMutation.pathways.map((pathway) => (
+              {(selectedMutation.pathways || []).map((pathway) => (
                 <div 
                   key={pathway.id} 
                   className="bg-white rounded-lg"
@@ -475,7 +510,7 @@ export default function PrecisionMedicineDashboard() {
           <div className="mb-6">
             <h3 className="text-2xl font-bold mb-6">Targeted Treatment Options</h3>
             <div className="space-y-6">
-              {selectedMutation.treatments.map((treatment) => (
+              {(selectedMutation.treatments || []).map((treatment) => (
                 <div
                   key={treatment.id}
                   className="rounded-lg"
@@ -545,11 +580,11 @@ export default function PrecisionMedicineDashboard() {
           </div>
 
           {/* Clinical Trials */}
-          {selectedMutation.trials.length > 0 && (
+          {(selectedMutation.trials || []).length > 0 && (
             <div>
               <h3 className="text-2xl font-bold mb-6">Matched Clinical Trials</h3>
               <div className="space-y-6">
-                {selectedMutation.trials.map((trial) => (
+                {(selectedMutation.trials || []).map((trial) => (
                   <div 
                     key={trial.id} 
                     className="bg-white rounded-lg"
@@ -646,7 +681,7 @@ export default function PrecisionMedicineDashboard() {
         <div>
           <h2 className="text-2xl font-bold mb-6">🔬 All Matched Clinical Trials (Card View)</h2>
           <div className="space-y-6">
-            {dashboard.topTrials.map((trial) => (
+            {(dashboard.topTrials || []).map((trial) => (
               <div 
                 key={trial.id} 
                 className="bg-white rounded-lg"

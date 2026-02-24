@@ -179,31 +179,14 @@ export default function PortalManager() {
   };
 
   const handleSync = async (credentialId, serviceName) => {
-    // Check if vault is unlocked first
-    if (!vaultStatus.unlocked) {
-      setError('Vault must be unlocked before syncing. Please unlock the vault first.');
-      return;
-    }
-    
-    // Check if we're in Electron mode (sync not yet implemented for Electron)
-    const isElectron = typeof window !== 'undefined' && window.electron;
-    if (isElectron) {
-      setError('Portal sync is not yet available in the desktop app. This feature is coming in v0.1.21.');
-      return;
-    }
-    
     setSyncing(prev => ({ ...prev, [credentialId]: true }));
     setError(null);
     
     try {
-      const res = await fetch(`/api/portals/credentials/${credentialId}/sync`, {
-        method: 'POST',
-        credentials: 'include'
-      });
+      // Use the unified API (works in both Electron and browser)
+      const data = await api.syncPortal(credentialId);
       
-      const data = await res.json();
-      
-      if (res.ok) {
+      if (data.success !== false) {
         // Reload credentials to show updated sync status
         loadCredentials();
         
@@ -267,12 +250,13 @@ export default function PortalManager() {
         
         alert(message);
       } else {
-        if (data.error?.includes('Vault')) {
+        const errorMsg = data.summary?.message || data.error || 'Sync failed';
+        if (errorMsg.includes('Vault') || errorMsg.includes('locked')) {
           setError('Vault is locked. Please unlock it first by clicking "Unlock Vault" button below.');
           // Reload vault status
           loadVaultStatus();
         } else {
-          setError(data.error || 'Sync failed');
+          setError(errorMsg);
         }
       }
     } catch (err) {
@@ -307,115 +291,7 @@ export default function PortalManager() {
     return <div className="view"><p>Loading...</p></div>;
   }
 
-  // Vault setup screen
-  if (!vaultStatus.initialized) {
-    return (
-      <div className="view">
-        <h2>🔐 Secure Portal Vault</h2>
-        <div className="vault-setup" style={{ maxWidth: '500px', margin: '2rem auto' }}>
-          <div className="info-box" style={{
-            padding: '1.5rem',
-            backgroundColor: '#e8f4f8',
-            borderRadius: '8px',
-            marginBottom: '2rem'
-          }}>
-            <h3>First-Time Setup</h3>
-            <p>Set a master password to encrypt your healthcare portal credentials.</p>
-            <ul style={{ marginTop: '1rem', lineHeight: '1.8' }}>
-              <li>All credentials stored encrypted in your local database</li>
-              <li>Master password never leaves your computer</li>
-              <li>Encryption key cleared on server restart</li>
-              <li>Minimum 8 characters (longer is better)</li>
-            </ul>
-          </div>
-
-          {error && (
-            <div className="alert error" style={{
-              padding: '1rem',
-              backgroundColor: '#fee',
-              border: '1px solid #fcc',
-              borderRadius: '4px',
-              marginBottom: '1rem'
-            }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSetupVault}>
-            <div className="form-group">
-              <label>Master Password</label>
-              <input
-                type="password"
-                value={masterPassword}
-                onChange={(e) => setMasterPassword(e.target.value)}
-                placeholder="Enter master password"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="form-group">
-              <label>Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Re-enter master password"
-                required
-              />
-            </div>
-            <button type="submit" className="primary" style={{ width: '100%' }}>
-              🔒 Set Master Password
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Vault unlock screen
-  if (!vaultStatus.unlocked) {
-    return (
-      <div className="view">
-        <h2>🔐 Portal Vault Locked</h2>
-        <div className="vault-unlock" style={{ maxWidth: '400px', margin: '2rem auto' }}>
-          <p style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            Enter your master password to access portal credentials.
-          </p>
-
-          {error && (
-            <div className="alert error" style={{
-              padding: '1rem',
-              backgroundColor: '#fee',
-              border: '1px solid #fcc',
-              borderRadius: '4px',
-              marginBottom: '1rem'
-            }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleUnlockVault}>
-            <div className="form-group">
-              <label>Master Password</label>
-              <input
-                type="password"
-                value={masterPassword}
-                onChange={(e) => setMasterPassword(e.target.value)}
-                placeholder="Enter master password"
-                required
-                autoFocus
-              />
-            </div>
-            <button type="submit" className="primary" style={{ width: '100%' }}>
-              🔓 Unlock Vault
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Main portal management screen
+  // Main portal management screen (vault auto-unlocked on login)
   return (
     <div className="view">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -426,30 +302,9 @@ export default function PortalManager() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {vaultStatus.unlocked ? (
-            <>
-              <button onClick={() => setShowAddForm(true)}>+ Add Portal</button>
-              <button onClick={handleLockVault} style={{ minWidth: '100px' }}>🔒 Lock Vault</button>
-            </>
-          ) : (
-            <button onClick={() => window.location.reload()} className="primary" style={{ minWidth: '120px' }}>
-              🔓 Unlock Vault
-            </button>
-          )}
+          <button onClick={() => setShowAddForm(true)}>+ Add Portal</button>
         </div>
       </div>
-
-      {!vaultStatus.unlocked && (
-        <div className="alert error" style={{
-          padding: '1rem',
-          backgroundColor: '#fee',
-          border: '1px solid #fcc',
-          borderRadius: '4px',
-          marginBottom: '1rem'
-        }}>
-          Vault is locked. Click "🔓 Unlock Vault" to enter your master password.
-        </div>
-      )}
 
       {error && (
         <div className="alert error" style={{
@@ -706,10 +561,14 @@ export default function PortalManager() {
                     <div>
                       <strong>Last Sync:</strong>{' '}
                       {cred.last_sync ? new Date(cred.last_sync).toLocaleString() : 'Never'}
-                      {' '}
-                      <span className={`status-badge ${cred.last_sync_status}`}>
-                        {cred.last_sync_status}
-                      </span>
+                      {cred.last_sync_status && cred.last_sync_status !== 'never' && (
+                        <>
+                          {' '}
+                          <span className={`status-badge ${cred.last_sync_status}`}>
+                            {cred.last_sync_status}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
