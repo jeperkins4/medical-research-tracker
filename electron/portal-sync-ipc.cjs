@@ -203,10 +203,12 @@ async function syncCareSpace(credential, database) {
     console.log(`  → Navigating to ${credential.base_url}`);
     await page.goto(credential.base_url, { waitUntil: 'networkidle', timeout: 30000 });
     
-    // Check if already logged in
-    const alreadyLoggedIn = page.url().includes('carespaceportal.com') && 
-                           !page.url().includes('/login') &&
-                           await page.locator('text=/labs|health|appointments/i').count() > 0;
+    // Check if already logged in (CareSpace/Flatiron flow)
+    // Nav to carespaceportal.com redirects to accounts.flatiron.com/account/login if not logged in
+    const currentUrl = page.url();
+    const alreadyLoggedIn = currentUrl.includes('carespaceportal.com') && 
+                           !currentUrl.includes('/login') &&
+                           await page.locator('text=/labs|health|appointments|logout|sign out/i').count() > 0;
     
     if (!alreadyLoggedIn || !usedCachedAuth) {
       // Login required
@@ -275,7 +277,7 @@ async function syncCareSpace(credential, database) {
     // Scrape data
     try {
       console.log('  → Scraping lab results');
-      results.labResults = await scrapeLabs(page, database);
+      results.labResults = await scrapeLabs(page, database, credential.id);
     } catch (err) {
       results.errors.push(`Labs: ${err.message}`);
       console.error('  ✗ Lab scraping failed:', err.message);
@@ -283,7 +285,7 @@ async function syncCareSpace(credential, database) {
     
     try {
       console.log('  → Scraping imaging reports');
-      results.imagingReports = await scrapeImaging(page, database);
+      results.imagingReports = await scrapeImaging(page, database, credential.id);
     } catch (err) {
       results.errors.push(`Imaging: ${err.message}`);
       console.error('  ✗ Imaging scraping failed:', err.message);
@@ -291,7 +293,7 @@ async function syncCareSpace(credential, database) {
     
     try {
       console.log('  → Scraping pathology reports');
-      results.pathologyReports = await scrapePathology(page, database);
+      results.pathologyReports = await scrapePathology(page, database, credential.id);
     } catch (err) {
       results.errors.push(`Pathology: ${err.message}`);
       console.error('  ✗ Pathology scraping failed:', err.message);
@@ -299,7 +301,7 @@ async function syncCareSpace(credential, database) {
     
     try {
       console.log('  → Scraping clinical notes');
-      results.clinicalNotes = await scrapeClinicalNotes(page, database);
+      results.clinicalNotes = await scrapeClinicalNotes(page, database, credential.id);
     } catch (err) {
       results.errors.push(`Notes: ${err.message}`);
       console.error('  ✗ Notes scraping failed:', err.message);
@@ -307,7 +309,7 @@ async function syncCareSpace(credential, database) {
     
     try {
       console.log('  → Scraping medications');
-      results.medications = await scrapeMedications(page, database);
+      results.medications = await scrapeMedications(page, database, credential.id);
     } catch (err) {
       results.errors.push(`Medications: ${err.message}`);
       console.error('  ✗ Medications scraping failed:', err.message);
@@ -392,8 +394,18 @@ async function detectSubmitButton(page) {
 async function checkLoginSuccess(page) {
   const url = page.url();
   
+  // CareSpace (Flatiron Health): after login at accounts.flatiron.com,
+  // redirects back to carespaceportal.com
   if (url.includes('carespaceportal.com') && !url.includes('/login')) {
     return true;
+  }
+  // Still on Flatiron but past initial login step
+  if (url.includes('flatiron.com') && url.includes('connect/authorize')) {
+    // OAuth callback in progress — wait briefly for redirect
+    try {
+      await page.waitForURL('**/carespaceportal.com/**', { timeout: 8000 });
+      return true;
+    } catch (_) {}
   }
   
   const successIndicators = [
@@ -590,24 +602,188 @@ async function scrapeLabs(page, database) {
   return insertedCount;
 }
 
-async function scrapeImaging(page, database) {
-  // TODO: Implement imaging scraping
-  return 0;
+// ── Ensure portal_documents table exists ─────────────────────────────────────
+function ensurePortalDocumentsTable(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS portal_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      portal_credential_id INTEGER,
+      document_type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      document_date TEXT,
+      provider TEXT,
+      content TEXT,
+      file_path TEXT,
+      mime_type TEXT DEFAULT 'text/plain',
+      source_url TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(document_type, title, document_date, provider)
+    )
+  `);
 }
 
-async function scrapePathology(page, database) {
-  // TODO: Implement pathology scraping
-  return 0;
+// ── Generic document navigator & scraper ─────────────────────────────────────
+// Tries multiple nav link patterns; returns the count of records stored.
+async function navigateAndScrapeDocSection(page, database, credentialId, navTexts, docType) {
+  ensurePortalDocumentsTable(database);
+
+  // Try to click nav link
+  for (const text of navTexts) {
+    try {
+      const link = page.locator(`a:has-text("${text}"), button:has-text("${text}"), nav *:has-text("${text}")`).first();
+      if (await link.count() > 0) {
+        await link.click();
+        await page.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {});
+        await page.waitForTimeout(1500);
+        break;
+      }
+    } catch (_) {}
+  }
+
+  // Collect visible document rows / links
+  const rowSelectors = [
+    '.document-row', '.report-item', '.record-row',
+    'tr[data-testid*="row"]', '.list-item', 'li.result-item',
+    '[class*="document"]', '[class*="report"]', '[class*="record"]',
+    'table tbody tr', '.rt-tbody .rt-tr[role="row"]'
+  ];
+
+  let rows = null;
+  for (const sel of rowSelectors) {
+    const found = page.locator(sel);
+    if (await found.count() > 0) { rows = found; break; }
+  }
+
+  if (!rows) {
+    // Fallback: grab all text on the page, store as one big note
+    const bodyText = await page.locator('main, [role="main"], body').first().innerText().catch(() => '');
+    if (bodyText.trim().length > 50) {
+      const title = `${docType} — ${new Date().toISOString().split('T')[0]}`;
+      try {
+        database.prepare(`
+          INSERT OR IGNORE INTO portal_documents (portal_credential_id, document_type, title, document_date, provider, content, mime_type)
+          VALUES (?, ?, ?, date('now'), 'CareSpace Portal', ?, 'text/plain')
+        `).run(credentialId, docType, title, bodyText.substring(0, 50000));
+        return 1;
+      } catch (_) { return 0; }
+    }
+    return 0;
+  }
+
+  const count = await rows.count();
+  const MAX = 50;
+  let stored = 0;
+
+  const checkStmt = database.prepare(`SELECT id FROM portal_documents WHERE document_type = ? AND title = ? AND document_date = ?`);
+  const insertStmt = database.prepare(`
+    INSERT OR IGNORE INTO portal_documents (portal_credential_id, document_type, title, document_date, provider, content, source_url, mime_type)
+    VALUES (?, ?, ?, ?, 'CareSpace Portal', ?, ?, 'text/plain')
+  `);
+
+  for (let i = 0; i < Math.min(count, MAX); i++) {
+    try {
+      const row = rows.nth(i);
+      const rowText = (await row.innerText().catch(() => '')).trim();
+      if (!rowText || rowText.length < 3) continue;
+
+      // Extract date from row text
+      const dateMatch = rowText.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{4})/i);
+      let docDate = null;
+      if (dateMatch) {
+        try { docDate = new Date(dateMatch[0]).toISOString().split('T')[0]; } catch (_) {}
+      }
+
+      // Use first meaningful line as title
+      const lines = rowText.split('\n').map(l => l.trim()).filter(Boolean);
+      const title = lines[0]?.substring(0, 200) || `${docType} record`;
+
+      // Try to get source URL
+      const href = await row.locator('a').first().getAttribute('href').catch(() => null);
+
+      const existing = checkStmt.get(docType, title, docDate || '');
+      if (!existing) {
+        insertStmt.run(credentialId, docType, title, docDate || '', rowText.substring(0, 10000), href || null);
+        stored++;
+      }
+    } catch (_) {}
+  }
+
+  return stored;
 }
 
-async function scrapeClinicalNotes(page, database) {
-  // TODO: Implement clinical notes scraping
-  return 0;
+async function scrapeImaging(page, database, credentialId) {
+  console.log('    → Scraping imaging/radiology reports');
+  return navigateAndScrapeDocSection(
+    page, database, credentialId,
+    ['Imaging', 'Radiology', 'Radiology Reports', 'Imaging Reports'],
+    'Radiology Report'
+  );
 }
 
-async function scrapeMedications(page, database) {
-  // TODO: Implement medications scraping
-  return 0;
+async function scrapePathology(page, database, credentialId) {
+  console.log('    → Scraping pathology reports');
+  return navigateAndScrapeDocSection(
+    page, database, credentialId,
+    ['Pathology', 'Pathology Reports', 'Biopsy'],
+    'Pathology Report'
+  );
+}
+
+async function scrapeClinicalNotes(page, database, credentialId) {
+  console.log('    → Scraping clinical notes / visit summaries');
+  return navigateAndScrapeDocSection(
+    page, database, credentialId,
+    ["Doctor's Notes", 'Clinical Notes', 'Visit Summary', 'Visit Summaries', 'Notes', 'Documents', 'Health Records'],
+    'Clinical Note'
+  );
+}
+
+async function scrapeMedications(page, database, credentialId) {
+  // Navigate to medications / active prescriptions list
+  for (const text of ['Medications', 'Prescriptions', 'Active Medications']) {
+    try {
+      const link = page.locator(`a:has-text("${text}"), nav *:has-text("${text}")`).first();
+      if (await link.count() > 0) {
+        await link.click();
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        await page.waitForTimeout(1200);
+        break;
+      }
+    } catch (_) {}
+  }
+
+  // Try to grab medication rows
+  const rowSelectors = ['.medication-row', 'tr', '.list-item', '[class*="med"]', 'table tbody tr'];
+  let rows = null;
+  for (const sel of rowSelectors) {
+    const found = page.locator(sel);
+    if (await found.count() > 1) { rows = found; break; }
+  }
+  if (!rows) return 0;
+
+  const count = await rows.count();
+  const insertStmt = database.prepare(`
+    INSERT OR IGNORE INTO medications (name, dosage, notes, created_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `);
+  const checkStmt = database.prepare(`SELECT id FROM medications WHERE name = ?`);
+
+  let stored = 0;
+  for (let i = 0; i < Math.min(count, 50); i++) {
+    try {
+      const text = (await rows.nth(i).innerText().catch(() => '')).trim();
+      if (!text || text.length < 3) continue;
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const name = lines[0];
+      if (!name || name.length < 2) continue;
+      const existing = checkStmt.get(name);
+      if (!existing) {
+        insertStmt.run(name, lines[1] || null, 'Source: CareSpace Portal');
+        stored++;
+      }
+    } catch (_) {}
+  }
+  return stored;
 }
 
 module.exports = { syncPortal };
