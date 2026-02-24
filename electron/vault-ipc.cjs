@@ -396,6 +396,7 @@ module.exports = {
   unlockVault,
   lockVault,
   autoUnlockVault,
+  isVaultUnlocked,
   getPortalCredentials,
   savePortalCredential,
   deletePortalCredential,

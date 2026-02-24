@@ -54,9 +54,15 @@ export default function PortalManager() {
   const loadCredentials = async () => {
     try {
       const data = await api.getPortalCredentials();
-      setCredentials(data);
+      setCredentials(data || []);
     } catch (err) {
-      setError('Failed to load credentials');
+      console.error('[PortalManager] loadCredentials error:', err);
+      const msg = err?.message || '';
+      if (msg.toLowerCase().includes('locked') || msg.toLowerCase().includes('unlock')) {
+        setError('Vault is locked — please log out and log back in to unlock.');
+      } else {
+        setError(`Failed to load credentials: ${msg || 'unknown error'}`);
+      }
     }
   };
 

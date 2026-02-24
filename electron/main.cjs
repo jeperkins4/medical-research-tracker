@@ -21,6 +21,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
 let currentUserId = null;
+let currentSessionPassword = null; // In-memory only, cleared on logout
 const VITE_PORT = 5173;
 
 // Get or generate app secrets
@@ -164,8 +165,9 @@ ipcMain.handle('db:create-user', async (event, username, password) => {
   const result = db.createUser(username, password);
   if (result.success) {
     currentUserId = result.userId;
-    // Auto-unlock vault with user's password
-    vault.autoUnlockVault(password);
+    currentSessionPassword = password; // Store for vault auto-unlock retries
+    const unlockResult = vault.autoUnlockVault(password);
+    console.log('[Main] Vault auto-unlock on create-user:', unlockResult);
   }
   return result;
 });
@@ -174,8 +176,9 @@ ipcMain.handle('db:verify-user', async (event, username, password) => {
   const result = db.verifyUser(username, password);
   if (result.success) {
     currentUserId = result.userId;
-    // Auto-unlock vault with user's password
-    vault.autoUnlockVault(password);
+    currentSessionPassword = password; // Store for vault auto-unlock retries
+    const unlockResult = vault.autoUnlockVault(password);
+    console.log('[Main] Vault auto-unlock on verify-user:', unlockResult);
   }
   return result;
 });
@@ -222,6 +225,8 @@ ipcMain.handle('db:add-vitals', (event, data) => {
 
 ipcMain.handle('db:logout', () => {
   currentUserId = null;
+  currentSessionPassword = null; // Clear session password
+  vault.lockVault();             // Lock vault on logout
   return { success: true };
 });
 
@@ -243,6 +248,12 @@ ipcMain.handle('vault:lock', () => {
 });
 
 ipcMain.handle('vault:get-credentials', () => {
+  // If vault is locked but we have a session password, try to auto-unlock first
+  if (!vault.isVaultUnlocked() && currentSessionPassword) {
+    console.log('[Main] vault:get-credentials — vault locked, attempting auto-unlock with session password');
+    const unlockResult = vault.autoUnlockVault(currentSessionPassword);
+    console.log('[Main] Retry auto-unlock result:', unlockResult);
+  }
   return vault.getPortalCredentials();
 });
 
