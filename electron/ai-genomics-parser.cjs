@@ -1,7 +1,11 @@
 /**
  * AI-powered genomic report parser
- * Uploads PDF text to Claude, gets back structured mutation data.
- * Works with Foundation One CDx, Tempus, Caris, Guardant, and any other format.
+ * Supports both text-based and image-based (scanned) PDFs.
+ *
+ * Strategy:
+ *   1. Try pdf-parse to extract text.
+ *   2. If text is empty/minimal (image-only PDF), send the PDF directly
+ *      to Claude as a base64 document — Claude reads it natively via vision.
  */
 
 'use strict';
@@ -9,21 +13,16 @@
 const fs   = require('fs');
 const path = require('path');
 
-// pdf-parse v1.1.1 — exports a function directly
 const pdfParse = require('pdf-parse');
-
-// Anthropic SDK (already installed)
 const Anthropic = require('@anthropic-ai/sdk');
 
-// ── Claude prompt ─────────────────────────────────────────────────────────────
+// ── Prompts ───────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a clinical genomics expert analyzing molecular pathology reports.
-Extract all genetic alterations from the report text provided and return them as a JSON array.
+Extract all genetic alterations from the report and return them as a JSON array.
 Be thorough and precise. Include every mutation, alteration, biomarker, and genomic finding.`;
 
-const USER_PROMPT_TEMPLATE = (reportText) => `Analyze this genomic/molecular pathology report and extract ALL genetic findings.
-
-Return a JSON array where each element has exactly these fields:
+const JSON_SCHEMA = `Return a JSON array where each element has exactly these fields:
 {
   "gene": "gene name (e.g. ARID1A, TP53, KRAS, FGFR3)",
   "mutation_type": "one of: Short Variant, Copy Number Alteration, Rearrangement, Biomarker",
@@ -39,36 +38,48 @@ Return a JSON array where each element has exactly these fields:
 
 Rules:
 - Include ALL variants: short variants, CNAs, rearrangements, fusions, biomarkers (TMB, MSI, LOH)
-- For biomarkers like TMB-High, MSI-Stable, LOH-High: use mutation_type="Biomarker"
-- For gene amplifications: use mutation_type="Copy Number Alteration", mutation_detail="Amplification"
-- If a field is not present in the report, use null (not empty string)
-- Return ONLY the JSON array, no markdown, no explanation, no code fences
+- For biomarkers like TMB-High, MSI-Stable: use mutation_type="Biomarker"
+- For gene amplifications: mutation_type="Copy Number Alteration", mutation_detail="Amplification"
+- If a field is not in the report, use null (not empty string)
+- Return ONLY the JSON array, no markdown, no explanation, no code fences`;
 
-REPORT TEXT:
-${reportText}`;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-// ── Main export ───────────────────────────────────────────────────────────────
+function detectReportSource(text) {
+  if (/foundation\s*one/i.test(text)) return 'FoundationOne CDx';
+  if (/tempus/i.test(text))           return 'Tempus xT';
+  if (/caris/i.test(text))            return 'Caris MI Profile';
+  if (/guardant/i.test(text))         return 'Guardant360';
+  if (/msk\-impact/i.test(text))      return 'MSK-IMPACT';
+  return null;
+}
 
-/**
- * Parse a genomic report PDF using AI.
- * @param {string} pdfPath  Absolute path to the PDF file
- * @param {string} apiKey   Anthropic API key
- * @returns {Promise<{ mutations: Array, rawText: string, reportSource: string }>}
- */
-async function parseGenomicReportWithAI(pdfPath, apiKey) {
-  // 1. Extract text from PDF
-  const buffer = fs.readFileSync(pdfPath);
-  const parsed = await pdfParse(buffer);
-  const rawText = parsed.text || '';
+function normalizeMutations(mutations) {
+  return mutations
+    .map(m => ({
+      gene:                  String(m.gene || '').trim(),
+      mutation_type:         String(m.mutation_type || 'Short Variant').trim(),
+      mutation_detail:       String(m.mutation_detail || '').trim(),
+      vaf:                   (m.vaf != null && !isNaN(Number(m.vaf))) ? Number(m.vaf) : null,
+      clinical_significance: String(m.clinical_significance || 'unknown').trim(),
+      transcript_id:         m.transcript_id ? String(m.transcript_id).trim() : null,
+      coding_effect:         m.coding_effect  ? String(m.coding_effect).trim()  : null,
+      exon:                  m.exon           ? String(m.exon).trim()           : null,
+      report_source:         m.report_source  ? String(m.report_source).trim()  : 'Unknown',
+      report_date:           m.report_date    ? String(m.report_date).trim()    : null,
+    }))
+    .filter(m => m.gene);
+}
 
-  if (!rawText.trim()) {
-    throw new Error('Could not extract text from PDF. The file may be image-only or corrupted.');
-  }
+function parseAIJson(aiText) {
+  const clean = aiText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const parsed = JSON.parse(clean);
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
 
-  // 2. Call Claude
-  const client = new Anthropic({ apiKey });
+// ── Text-based PDF path ───────────────────────────────────────────────────────
 
-  // Limit text to ~12,000 chars to stay well within context limits
+async function parseWithText(client, rawText) {
   const textForAI = rawText.length > 12000
     ? rawText.substring(0, 12000) + '\n...[truncated]'
     : rawText;
@@ -76,64 +87,86 @@ async function parseGenomicReportWithAI(pdfPath, apiKey) {
   const message = await client.messages.create({
     model:      'claude-opus-4-6',
     max_tokens: 4096,
-    messages: [
-      {
-        role:    'user',
-        content: USER_PROMPT_TEMPLATE(textForAI),
-      }
-    ],
-    system: SYSTEM_PROMPT,
+    system:     SYSTEM_PROMPT,
+    messages: [{
+      role:    'user',
+      content: `Analyze this genomic/molecular pathology report and extract ALL genetic findings.\n\n${JSON_SCHEMA}\n\nREPORT TEXT:\n${textForAI}`,
+    }],
   });
 
-  const aiResponse = message.content[0]?.text || '';
+  return parseAIJson(message.content[0]?.text || '');
+}
 
-  // 3. Parse the JSON response
+// ── Image-based PDF path (send PDF directly to Claude) ────────────────────────
+
+async function parseWithVision(client, pdfBuffer) {
+  const base64 = pdfBuffer.toString('base64');
+
+  console.log('[AI Parser] Image-based PDF detected — sending to Claude as document');
+
+  const message = await client.messages.create({
+    model:      'claude-opus-4-6',
+    max_tokens: 4096,
+    system:     SYSTEM_PROMPT,
+    messages: [{
+      role:    'user',
+      content: [
+        {
+          type:   'document',
+          source: {
+            type:       'base64',
+            media_type: 'application/pdf',
+            data:       base64,
+          },
+        },
+        {
+          type: 'text',
+          text: `Extract ALL genetic findings from this genomic report PDF.\n\n${JSON_SCHEMA}`,
+        },
+      ],
+    }],
+    betas: ['pdfs-2024-09-25'],
+  });
+
+  return parseAIJson(message.content[0]?.text || '');
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
+async function parseGenomicReportWithAI(pdfPath, apiKey) {
+  const buffer = fs.readFileSync(pdfPath);
+  const client = new Anthropic({ apiKey });
+
+  let rawText = '';
   let mutations = [];
+
+  // Step 1: Try to extract text
   try {
-    // Strip any accidental markdown fences
-    const clean = aiResponse.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    mutations = JSON.parse(clean);
-    if (!Array.isArray(mutations)) {
-      mutations = [mutations]; // wrap object in array just in case
-    }
-  } catch (parseErr) {
-    console.error('[AI Parser] Failed to parse AI response as JSON:', aiResponse.substring(0, 500));
-    throw new Error(`AI returned invalid JSON: ${parseErr.message}`);
+    const parsed = await pdfParse(buffer);
+    rawText = parsed.text || '';
+  } catch (e) {
+    console.warn('[AI Parser] pdf-parse failed:', e.message);
   }
 
-  // 4. Normalise fields — ensure consistent types
-  mutations = mutations.map(m => ({
-    gene:                 String(m.gene || '').trim(),
-    mutation_type:        String(m.mutation_type || 'Short Variant').trim(),
-    mutation_detail:      String(m.mutation_detail || '').trim(),
-    vaf:                  (m.vaf !== null && m.vaf !== undefined && !isNaN(Number(m.vaf)))
-                            ? Number(m.vaf) : null,
-    clinical_significance: String(m.clinical_significance || 'unknown').trim(),
-    transcript_id:        m.transcript_id ? String(m.transcript_id).trim() : null,
-    coding_effect:        m.coding_effect ? String(m.coding_effect).trim() : null,
-    exon:                 m.exon ? String(m.exon).trim() : null,
-    report_source:        m.report_source ? String(m.report_source).trim() : 'Unknown',
-    report_date:          m.report_date ? String(m.report_date).trim() : null,
-  })).filter(m => m.gene); // drop any entries with no gene name
+  // Step 2: Route based on whether we got usable text
+  const hasText = rawText.trim().length > 100; // <100 chars = image-only or nearly empty
 
-  // Detect report source from first mutation or raw text
+  if (hasText) {
+    console.log(`[AI Parser] Text-based PDF (${rawText.length} chars) — using text path`);
+    mutations = await parseWithText(client, rawText);
+  } else {
+    console.log('[AI Parser] No extractable text — using vision/document path');
+    mutations = await parseWithVision(client, buffer);
+    rawText = '(image-based PDF — text extracted by Claude vision)';
+  }
+
+  mutations = normalizeMutations(mutations);
+
   const reportSource = mutations[0]?.report_source
     || detectReportSource(rawText)
     || 'Genomic Report';
 
   return { mutations, rawText, reportSource };
-}
-
-/**
- * Best-effort detect the report source from raw text
- */
-function detectReportSource(text) {
-  if (/foundation\s*one/i.test(text))  return 'FoundationOne CDx';
-  if (/tempus/i.test(text))            return 'Tempus xT';
-  if (/caris/i.test(text))             return 'Caris MI Profile';
-  if (/guardant/i.test(text))          return 'Guardant360';
-  if (/msk\-impact/i.test(text))       return 'MSK-IMPACT';
-  return null;
 }
 
 module.exports = { parseGenomicReportWithAI };
