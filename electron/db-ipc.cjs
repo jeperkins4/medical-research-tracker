@@ -312,17 +312,27 @@ function migratePortalCredentialColumns() {
     ['sync_day_of_month',       'INTEGER DEFAULT 1'],
   ];
 
+  // Per-column try-catch so one failure never blocks the rest
+  let existing = new Set();
   try {
-    const cols = db.prepare('PRAGMA table_info(portal_credentials)').all();
-    const existing = new Set(cols.map(c => c.name));
+    existing = new Set(db.prepare('PRAGMA table_info(portal_credentials)').all().map(c => c.name));
+  } catch (e) { console.error('[DB-IPC] PRAGMA table_info failed:', e.message); }
 
-    for (const [col, def] of needed) {
-      if (!existing.has(col)) {
+  for (const [col, def] of needed) {
+    if (!existing.has(col)) {
+      try {
         db.exec(`ALTER TABLE portal_credentials ADD COLUMN ${col} ${def}`);
         console.log(`[DB-IPC] Migration: added portal_credentials.${col}`);
+        existing.add(col);
+      } catch (colErr) {
+        if (!colErr.message.includes('duplicate column')) {
+          console.error(`[DB-IPC] Migration failed for ${col}:`, colErr.message);
+        }
       }
     }
+  }
 
+  try {
     // Backfill: copy portal_name → service_name and url → base_url for old rows
     if (!existing.has('service_name') || db.prepare(
       "SELECT COUNT(*) as n FROM portal_credentials WHERE service_name IS NULL AND portal_name IS NOT NULL"

@@ -53,37 +53,49 @@ function getDB() {
     }
     
     // ── Schema migration: ensure portal_credentials has all expected columns ──
-    // Run this every time regardless of which layer created the table first.
+    // Each column gets its OWN try-catch so a failure on one never blocks the rest.
+    const needed = [
+      ['service_name',          'TEXT'],
+      ['username_encrypted',    'TEXT'],
+      ['notes_encrypted',       'TEXT'],
+      ['totp_secret_encrypted', 'TEXT'],
+      ['updated_at',            'TEXT DEFAULT CURRENT_TIMESTAMP'],
+      ['last_sync',             'TEXT'],
+      ['last_sync_status',      "TEXT DEFAULT 'never'"],
+      ['portal_type',           "TEXT DEFAULT 'generic'"],
+      ['base_url',              'TEXT'],
+      ['mfa_method',            "TEXT DEFAULT 'none'"],
+    ];
+    let existingCols;
     try {
-      const existingCols = new Set(
+      existingCols = new Set(
         db.prepare('PRAGMA table_info(portal_credentials)').all().map(c => c.name)
       );
-      const needed = [
-        ['service_name',          'TEXT'],
-        ['username_encrypted',    'TEXT'],
-        ['notes_encrypted',       'TEXT'],
-        ['totp_secret_encrypted', 'TEXT'],
-        ['updated_at',            'TEXT DEFAULT CURRENT_TIMESTAMP'],
-        ['last_sync',             'TEXT'],
-        ['last_sync_status',      "TEXT DEFAULT 'never'"],
-        ['portal_type',           "TEXT DEFAULT 'generic'"],
-        ['base_url',              'TEXT'],
-        ['mfa_method',            "TEXT DEFAULT 'none'"],
-      ];
-      for (const [col, def] of needed) {
-        if (!existingCols.has(col)) {
+    } catch (e) {
+      console.error('[Vault IPC] Could not read portal_credentials schema:', e.message);
+      existingCols = new Set();
+    }
+    for (const [col, def] of needed) {
+      if (!existingCols.has(col)) {
+        try {
           db.exec(`ALTER TABLE portal_credentials ADD COLUMN ${col} ${def}`);
           console.log(`[Vault IPC] Migration: added portal_credentials.${col}`);
+          existingCols.add(col); // keep set in sync
+        } catch (colErr) {
+          // "duplicate column name" is fine — means it exists already
+          if (!colErr.message.includes('duplicate column')) {
+            console.error(`[Vault IPC] Migration failed for ${col}:`, colErr.message);
+          }
         }
       }
-      // Backfill old column names → new column names
-      if (!existingCols.has('service_name')) {
-        db.exec("UPDATE portal_credentials SET service_name = portal_name WHERE service_name IS NULL AND portal_name IS NOT NULL");
-        db.exec("UPDATE portal_credentials SET base_url = url WHERE base_url IS NULL AND url IS NOT NULL");
-        db.exec("UPDATE portal_credentials SET username_encrypted = username WHERE username_encrypted IS NULL AND username IS NOT NULL");
-      }
-    } catch (migErr) {
-      console.error('[Vault IPC] Schema migration warning:', migErr.message);
+    }
+    // Backfill old column names → new column names
+    try {
+      db.exec("UPDATE portal_credentials SET service_name = portal_name WHERE service_name IS NULL AND portal_name IS NOT NULL");
+      db.exec("UPDATE portal_credentials SET base_url = url WHERE base_url IS NULL AND url IS NOT NULL");
+      db.exec("UPDATE portal_credentials SET username_encrypted = username WHERE username_encrypted IS NULL AND username IS NOT NULL");
+    } catch (backfillErr) {
+      console.warn('[Vault IPC] Backfill skipped:', backfillErr.message);
     }
     console.log('[Vault IPC] Database opened successfully');
   }
@@ -315,7 +327,7 @@ function getPortalCredentials() {
            username_encrypted, password_encrypted,
            mfa_method, totp_secret_encrypted, notes_encrypted,
            last_sync, last_sync_status,
-           created_at, updated_at
+           created_at
     FROM portal_credentials
     ORDER BY service_name
   `).all();
