@@ -147,9 +147,20 @@ async function syncPortal(credentialId, dbPath) {
  * CareSpace Portal scraper
  */
 async function syncCareSpace(credential, database) {
+  // In a packaged Electron app the ASAR virtual FS can't resolve Playwright's
+  // internal browser registry — pass the executable path explicitly.
+  let executablePath;
+  try {
+    executablePath = chromium.executablePath();
+    console.log('  → Chromium path:', executablePath);
+  } catch (e) {
+    console.warn('  → chromium.executablePath() failed, falling back to auto-detect');
+  }
+
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox']
+    executablePath,
+    args: ['--no-sandbox', '--disable-dev-shm-usage']
   });
   
   const authStatePath = join(tmpdir(), `carespace-auth-${credential.id}.json`);
