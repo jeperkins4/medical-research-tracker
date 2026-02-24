@@ -156,8 +156,14 @@ export default function FoundationOneUploader({ onImported }) {
 
       {step === 'parsing' && (
         <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-          <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>⏳</div>
-          Parsing Foundation One report…
+          <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🧬</div>
+          <div style={{ fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
+            Analyzing report with AI…
+          </div>
+          <div style={{ fontSize: '13px' }}>
+            Claude is reading your genomic report and extracting all mutations.
+            This takes 10–20 seconds.
+          </div>
         </div>
       )}
 
@@ -166,11 +172,12 @@ export default function FoundationOneUploader({ onImported }) {
           {/* Header */}
           <div style={{ padding: '16px 20px', background: '#f0f9ff', borderBottom: '1px solid #e0f2fe' }}>
             <h3 style={{ margin: '0 0 4px', color: '#0c4a6e' }}>
-              📋 Report extracted — {parsed.mutations?.length || 0} mutations found
+              🧬 AI extracted — {parsed.mutations?.length || 0} mutations found
             </h3>
             <div style={{ fontSize: '13px', color: '#0369a1' }}>
-              Report date: {parsed.reportDate}
-              {parsed.biomarkers?.length > 0 && ` • ${parsed.biomarkers.length} biomarkers`}
+              {parsed.reportSource && `Source: ${parsed.reportSource} • `}
+              {parsed.reportDate && `Report date: ${parsed.reportDate}`}
+              {!parsed.mutations?.length && ' — Review the mutations below before importing'}
             </div>
           </div>
 

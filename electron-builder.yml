@@ -43,6 +43,8 @@ extraResources:
     to: data
     filter:
       - "**/*"
+  - from: .env
+    to: .env
 
 mac:
   category: public.app-category.medical

@@ -2,6 +2,19 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+
+// Load .env — works in dev mode and from extraResources in packaged app
+try {
+  const dotenv = require('dotenv');
+  const envPaths = [
+    path.join(__dirname, '../.env'),                  // dev: project root
+    path.join(process.resourcesPath || '', '.env'),   // packaged: extraResources
+    path.join(app.getPath('userData'), '.env'),        // user-writable config
+  ];
+  for (const p of envPaths) {
+    if (fs.existsSync(p)) { dotenv.config({ path: p }); break; }
+  }
+} catch {}
 const db = require('./db-ipc.cjs');
 const vault = require('./vault-ipc.cjs');
 const isDev = process.env.NODE_ENV === 'development';
@@ -266,14 +279,25 @@ ipcMain.handle('portal:sync', async (event, credentialId) => {
   }
 });
 
-// Foundation One PDF Parser
-const { parseFoundationOneReport } = require('./foundation-one-parser.cjs');
+// AI-powered genomic report parser (replaces regex-based Foundation One parser)
+const { parseGenomicReportWithAI } = require('./ai-genomics-parser.cjs');
 
 ipcMain.handle('genomics:parse-foundation-one', async (event, filePath) => {
   try {
-    return await parseFoundationOneReport(filePath);
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: 'ANTHROPIC_API_KEY not configured. Add it to your .env file.' };
+    }
+    const result = await parseGenomicReportWithAI(filePath, apiKey);
+    return {
+      success:      true,
+      mutations:    result.mutations,
+      reportSource: result.reportSource,
+      reportDate:   result.mutations[0]?.report_date || new Date().toISOString().split('T')[0],
+      rawTextLen:   result.rawText.length,
+    };
   } catch (err) {
-    console.error('[Main] Foundation One parse failed:', err.message);
+    console.error('[Main] AI genomic parse failed:', err.message);
     return { success: false, error: err.message };
   }
 });
