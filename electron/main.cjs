@@ -294,14 +294,6 @@ ipcMain.handle('dialog:open-file', async (event, options) => {
 });
 
 // Subscription IPC handlers
-ipcMain.handle('subscriptions:categories', () => db.SUBSCRIPTION_CATEGORIES);
-ipcMain.handle('subscriptions:list',    (e, filters)  => db.getSubscriptions(filters || {}));
-ipcMain.handle('subscriptions:summary', ()            => db.getSubscriptionSummary());
-ipcMain.handle('subscriptions:add',     (e, data)     => db.addSubscription(data));
-ipcMain.handle('subscriptions:update',  (e, id, data) => db.updateSubscription(id, data));
-ipcMain.handle('subscriptions:delete',  (e, id)       => db.deleteSubscription(id));
-ipcMain.handle('subscriptions:payments:list', (e, subId) => db.getSubscriptionPayments(subId));
-ipcMain.handle('subscriptions:payments:add',  (e, subId, data) => db.addSubscriptionPayment(subId, data));
 
 // Genomics IPC handlers (authentication gated at UI login, not IPC level)
 ipcMain.handle('genomics:get-dashboard', () => {

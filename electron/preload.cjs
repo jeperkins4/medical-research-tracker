@@ -56,17 +56,8 @@ contextBridge.exposeInMainWorld('electron', {
     openFile:           (opts)                 => ipcRenderer.invoke('dialog:open-file', opts),
   },
 
-  subscriptions: {
-    getCategories: ()             => ipcRenderer.invoke('subscriptions:categories'),
-    list:          (filters)      => ipcRenderer.invoke('subscriptions:list', filters),
-    summary:       ()             => ipcRenderer.invoke('subscriptions:summary'),
-    add:           (data)         => ipcRenderer.invoke('subscriptions:add', data),
-    update:        (id, data)     => ipcRenderer.invoke('subscriptions:update', id, data),
-    remove:        (id)           => ipcRenderer.invoke('subscriptions:delete', id),
-    listPayments:  (subId)        => ipcRenderer.invoke('subscriptions:payments:list', subId),
-    addPayment:    (subId, data)  => ipcRenderer.invoke('subscriptions:payments:add', subId, data),
-  }
 });
+
 
 // Expose API for future features (backup, updates, etc.)
 contextBridge.exposeInMainWorld('api', {
