@@ -40,11 +40,13 @@ async function syncPortal(credentialId, dbPath) {
     throw new Error('Credential not found');
   }
   
-  // Decrypt password
-  const decryptedPassword = vault.decrypt(cred.password);
+  // Decrypt credentials
+  const decryptedPassword = cred.password_encrypted ? vault.decrypt(cred.password_encrypted) : '';
+  const decryptedUsername = cred.username_encrypted ? vault.decrypt(cred.username_encrypted) : (cred.username || '');
   const credential = {
     ...cred,
-    password: decryptedPassword
+    username: decryptedUsername,
+    password: decryptedPassword,
   };
   
   console.log(`🔄 Starting sync for: ${credential.service_name} (${credential.portal_type})`);
@@ -97,14 +99,18 @@ async function syncPortal(credentialId, dbPath) {
       WHERE id = ?
     `).run(endTime, result.recordsImported, syncLogId);
     
-    // Update credential
-    database.prepare(`
-      UPDATE portal_credentials
-      SET last_sync = ?,
-          last_sync_status = 'success',
-          last_sync_records = ?
-      WHERE id = ?
-    `).run(endTime, result.recordsImported, credentialId);
+    // Update credential (last_sync_records may not exist on older DBs)
+    try {
+      database.prepare(`
+        UPDATE portal_credentials
+        SET last_sync = ?, last_sync_status = 'success', last_sync_records = ?
+        WHERE id = ?
+      `).run(endTime, result.recordsImported, credentialId);
+    } catch (e) {
+      database.prepare(`
+        UPDATE portal_credentials SET last_sync = ?, last_sync_status = 'success' WHERE id = ?
+      `).run(endTime, credentialId);
+    }
     
     console.log(`✅ Sync complete: ${result.recordsImported} records imported`);
     
@@ -127,12 +133,11 @@ async function syncPortal(credentialId, dbPath) {
     `).run(error.message, syncLogId);
     
     // Update credential
-    database.prepare(`
-      UPDATE portal_credentials
-      SET last_sync = CURRENT_TIMESTAMP,
-          last_sync_status = 'failed'
-      WHERE id = ?
-    `).run(credentialId);
+    try {
+      database.prepare(`
+        UPDATE portal_credentials SET last_sync = CURRENT_TIMESTAMP, last_sync_status = 'failed' WHERE id = ?
+      `).run(credentialId);
+    } catch (_) {}
     
     throw error;
   }

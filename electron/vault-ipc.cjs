@@ -65,6 +65,9 @@ function getDB() {
       ['portal_type',           "TEXT DEFAULT 'generic'"],
       ['base_url',              'TEXT'],
       ['mfa_method',            "TEXT DEFAULT 'none'"],
+      ['last_sync_records',     'INTEGER DEFAULT 0'],
+      ['auto_sync_on_open',     'INTEGER DEFAULT 0'],
+      ['notify_on_sync',        'INTEGER DEFAULT 1'],
     ];
     let existingCols;
     try {
