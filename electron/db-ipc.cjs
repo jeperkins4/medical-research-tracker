@@ -290,13 +290,26 @@ function migrateGenomicMutationColumns() {
  */
 function migratePortalCredentialColumns() {
   const needed = [
-    ['last_sync',         'TEXT'],
-    ['last_sync_status',  "TEXT DEFAULT 'never'"],
-    ['last_sync_records', 'INTEGER DEFAULT 0'],
-    ['portal_type',       "TEXT DEFAULT 'generic'"],
-    ['base_url',          'TEXT'],
-    ['mfa_method',        "TEXT DEFAULT 'none'"],
-    ['auto_sync_on_open', 'INTEGER DEFAULT 0'],
+    // New schema columns vault-ipc.cjs expects (old table has portal_name/username/notes/url)
+    ['service_name',            'TEXT'],
+    ['username_encrypted',      'TEXT'],
+    ['notes_encrypted',         'TEXT'],
+    ['totp_secret_encrypted',   'TEXT'],
+    ['updated_at',              'TEXT DEFAULT CURRENT_TIMESTAMP'],
+    // Sync columns
+    ['last_sync',               'TEXT'],
+    ['last_sync_status',        "TEXT DEFAULT 'never'"],
+    ['last_sync_records',       'INTEGER DEFAULT 0'],
+    // Portal config columns
+    ['portal_type',             "TEXT DEFAULT 'generic'"],
+    ['base_url',                'TEXT'],
+    ['mfa_method',              "TEXT DEFAULT 'none'"],
+    ['auto_sync_on_open',       'INTEGER DEFAULT 0'],
+    ['notify_on_sync',          'INTEGER DEFAULT 1'],
+    ['sync_schedule',           "TEXT DEFAULT 'manual'"],
+    ['sync_time',               "TEXT DEFAULT '02:00'"],
+    ['sync_day_of_week',        'INTEGER DEFAULT 1'],
+    ['sync_day_of_month',       'INTEGER DEFAULT 1'],
   ];
 
   try {
@@ -308,6 +321,26 @@ function migratePortalCredentialColumns() {
         db.exec(`ALTER TABLE portal_credentials ADD COLUMN ${col} ${def}`);
         console.log(`[DB-IPC] Migration: added portal_credentials.${col}`);
       }
+    }
+
+    // Backfill: copy portal_name → service_name and url → base_url for old rows
+    if (!existing.has('service_name') || db.prepare(
+      "SELECT COUNT(*) as n FROM portal_credentials WHERE service_name IS NULL AND portal_name IS NOT NULL"
+    ).get()?.n > 0) {
+      db.exec("UPDATE portal_credentials SET service_name = portal_name WHERE service_name IS NULL AND portal_name IS NOT NULL");
+      console.log('[DB-IPC] Migration: backfilled service_name from portal_name');
+    }
+    if (!existing.has('base_url') || db.prepare(
+      "SELECT COUNT(*) as n FROM portal_credentials WHERE base_url IS NULL AND url IS NOT NULL"
+    ).get()?.n > 0) {
+      db.exec("UPDATE portal_credentials SET base_url = url WHERE base_url IS NULL AND url IS NOT NULL");
+      console.log('[DB-IPC] Migration: backfilled base_url from url');
+    }
+    if (!existing.has('username_encrypted') || db.prepare(
+      "SELECT COUNT(*) as n FROM portal_credentials WHERE username_encrypted IS NULL AND username IS NOT NULL"
+    ).get()?.n > 0) {
+      db.exec("UPDATE portal_credentials SET username_encrypted = username WHERE username_encrypted IS NULL AND username IS NOT NULL");
+      console.log('[DB-IPC] Migration: backfilled username_encrypted from username');
     }
   } catch (err) {
     console.error('[DB-IPC] migratePortalCredentialColumns failed:', err.message);
