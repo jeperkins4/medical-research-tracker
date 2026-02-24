@@ -4,119 +4,198 @@
       <rect width="1024" height="1024" rx="225" ry="225"/>
     </clipPath>
 
-    <!-- Deep steel-blue to near-black gradient -->
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%"   stop-color="#0a1628"/>
-      <stop offset="55%"  stop-color="#0d2847"/>
-      <stop offset="100%" stop-color="#051018"/>
-    </linearGradient>
-
-    <!-- Accent gradient for the helix strands (cyan-to-white) -->
-    <linearGradient id="strand1" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#00c8ff"/>
-      <stop offset="100%" stop-color="#0084cc"/>
-    </linearGradient>
-
-    <linearGradient id="strand2" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#88ccee"/>
-    </linearGradient>
-
-    <!-- Arrow gradient -->
-    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%"   stop-color="#00e5ff"/>
-      <stop offset="100%" stop-color="#0099cc"/>
-    </linearGradient>
-
-    <!-- Subtle top-left highlight -->
-    <radialGradient id="toplight" cx="25%" cy="20%" r="50%">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    <!-- Deep dark background: near-black with deep purple undertone (fluorescence microscopy feel) -->
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%">
+      <stop offset="0%"   stop-color="#0e0520"/>
+      <stop offset="100%" stop-color="#020008"/>
     </radialGradient>
+
+    <!-- Cell body fill: warm amber-orange glow, semi-transparent -->
+    <radialGradient id="cellBody" cx="42%" cy="38%" r="60%">
+      <stop offset="0%"   stop-color="#ff9a3c" stop-opacity="0.22"/>
+      <stop offset="60%"  stop-color="#e05e00" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#7a1a00" stop-opacity="0.05"/>
+    </radialGradient>
+
+    <!-- Cell membrane glow -->
+    <radialGradient id="membraneFill" cx="35%" cy="30%" r="65%">
+      <stop offset="0%"   stop-color="#ffb347" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#cc5500" stop-opacity="0.6"/>
+    </radialGradient>
+
+    <!-- DNA strand 1: teal/cyan -->
+    <linearGradient id="dna1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#00ffee"/>
+      <stop offset="100%" stop-color="#0099bb"/>
+    </linearGradient>
+
+    <!-- DNA strand 2: white-lavender -->
+    <linearGradient id="dna2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#aabbff"/>
+    </linearGradient>
+
+    <!-- Mutation glow (hot orange-red spot) -->
+    <radialGradient id="mutGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#ff4400" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#ff4400" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Outer cell membrane glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Subtle inner glow for cell -->
+    <filter id="cellGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="18" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Mutation point glow -->
+    <filter id="mutFilter" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
   </defs>
 
   <g clip-path="url(#squircle)">
     <!-- Background -->
     <rect width="1024" height="1024" fill="url(#bg)"/>
-    <rect width="1024" height="1024" fill="url(#toplight)"/>
 
-    <!-- ============================================================
-         BOLD ANGULAR DNA  →  ARROW
-         Two straight-segment zig-zag strands (not sine curves)
-         Hard angles = masculine, technical, structured
-    ============================================================ -->
+    <!-- ═══════════════════════════════════════════════════════
+         MUTATED CELL — irregular organic blob
+         A slightly asymmetric cell outline (not a perfect circle)
+         The irregular lumps suggest cellular mutation/abnormality
+    ═══════════════════════════════════════════════════════════ -->
 
-    <!-- LEFT STRAND — bold angular zig-zag -->
+    <!-- Cell body fill (inner glow) -->
+    <ellipse cx="500" cy="510" rx="340" ry="320" fill="url(#cellBody)" filter="url(#cellGlow)"/>
+
+    <!-- Cell membrane — irregular warped path -->
+    <!-- Slightly lumpy, asymmetric — biologically "wrong" -->
+    <path d="
+      M 500,168
+      C 620,152  760,210  810,320
+      C 870,440  855,530  830,620
+      C 800,720  740,810  640,845
+      C 540,880  420,870  340,830
+      C 240,785  165,700  155,590
+      C 140,465  175,345  248,268
+      C 310,200  390,182  500,168
+      Z
+    "
+    fill="none"
+    stroke="url(#membraneFill)"
+    stroke-width="18"
+    filter="url(#glow)"
+    opacity="0.88"
+    />
+
+    <!-- Second outer membrane ring (cells have layered membranes) -->
+    <path d="
+      M 500,140
+      C 635,122  785,185  840,305
+      C 900,440  888,550  858,648
+      C 822,758  752,840  640,876
+      C 528,912  400,900  318,852
+      C 215,795  138,700  128,578
+      C 112,440  155,308  240,238
+      C 312,176  378,155  500,140
+      Z
+    "
+    fill="none"
+    stroke="#ff8820"
+    stroke-width="5"
+    opacity="0.30"
+    stroke-dasharray="18,14"
+    />
+
+    <!-- Mutation protrusion — a bleb/pseudopod on the upper right (cancer cells have these) -->
+    <path d="
+      M 740,250  C 810,195  870,210  865,280  C 860,340  800,360  740,330 Z
+    "
+    fill="none"
+    stroke="#ffaa44"
+    stroke-width="14"
+    stroke-linejoin="round"
+    filter="url(#glow)"
+    opacity="0.75"
+    />
+
+    <!-- ═══════════════════════════════════════════════════════
+         DNA DOUBLE HELIX — inside the cell
+         Angular zig-zag strands, center of cell
+         Helix has a BREAK at the mutation point (damaged DNA)
+    ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Left strand (teal) — UPPER HALF (above break) -->
     <polyline
-      points="
-        392,100
-        472,230
-        392,360
-        472,490
-        392,620
-        472,750
-        512,820
-      "
-      fill="none"
-      stroke="url(#strand1)"
-      stroke-width="28"
-      stroke-linejoin="round"
-      stroke-linecap="round"
+      points="448,215  488,295  448,375  488,455"
+      fill="none" stroke="url(#dna1)" stroke-width="20"
+      stroke-linejoin="round" stroke-linecap="round"
+      filter="url(#glow)" opacity="0.95"
     />
-
-    <!-- RIGHT STRAND — mirrored bold angular zig-zag -->
+    <!-- Left strand — LOWER HALF (below break) -->
     <polyline
-      points="
-        632,100
-        552,230
-        632,360
-        552,490
-        632,620
-        552,750
-        512,820
-      "
-      fill="none"
-      stroke="url(#strand2)"
-      stroke-width="28"
-      stroke-linejoin="round"
-      stroke-linecap="round"
-      opacity="0.85"
+      points="448,530  488,610  448,690  488,770  512,820"
+      fill="none" stroke="url(#dna1)" stroke-width="20"
+      stroke-linejoin="round" stroke-linecap="round"
+      filter="url(#glow)" opacity="0.95"
     />
 
-    <!-- BASE PAIR RUNGS — thick horizontal bars at each crossing -->
-    <!-- Rung 1: top (strands meet near 100) -->
-    <line x1="392" y1="100" x2="632" y2="100"
-      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
-    <!-- Rung 2: widest spread ~y=230 -->
-    <line x1="472" y1="230" x2="552" y2="230"
-      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
-    <!-- Rung 3: crossover ~y=360 -->
-    <line x1="392" y1="360" x2="632" y2="360"
-      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
-    <!-- Rung 4: widest spread ~y=490 -->
-    <line x1="472" y1="490" x2="552" y2="490"
-      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
-    <!-- Rung 5: crossover ~y=620 -->
-    <line x1="392" y1="620" x2="632" y2="620"
-      stroke="white" stroke-width="16" stroke-linecap="round" opacity="0.95"/>
-    <!-- Rung 6: narrowing ~y=750 -->
-    <line x1="472" y1="750" x2="552" y2="750"
-      stroke="#4dd8ff" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
-
-    <!-- ============================================================
-         BOLD DOWNWARD ARROW — "The Path"
-         Solid filled chevron below the helix terminus
-    ============================================================ -->
-    <polygon
-      points="512,940  420,840  465,840  465,820  559,820  559,840  604,840"
-      fill="url(#arrowGrad)"
-      opacity="0.97"
+    <!-- Right strand (white-lavender) — UPPER HALF -->
+    <polyline
+      points="568,215  528,295  568,375  528,455"
+      fill="none" stroke="url(#dna2)" stroke-width="20"
+      stroke-linejoin="round" stroke-linecap="round"
+      filter="url(#glow)" opacity="0.82"
+    />
+    <!-- Right strand — LOWER HALF -->
+    <polyline
+      points="568,530  528,610  568,690  528,770  512,820"
+      fill="none" stroke="url(#dna2)" stroke-width="20"
+      stroke-linejoin="round" stroke-linecap="round"
+      filter="url(#glow)" opacity="0.82"
     />
 
-    <!-- Thin accent lines framing the icon (rule of thirds grid — subtle) -->
-    <line x1="100" y1="512" x2="924" y2="512"
-      stroke="white" stroke-width="1" opacity="0.04"/>
-    <line x1="512" y1="100" x2="512" y2="924"
-      stroke="white" stroke-width="1" opacity="0.04"/>
+    <!-- Base pair rungs — UPPER HALF -->
+    <line x1="448" y1="215" x2="568" y2="215" stroke="white" stroke-width="13" stroke-linecap="round" opacity="0.9"/>
+    <line x1="488" y1="295" x2="528" y2="295" stroke="#66ffee" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+    <line x1="448" y1="375" x2="568" y2="375" stroke="white" stroke-width="13" stroke-linecap="round" opacity="0.9"/>
+    <line x1="488" y1="455" x2="528" y2="455" stroke="#66ffee" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+
+    <!-- Base pair rungs — LOWER HALF -->
+    <line x1="448" y1="530" x2="568" y2="530" stroke="white" stroke-width="13" stroke-linecap="round" opacity="0.9"/>
+    <line x1="488" y1="610" x2="528" y2="610" stroke="#66ffee" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+    <line x1="448" y1="690" x2="568" y2="690" stroke="white" stroke-width="13" stroke-linecap="round" opacity="0.9"/>
+    <line x1="488" y1="770" x2="528" y2="770" stroke="#66ffee" stroke-width="10" stroke-linecap="round" opacity="0.65"/>
+
+    <!-- ═════════════════════════════════════════
+         MUTATION BREAK POINT — glowing orange-red
+         The DNA is broken/altered at this point
+         Visually: gap in the helix + hot glow
+    ══════════════════════════════════════════ -->
+
+    <!-- Glow halo behind mutation point -->
+    <circle cx="508" cy="492" r="52" fill="url(#mutGlow)" filter="url(#mutFilter)"/>
+
+    <!-- Break marker: X shape in orange-red at the gap -->
+    <line x1="481" y1="468" x2="535" y2="516" stroke="#ff3300" stroke-width="12" stroke-linecap="round" opacity="0.95" filter="url(#glow)"/>
+    <line x1="535" y1="468" x2="481" y2="516" stroke="#ff5500" stroke-width="12" stroke-linecap="round" opacity="0.95" filter="url(#glow)"/>
+
+    <!-- Tiny scattered particles around mutation (DNA fragments) -->
+    <circle cx="440" cy="480" r="5" fill="#ff6600" opacity="0.7"/>
+    <circle cx="575" cy="504" r="4" fill="#ff4400" opacity="0.6"/>
+    <circle cx="462" cy="510" r="3" fill="#ffaa00" opacity="0.8"/>
+    <circle cx="550" cy="476" r="4" fill="#ff6600" opacity="0.6"/>
+
+    <!-- Background star-field (cell environment / microscope scatter) -->
+    <circle cx="220" cy="280" r="2" fill="white" opacity="0.15"/>
+    <circle cx="780" cy="350" r="2.5" fill="white" opacity="0.12"/>
+    <circle cx="300" cy="730" r="2" fill="white" opacity="0.10"/>
+    <circle cx="750" cy="700" r="2" fill="white" opacity="0.13"/>
+    <circle cx="180" cy="530" r="1.5" fill="#66ffee" opacity="0.20"/>
+    <circle cx="840" cy="480" r="2" fill="#66ffee" opacity="0.18"/>
   </g>
 </svg>

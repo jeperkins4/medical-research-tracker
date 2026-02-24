@@ -216,9 +216,6 @@ function App() {
         >
           📊 Analytics
         </button>
-        <button
-        >
-        </button>
       </nav>
 
       <main>
