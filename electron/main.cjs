@@ -17,7 +17,9 @@ try {
 } catch {}
 const db = require('./db-ipc.cjs');
 const vault = require('./vault-ipc.cjs');
-const isDev = process.env.NODE_ENV === 'development';
+// Use app.isPackaged (not NODE_ENV) — .env bundled in extraResources sets NODE_ENV=development
+// which would cause the packaged app to load localhost:5173 instead of its own UI.
+const isDev = !app.isPackaged;
 
 let mainWindow;
 let currentUserId = null;
