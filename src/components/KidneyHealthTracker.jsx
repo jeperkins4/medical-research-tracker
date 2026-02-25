@@ -22,7 +22,12 @@ function ProtectiveSupplementsCard({ supplements, organ }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {supplements.map((s, i) => (
           <div key={i} style={{ flex: '1 1 260px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '12px 14px' }}>
-            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.name}</div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3 }}>{s.name}</div>
+            {(s.brand || s.manufacturer) && (
+              <div style={{ fontSize: 11, color: '#0369a1', marginBottom: 4, background: '#f0f9ff', borderRadius: 10, padding: '1px 8px', display: 'inline-block' }}>
+                🏷️ {[s.brand, s.manufacturer].filter(Boolean).join(' · ')}
+              </div>
+            )}
             {s.dosage && <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{s.dosage}</div>}
             <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{s.reason}</div>
           </div>

@@ -59795,6 +59795,179 @@ async function syncGenericPortal(credential) {
 
 // server/bone-health.js
 init_db_secure();
+
+// server/supplement-organs.js
+init_db_secure();
+var ORGAN_PROTECTION_MAP = [
+  {
+    keywords: ["nac", "n-acetyl", "acetyl cysteine", "acetylcysteine"],
+    organs: ["kidney", "liver", "lung"],
+    reason: "Nephroprotective (cisplatin toxicity shield), glutathione precursor, antioxidant in lung/liver"
+  },
+  {
+    keywords: ["omega-3", "omega 3", "fish oil", "epa", "dha"],
+    organs: ["kidney", "liver", "lung"],
+    reason: "Anti-inflammatory: reduces proteinuria (kidney), fatty liver protection, airway inflammation"
+  },
+  {
+    keywords: ["vitamin d3", "vitamin d ", "d3", "cholecalciferol"],
+    organs: ["kidney", "bone", "lung"],
+    reason: "CKD management, bone mineralization, pulmonary immune modulation"
+  },
+  {
+    keywords: ["magnesium", "mag glycinate", "mag citrate"],
+    organs: ["kidney", "bone"],
+    reason: "Kidney stone prevention, bone formation co-factor, Vitamin D activation"
+  },
+  {
+    keywords: ["alpha lipoic", "alpha-lipoic", "lipoic acid"],
+    organs: ["kidney", "liver"],
+    reason: "Antioxidant in nephrons and hepatocytes; reduces cisplatin nephrotoxicity"
+  },
+  {
+    keywords: ["coq10", "coenzyme q10", "ubiquinol", "ubiquinone"],
+    organs: ["kidney", "liver"],
+    reason: "Mitochondrial support in nephrons; hepatic energy metabolism"
+  },
+  {
+    keywords: ["astragalus"],
+    organs: ["kidney", "lung"],
+    reason: "Nephroprotective (reduces proteinuria), pulmonary immune support"
+  },
+  {
+    keywords: ["berberine"],
+    organs: ["kidney", "liver"],
+    reason: "Reduces renal tubular injury, hepatoprotective via AMPK activation"
+  },
+  {
+    keywords: ["milk thistle", "silymarin", "silybin"],
+    organs: ["liver"],
+    reason: "Gold-standard hepatoprotective \u2014 stabilizes hepatocyte membranes, antifibrotic"
+  },
+  {
+    keywords: ["curcumin", "turmeric"],
+    organs: ["liver", "bone"],
+    reason: "Hepatoprotective (NF-\u03BAB suppression), anti-inflammatory; modest bone protection"
+  },
+  {
+    keywords: ["egcg", "green tea extract", "green tea"],
+    organs: ["liver", "lung"],
+    reason: "Hepatoprotective antioxidant; lung protection via EGFR/NF-\u03BAB suppression"
+  },
+  {
+    keywords: ["vitamin e", "tocopherol", "tocotrienol"],
+    organs: ["liver", "lung"],
+    reason: "Fat-soluble antioxidant; reduces hepatic oxidative stress and lung inflammation"
+  },
+  {
+    keywords: ["b complex", "b-complex", "b12", "b6", "folate", "methyl b", "methylcobalamin"],
+    organs: ["liver"],
+    reason: "Methyl donor support for liver detox pathways (methylation cycle)"
+  },
+  {
+    keywords: ["phosphatidylcholine", "lecithin"],
+    organs: ["liver"],
+    reason: "Hepatocyte membrane integrity; supports fat emulsification in bile"
+  },
+  {
+    keywords: ["vitamin k2", "k2-mk7", "mk7", "mk-7"],
+    organs: ["bone"],
+    reason: "Activates osteocalcin \u2014 directs calcium into bone matrix, not arteries"
+  },
+  {
+    keywords: ["calcium citrate", "calcium carbonate", "calcium"],
+    organs: ["bone"],
+    reason: "Primary bone mineral; must pair with K2 to prevent arterial calcification"
+  },
+  {
+    keywords: ["boron"],
+    organs: ["bone"],
+    reason: "Improves calcium/magnesium retention; enhances Vitamin D activation"
+  },
+  {
+    keywords: ["strontium"],
+    organs: ["bone"],
+    reason: "Increases bone formation, decreases resorption; studied in osteoporosis"
+  },
+  {
+    keywords: ["collagen"],
+    organs: ["bone"],
+    reason: "Provides bone matrix scaffold; supports osteoblast activity"
+  },
+  {
+    keywords: ["alpha-ketoglutarate", "alpha ketoglutarate", "akg"],
+    organs: ["bone"],
+    reason: "Collagen synthesis precursor; longevity molecule with bone matrix support"
+  },
+  {
+    keywords: ["quercetin"],
+    organs: ["lung", "bone"],
+    reason: "Anti-inflammatory (lung airways); VEGF suppression with bone-protective effects"
+  },
+  {
+    keywords: ["vitamin c", "ascorbic acid", "ascorbate", "liposomal c"],
+    organs: ["lung", "liver"],
+    reason: "Antioxidant in alveolar tissue; hepatic collagen synthesis co-factor"
+  },
+  {
+    keywords: ["resveratrol"],
+    organs: ["lung", "liver"],
+    reason: "SIRT1 activator \u2014 anti-inflammatory in airway and liver epithelium"
+  },
+  {
+    keywords: ["melatonin"],
+    organs: ["lung", "liver"],
+    reason: "Anti-inflammatory, NF-\u03BAB suppression in lung tissue; hepatoprotective at high doses"
+  },
+  {
+    keywords: ["zinc"],
+    organs: ["lung"],
+    reason: "Critical for alveolar macrophage function; antiviral immune support"
+  },
+  {
+    keywords: ["fenbendazole", "fenbend"],
+    organs: ["kidney", "liver"],
+    reason: "Metabolized hepatically; monitor liver enzymes. Some renal clearance \u2014 watch Cr."
+  },
+  {
+    keywords: ["ivermectin"],
+    organs: ["liver"],
+    reason: "Hepatically metabolized; periodic liver enzyme monitoring recommended"
+  },
+  {
+    keywords: ["low dose naltrexone", "naltrexone", "ldn"],
+    organs: ["liver"],
+    reason: "Hepatically metabolized; generally well-tolerated but monitor LFTs"
+  },
+  {
+    keywords: ["methylene blue", "methylthioninium"],
+    organs: ["kidney", "liver"],
+    reason: "Renal clearance primary route; mitochondrial support in both organs"
+  }
+];
+function getProtectiveSupplements(organType) {
+  let meds = [];
+  try {
+    meds = query(`SELECT name, dosage FROM medications WHERE active = 1 ORDER BY name`, []);
+  } catch (e2) {
+    console.warn("[supplement-organs] could not query medications:", e2.message);
+    return [];
+  }
+  const matches = [];
+  for (const med of meds) {
+    const nameLower = (med.name || "").toLowerCase();
+    for (const entry of ORGAN_PROTECTION_MAP) {
+      if (!entry.organs.includes(organType)) continue;
+      const hit = entry.keywords.some((kw) => nameLower.includes(kw.toLowerCase()));
+      if (hit && !matches.find((m2) => m2.name === med.name)) {
+        matches.push({ name: med.name, dosage: med.dosage || null, organs: entry.organs, reason: entry.reason });
+      }
+    }
+  }
+  return matches;
+}
+
+// server/bone-health.js
 function shouldMonitorBoneHealth() {
   try {
     const boneConditions = query(`
@@ -60046,6 +60219,7 @@ function getBoneHealthData() {
       alkPhosData: formattedAlkPhos,
       currentSupplements,
       missingSupplements,
+      protectiveSupplements: getProtectiveSupplements("bone"),
       trend,
       riskLevel,
       lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
@@ -60693,11 +60867,13 @@ function getKidneyHealthData() {
       const change = (rows.at(-1).value - rows[0].value) / rows[0].value * 100;
       return { change: +change.toFixed(1), direction: change > 0 ? "up" : "down" };
     };
-    const allNormal = triggers.length === 0 && gfrRows.length > 0;
+    const allNormal = triggers.filter((t2) => t2.includes("below CKD") || t2.includes("elevated")).length === 0 && gfrRows.length > 0;
+    const protectiveSupplements = getProtectiveSupplements("kidney");
     return {
       enabled,
       allNormal,
       triggers,
+      protectiveSupplements,
       latestGFR,
       latestCreatinine: latestCr,
       ckdStage: ckdStage(latestGFR),
@@ -60763,10 +60939,12 @@ function getLiverHealthData() {
     const hasData = altRows.length > 0 || astRows.length > 0;
     const allNormal = flags.length === 0 && hasData;
     const enabled = hasData;
+    const protectiveSupplements = getProtectiveSupplements("liver");
     return {
       enabled,
       allNormal,
       triggers: flags.map((f3) => f3.label),
+      protectiveSupplements,
       latestALT,
       latestAST,
       latestAlbumin: latestAlb,
@@ -60824,10 +61002,12 @@ function getLungHealthData() {
     const noData = co2Rows.length === 0 && spo2Rows.length === 0;
     const allNormal = flags.length === 0 && !noData;
     const enabled = true;
+    const protectiveSupplements = getProtectiveSupplements("lung");
     return {
       enabled,
       allNormal,
       triggers: flags.map((f3) => f3.label),
+      protectiveSupplements,
       noDirectMarkers: noData,
       latestCO2,
       latestSpO2,

@@ -42,6 +42,8 @@ export default function MedicationManager({ apiFetch }) {
       active: true,
       reason: '',
       prescribed_by: '',
+      brand: '',
+      manufacturer: '',
       notes: '',
       effectiveness_rating: null
     };
@@ -215,6 +217,8 @@ export default function MedicationManager({ apiFetch }) {
       active: med.active !== undefined ? med.active : true,
       reason: med.reason || '',
       prescribed_by: med.prescribed_by || '',
+      brand: med.brand || '',
+      manufacturer: med.manufacturer || '',
       notes: med.notes || '',
       effectiveness_rating: med.effectiveness_rating || null
     });
@@ -234,6 +238,8 @@ export default function MedicationManager({ apiFetch }) {
       active: true,
       reason: '',
       prescribed_by: '',
+      brand: '',
+      manufacturer: '',
       notes: '',
       effectiveness_rating: null
     });
@@ -492,6 +498,27 @@ export default function MedicationManager({ apiFetch }) {
             />
           </div>
 
+          <div className="form-row">
+            <div className="form-group">
+              <label>Brand / Product Name</label>
+              <input
+                type="text"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                placeholder="e.g., Meriva, Life Extension, Jarrow"
+              />
+            </div>
+            <div className="form-group">
+              <label>Manufacturer</label>
+              <input
+                type="text"
+                value={formData.manufacturer}
+                onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+                placeholder="e.g., Thorne, NOW Foods, Pure Encapsulations"
+              />
+            </div>
+          </div>
+
           <div className="form-group">
             <label>Notes</label>
             <textarea
@@ -547,6 +574,19 @@ export default function MedicationManager({ apiFetch }) {
             </div>
 
             <div className="medication-details">
+              {/* Brand / Manufacturer badge */}
+              {(med.brand || med.manufacturer) && (
+                <p style={{ marginBottom: 6 }}>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: '#f0f9ff', border: '1px solid #bae6fd',
+                    color: '#0369a1', borderRadius: 20, padding: '2px 10px',
+                    fontSize: 12, fontWeight: 500
+                  }}>
+                    🏷️ {[med.brand, med.manufacturer].filter(Boolean).join(' · ')}
+                  </span>
+                </p>
+              )}
               {med.dosage && <p><strong>Dosage:</strong> {med.dosage}</p>}
               {med.frequency && <p><strong>Frequency:</strong> {med.frequency}</p>}
               {med.started_date && <p><strong>Started:</strong> {new Date(med.started_date).toLocaleDateString()}</p>}

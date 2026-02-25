@@ -531,6 +531,8 @@ function migrateMedicationsSchema() {
     ['recommended_dosing', 'TEXT'],
     ['precautions',        'TEXT'],
     ['mechanism',          'TEXT'],
+    ['brand',              'TEXT'],
+    ['manufacturer',       'TEXT'],
   ];
   for (const [col, def] of newCols) {
     try {
@@ -620,8 +622,8 @@ function addMedication(userId, data) {
         (name, type, category, dosage, frequency, route, started_date, stopped_date,
          active, reason, prescribed_by, notes, effectiveness_rating,
          evidence_strength, target_pathways, genomic_alignment,
-         recommended_dosing, precautions, mechanism)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         recommended_dosing, precautions, mechanism, brand, manufacturer)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `);
     const result = stmt.run(
       data.name,
@@ -642,7 +644,9 @@ function addMedication(userId, data) {
       data.genomic_alignment || null,
       data.recommended_dosing || null,
       data.precautions || null,
-      data.mechanism || null
+      data.mechanism || null,
+      data.brand || null,
+      data.manufacturer || null
     );
     return { success: true, id: result.lastInsertRowid };
   } catch (err) {
@@ -663,7 +667,8 @@ function updateMedication(id, data) {
         name=?, type=?, category=?, dosage=?, frequency=?, route=?,
         started_date=?, stopped_date=?, active=?, reason=?, prescribed_by=?,
         notes=?, effectiveness_rating=?, evidence_strength=?, target_pathways=?,
-        genomic_alignment=?, recommended_dosing=?, precautions=?, mechanism=?
+        genomic_alignment=?, recommended_dosing=?, precautions=?, mechanism=?,
+        brand=?, manufacturer=?
       WHERE id=?
     `);
     stmt.run(
@@ -686,6 +691,8 @@ function updateMedication(id, data) {
       data.recommended_dosing || null,
       data.precautions || null,
       data.mechanism || null,
+      data.brand || null,
+      data.manufacturer || null,
       id
     );
     return { success: true };

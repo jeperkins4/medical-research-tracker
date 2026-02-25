@@ -103,7 +103,7 @@ export const ORGAN_PROTECTION_MAP = [
 export function getProtectiveSupplements(organType) {
   let meds = [];
   try {
-    meds = query(`SELECT name, dosage FROM medications WHERE active = 1 ORDER BY name`, []);
+    meds = query(`SELECT name, dosage, brand, manufacturer FROM medications WHERE active = 1 ORDER BY name`, []);
   } catch (e) {
     console.warn('[supplement-organs] could not query medications:', e.message);
     return [];
@@ -116,7 +116,14 @@ export function getProtectiveSupplements(organType) {
       if (!entry.organs.includes(organType)) continue;
       const hit = entry.keywords.some(kw => nameLower.includes(kw.toLowerCase()));
       if (hit && !matches.find(m => m.name === med.name)) {
-        matches.push({ name: med.name, dosage: med.dosage || null, organs: entry.organs, reason: entry.reason });
+        matches.push({
+          name: med.name,
+          dosage: med.dosage || null,
+          brand: med.brand || null,
+          manufacturer: med.manufacturer || null,
+          organs: entry.organs,
+          reason: entry.reason
+        });
       }
     }
   }

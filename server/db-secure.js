@@ -374,6 +374,25 @@ const initDb = () => {
 
   runMigration('portal_credentials', 'last_sync', 'TEXT');
   runMigration('portal_credentials', 'last_sync_status', "TEXT DEFAULT 'never'");
+
+  // Medications extended fields
+  const medCols = [
+    ['type',                "TEXT DEFAULT 'supplement'"],
+    ['category',            'TEXT'],
+    ['route',               "TEXT DEFAULT 'oral'"],
+    ['active',              'INTEGER DEFAULT 1'],
+    ['prescribed_by',       'TEXT'],
+    ['effectiveness_rating','INTEGER'],
+    ['evidence_strength',   'TEXT'],
+    ['target_pathways',     'TEXT'],
+    ['genomic_alignment',   'TEXT'],
+    ['recommended_dosing',  'TEXT'],
+    ['precautions',         'TEXT'],
+    ['mechanism',           'TEXT'],
+    ['brand',               'TEXT'],
+    ['manufacturer',        'TEXT'],
+  ];
+  for (const [col, def] of medCols) runMigration('medications', col, def);
   // --- End migrations ---
 
   return db;
