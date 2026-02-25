@@ -257,20 +257,8 @@ export function getBoneHealthData() {
     if (latestCA199 !== null && latestCA199 > 37)  tumorFlags.push({ marker: 'CA 19-9', value: `${latestCA199} U/mL`, status: 'ELEVATED', note: 'CA 19-9 elevated — monitor' });
 
     // ── Get Alkaline Phosphatase trend data (legacy format for chart) ─────────
+    // formattedAlkPhos = alkPhosData (already parsed by fetchSeries above)
     const formattedAlkPhos = alkPhosData;
-
-    // Parse values and format for chart
-    const formattedAlkPhos = alkPhosData.map(row => {
-      // Extract numeric value from result (e.g., "165 U/L HIGH" → 165)
-      const match = row.result.match(/([\d.]+)/);
-      const value = match ? parseFloat(match[1]) : null;
-      
-      return {
-        date: row.date,
-        value: value,
-        result: row.result
-      };
-    }).filter(row => row.value !== null);
 
     // Get current supplements that support bone health
     const currentSupplements = [
