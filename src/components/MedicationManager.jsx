@@ -293,7 +293,7 @@ export default function MedicationManager({ apiFetch }) {
           </select>
           
           <button 
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => showAddForm ? resetForm() : setShowAddForm(true)}
             className="btn-add"
           >
             {showAddForm ? '✕ Cancel' : '+ Add Medication/Supplement'}
@@ -323,12 +323,41 @@ export default function MedicationManager({ apiFetch }) {
         </div>
       )}
 
-      {/* Add/Edit Form */}
+      {/* Add/Edit Modal */}
       {showAddForm && (
-        <form onSubmit={handleSubmit} className="medication-form">
-          <h3>{editingMed ? 'Edit' : 'Add New'} Medication/Supplement</h3>
-          
-          {/* Show notification if data was restored from previous session */}
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(3px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) resetForm(); }}
+        >
+        <form onSubmit={handleSubmit} className="medication-form" style={{
+          position: 'relative', maxHeight: '90vh', overflowY: 'auto',
+          width: '100%', maxWidth: 680, borderRadius: 16,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.3)'
+        }}>
+
+          {/* Modal header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+              {editingMed ? `✏️ Edit — ${editingMed.name}` : '➕ Add Medication / Supplement'}
+            </h3>
+            <button
+              type="button"
+              onClick={resetForm}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 20, color: '#64748b', lineHeight: 1,
+                padding: '4px 8px', borderRadius: 6,
+              }}
+              title="Close"
+            >✕</button>
+          </div>
+
+          {/* Restore notice */}
           {!editingMed && sessionStorage.getItem('medicationFormData') && (
             <div className="restored-notice" style={{
               background: '#fff3cd',
@@ -339,7 +368,7 @@ export default function MedicationManager({ apiFetch }) {
               fontSize: '14px',
               color: '#856404'
             }}>
-              💾 Your unsaved changes were restored. Click "Cancel" to discard.
+              💾 Your unsaved changes were restored. Click ✕ to discard.
             </div>
           )}
           
@@ -491,6 +520,7 @@ export default function MedicationManager({ apiFetch }) {
             </button>
           </div>
         </form>
+        </div>
       )}
 
       {/* Medications List */}
