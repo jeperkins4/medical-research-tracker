@@ -5,6 +5,7 @@
 
 import { query } from './db-secure.js';
 import { getProtectiveSupplements } from './supplement-organs.js';
+import { getRadiologyFindingsForOrgan, getCriticalFindingsByKeyword } from './radiology-triggers.js';
 
 // ── (supplement map + getProtectiveSupplements moved to supplement-organs.js) ─
 // Keys are lowercase keyword fragments matched against supplement/medication names.
@@ -90,6 +91,18 @@ export function getKidneyHealthData() {
         []
       );
       if (conditions[0].count > 0) triggers.push('Kidney-related condition active (hydronephrosis / obstruction)');
+    } catch (_) {}
+
+    // Check radiology reports for kidney findings
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan('kidney');
+      for (const f of imagingFindings) {
+        triggers.push(`Imaging (${f.docDate || f.docTitle}): ${f.type} in ${f.region}${f.size_mm ? ` — ${f.size_mm}mm` : ''}`);
+      }
+      const critHits = getCriticalFindingsByKeyword(['kidney', 'renal', 'hydronephrosis', 'adrenal']);
+      for (const h of critHits) {
+        if (!imagingFindings.length) triggers.push(`Radiology report mentions renal findings (${h.docDate || h.docTitle})`);
+      }
     } catch (_) {}
 
     const enabled = triggers.length > 0 || gfrRows.length > 0; // always show if we have data
@@ -190,9 +203,21 @@ export function getLiverHealthData() {
       if (livCond[0].count > 0) flags.push({ label: 'Liver-related condition active', severity: 'high' });
     } catch (_) {}
 
+    // Check radiology reports for liver/spleen findings
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan('liver');
+      for (const f of imagingFindings) {
+        flags.push({ label: `Imaging (${f.docDate || f.docTitle}): ${f.type} in ${f.region}${f.size_mm ? ` — ${f.size_mm}mm` : ''}`, severity: f.type === 'metastasis' ? 'high' : 'medium' });
+      }
+      const critHits = getCriticalFindingsByKeyword(['liver', 'hepatic', 'spleen', 'biliary', 'cirrhosis', 'lesion']);
+      for (const h of critHits) {
+        if (!imagingFindings.length) flags.push({ label: `Radiology report mentions hepatic findings (${h.docDate || h.docTitle})`, severity: 'medium' });
+      }
+    } catch (_) {}
+
     const hasData = altRows.length > 0 || astRows.length > 0;
     const allNormal = flags.length === 0 && hasData;
-    const enabled   = hasData; // always show if we have labs
+    const enabled   = hasData || flags.length > 0; // also show if imaging findings
     const protectiveSupplements = getProtectiveSupplements('liver');
 
     return {
@@ -258,6 +283,18 @@ export function getLungHealthData() {
            OR notes LIKE '%lung%lesion%' OR notes LIKE '%pleural%effusion%')`, []
       );
       if (lungCond[0].count > 0) flags.push({ label: 'Lung-related condition active', severity: 'high' });
+    } catch (_) {}
+
+    // Check radiology reports for lung/chest findings
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan('lung');
+      for (const f of imagingFindings) {
+        flags.push({ label: `Imaging (${f.docDate || f.docTitle}): ${f.type} in ${f.region}${f.size_mm ? ` — ${f.size_mm}mm` : ''}`, severity: f.type === 'metastasis' ? 'high' : 'medium' });
+      }
+      const critHits = getCriticalFindingsByKeyword(['lung', 'pulmonary', 'pleural', 'nodule', 'effusion', 'pneumonitis', 'chest']);
+      for (const h of critHits) {
+        if (!imagingFindings.length) flags.push({ label: `Radiology report mentions pulmonary findings (${h.docDate || h.docTitle})`, severity: 'medium' });
+      }
     } catch (_) {}
 
     const noData  = co2Rows.length === 0 && spo2Rows.length === 0;

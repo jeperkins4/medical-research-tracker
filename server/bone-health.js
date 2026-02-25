@@ -5,6 +5,7 @@
 
 import { query } from './db-secure.js';
 import { getProtectiveSupplements } from './supplement-organs.js';
+import { getRadiologyFindingsForOrgan, getCriticalFindingsByKeyword } from './radiology-triggers.js';
 
 /**
  * Check if bone health monitoring is warranted based on clinical indicators
@@ -112,6 +113,32 @@ export function shouldMonitorBoneHealth() {
     } catch (err) {
       // Table might not exist - ignore silently
     }
+
+    // Check uploaded radiology reports for bone findings
+    try {
+      const boneFindings = getRadiologyFindingsForOrgan('bone');
+      if (boneFindings.length > 0) {
+        const f = boneFindings[0];
+        return {
+          shouldMonitor: true,
+          reason: 'radiology_finding',
+          message: `Imaging finding: ${f.type} in ${f.region} (${f.docDate || f.docTitle})`,
+          imagingFindings: boneFindings,
+        };
+      }
+      // Also check critical_findings text
+      const criticalHits = getCriticalFindingsByKeyword([
+        'bone', 'osseous', 'skeletal', 'vertebra', 'spine', 'metastas', 'lesion', 'lytic', 'sclerotic',
+      ]);
+      if (criticalHits.length > 0) {
+        return {
+          shouldMonitor: true,
+          reason: 'radiology_keyword',
+          message: `Radiology report mentions bone findings (${criticalHits[0].docDate || criticalHits[0].docTitle})`,
+          imagingFindings: criticalHits,
+        };
+      }
+    } catch (err) { /* ignore */ }
 
     // No bone health concerns detected
     return { 

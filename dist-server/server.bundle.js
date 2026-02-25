@@ -49306,18 +49306,20 @@ var require_medical_doc_parser = __commonJS({
   "electron/medical-doc-parser.cjs"(exports, module) {
     var fs2 = __require("fs");
     var https2 = __require("https");
-    function callClaude(apiKey, messages, model = "claude-opus-4-5") {
+    function callClaude(apiKey, messages, model = "claude-opus-4-5", usePdfBeta = false) {
       return new Promise((resolve, reject) => {
         const body = JSON.stringify({ model, max_tokens: 4096, messages });
+        const headers = {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01"
+        };
+        if (usePdfBeta) headers["anthropic-beta"] = "pdfs-2024-09-25";
         const req = https2.request({
           hostname: "api.anthropic.com",
           path: "/v1/messages",
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01"
-          }
+          headers
         }, (res) => {
           let data = "";
           res.on("data", (chunk) => {
@@ -49327,7 +49329,7 @@ var require_medical_doc_parser = __commonJS({
             try {
               const parsed = JSON.parse(data);
               if (parsed.error) return reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
-              resolve(parsed);
+              resolve({ ...parsed, _statusCode: res.statusCode });
             } catch (e2) {
               reject(e2);
             }
@@ -49337,6 +49339,25 @@ var require_medical_doc_parser = __commonJS({
         req.write(body);
         req.end();
       });
+    }
+    async function callClaudeWithRetry(apiKey, messages, model, usePdfBeta, maxRetries = 3) {
+      const FALLBACK_MODEL = "claude-haiku-4-5";
+      let lastError;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const tryModel = attempt === maxRetries ? FALLBACK_MODEL : model;
+        try {
+          const result = await callClaude(apiKey, messages, tryModel, usePdfBeta);
+          return result;
+        } catch (err) {
+          lastError = err;
+          const isOverloaded = err.message?.toLowerCase().includes("overload") || err.message?.toLowerCase().includes("529") || err.message?.toLowerCase().includes("rate limit") || err.message?.toLowerCase().includes("529");
+          if (!isOverloaded || attempt === maxRetries) break;
+          const delay = Math.pow(2, attempt + 1) * 1e3;
+          console.log(`[MedDocParser] Overloaded (attempt ${attempt + 1}), retrying in ${delay}ms...`);
+          await new Promise((r2) => setTimeout(r2, delay));
+        }
+      }
+      throw lastError;
     }
     function pdfToBase64Pages(filePath) {
       const bytes = fs2.readFileSync(filePath);
@@ -49399,7 +49420,9 @@ Return ONLY the JSON. No markdown, no explanation.`
       const prompt = PROMPTS[docType];
       if (!prompt) throw new Error(`Unknown document type: ${docType}`);
       let content;
+      let usePdfBeta = false;
       if (ext === "pdf") {
+        usePdfBeta = true;
         const b64 = pdfToBase64Pages(filePath);
         content = [
           {
@@ -49424,7 +49447,7 @@ ${text}` }];
       } else {
         throw new Error(`Unsupported file type: .${ext}. Supported: PDF, JPG, PNG, TXT`);
       }
-      const response = await callClaude(apiKey, [{ role: "user", content }], "claude-opus-4-5");
+      const response = await callClaudeWithRetry(apiKey, [{ role: "user", content }], "claude-opus-4-5", usePdfBeta);
       const rawText = response.content?.[0]?.text || "";
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("AI did not return valid JSON");
@@ -61353,22 +61376,21 @@ function logError(error, context = {}) {
   }
 }
 function logCrash(error, origin) {
+  const msg = error?.message || String(error);
+  if (msg.includes("timeout") || msg.includes("408") || origin === "requestTimeout") return;
+  try {
+    const { statSync: statSync3 } = __require("fs");
+    const MAX_BYTES = 50 * 1024 * 1024;
+    if (existsSync4(crashLogPath) && statSync3(crashLogPath).size > MAX_BYTES) {
+      writeFileSync2(crashLogPath, "");
+    }
+  } catch (_) {
+  }
   const timestamp = (/* @__PURE__ */ new Date()).toISOString();
   const crashEntry = {
     timestamp,
     origin,
-    error: {
-      message: error?.message || String(error),
-      stack: error?.stack,
-      name: error?.name,
-      code: error?.code
-    },
-    process: {
-      pid: process.pid,
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      nodeVersion: process.version
-    }
+    error: { message: msg, name: error?.name, code: error?.code }
   };
   try {
     appendFileSync(crashLogPath, JSON.stringify(crashEntry) + "\n");
@@ -61450,12 +61472,6 @@ function requestTimeout(timeoutMs = 3e4) {
   return (req, res, next) => {
     const timeout = setTimeout(() => {
       if (!res.headersSent) {
-        console.error("\u23F1\uFE0F  Request timeout:", req.method, req.originalUrl);
-        logError(new Error("Request timeout"), {
-          url: req.originalUrl,
-          method: req.method,
-          timeout: timeoutMs
-        });
         res.status(408).json({ error: "Request timeout" });
       }
     }, timeoutMs);
