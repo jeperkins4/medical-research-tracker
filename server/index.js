@@ -588,6 +588,74 @@ app.put('/api/medications/:id', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// Medical Documents (Radiology Reports, Doctor's Notes)
+app.get('/api/documents', requireAuth, (req, res) => {
+  const { type } = req.query;
+  const docs = type
+    ? query('SELECT * FROM medical_documents WHERE document_type=? ORDER BY date DESC, created_at DESC', [type])
+    : query('SELECT * FROM medical_documents ORDER BY date DESC, created_at DESC');
+  const arrFields = ['diagnoses','referrals','recommendations','critical_findings',
+                     'medications_mentioned','labs_ordered','imaging_ordered','tags'];
+  const parsed = docs.map(d => {
+    const out = { ...d };
+    for (const f of arrFields) { try { out[f] = d[f] ? JSON.parse(d[f]) : []; } catch { out[f] = []; } }
+    return out;
+  });
+  res.json(parsed);
+});
+
+app.post('/api/documents', requireAuth, (req, res) => {
+  const arr = (v) => Array.isArray(v) ? JSON.stringify(v) : (v || null);
+  const d = req.body;
+  const result = run(
+    `INSERT INTO medical_documents
+      (document_type, date, provider, facility, title, note_type, modality,
+       body_region, clinical_indication, technique, comparison, chief_complaint,
+       diagnoses, findings, impression, treatment_plan, follow_up, referrals,
+       recommendations, critical_findings, medications_mentioned, labs_ordered,
+       imaging_ordered, clinical_notes, summary, file_name, tags)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [d.document_type||'other', d.date||null, d.provider||null, d.facility||null,
+     d.title||null, d.note_type||null, d.modality||null, d.body_region||null,
+     d.clinical_indication||null, d.technique||null, d.comparison||null,
+     d.chief_complaint||null, arr(d.diagnoses), d.findings||null, d.impression||null,
+     d.treatment_plan||null, d.follow_up||null, arr(d.referrals), arr(d.recommendations),
+     arr(d.critical_findings), arr(d.medications_mentioned), arr(d.labs_ordered),
+     arr(d.imaging_ordered), d.clinical_notes||null, d.summary||null,
+     d.file_name||null, arr(d.tags)]
+  );
+  res.json({ id: result.lastInsertRowid, success: true });
+});
+
+app.post('/api/documents/parse', requireAuth, async (req, res) => {
+  // Web mode: parse uploaded file
+  if (!req.files?.document) return res.status(400).json({ error: 'No file uploaded' });
+  const file = req.files.document;
+  const docType = req.body.docType || 'radiology';
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+
+  const os = await import('os');
+  const path = await import('path');
+  const fs = await import('fs');
+  const tmpPath = path.join(os.tmpdir(), `mrt_doc_${Date.now()}_${file.name}`);
+  try {
+    await file.mv(tmpPath);
+    const { parseMedicalDocumentWithAI } = await import('../electron/medical-doc-parser.cjs');
+    const result = await parseMedicalDocumentWithAI(tmpPath, docType, apiKey);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    try { fs.unlinkSync(tmpPath); } catch (_) {}
+  }
+});
+
+app.delete('/api/documents/:id', requireAuth, (req, res) => {
+  run('DELETE FROM medical_documents WHERE id=?', [req.params.id]);
+  res.json({ success: true });
+});
+
 // Test Results
 app.get('/api/tests', requireAuth, (req, res) => {
   const tests = query('SELECT * FROM test_results ORDER BY date DESC');

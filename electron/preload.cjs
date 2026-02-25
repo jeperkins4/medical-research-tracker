@@ -71,6 +71,15 @@ contextBridge.exposeInMainWorld('electron', {
     openFile:      (opts)                      => ipcRenderer.invoke('dialog:open-file', opts),
   },
 
+  // Medical Documents (radiology reports, doctor's notes)
+  docs: {
+    parseDocument:  (filePath, docType)   => ipcRenderer.invoke('docs:parse-document', filePath, docType),
+    saveDocument:   (data)                => ipcRenderer.invoke('docs:save-document', data),
+    getDocuments:   (docType)             => ipcRenderer.invoke('docs:get-documents', docType),
+    deleteDocument: (id)                  => ipcRenderer.invoke('docs:delete-document', id),
+    openFile:       (opts)                => ipcRenderer.invoke('dialog:open-file', opts),
+  },
+
 });
 
 

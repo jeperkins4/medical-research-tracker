@@ -397,6 +397,51 @@ ipcMain.handle('labs:parse-pdf', async (event, filePath) => {
   }
 });
 
+// ── Medical Documents (Radiology + Doctor's Notes) ────────────────────────
+ipcMain.handle('docs:parse-document', async (event, filePath, docType) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) return { success: false, error: 'ANTHROPIC_API_KEY not configured' };
+    const { parseMedicalDocumentWithAI } = require('./medical-doc-parser.cjs');
+    const result = await parseMedicalDocumentWithAI(filePath, docType, apiKey);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Medical doc parse error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('docs:save-document', (event, data) => {
+  try {
+    const { addMedicalDocument } = require('./db-ipc.cjs');
+    return addMedicalDocument(data);
+  } catch (error) {
+    console.error('[Electron] Save document error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('docs:get-documents', (event, docType) => {
+  try {
+    const { getMedicalDocuments } = require('./db-ipc.cjs');
+    const docs = getMedicalDocuments(docType || null);
+    return { success: true, documents: docs };
+  } catch (error) {
+    console.error('[Electron] Get documents error:', error);
+    return { success: false, error: error.message, documents: [] };
+  }
+});
+
+ipcMain.handle('docs:delete-document', (event, id) => {
+  try {
+    const { deleteMedicalDocument } = require('./db-ipc.cjs');
+    return deleteMedicalDocument(id);
+  } catch (error) {
+    console.error('[Electron] Delete document error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Genomics: mutation-drug-pathway network (Electron IPC mode for Network tab)
 ipcMain.handle('genomics:get-mutation-network', () => {
   try {

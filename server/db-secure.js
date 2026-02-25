@@ -375,6 +375,43 @@ const initDb = () => {
   runMigration('portal_credentials', 'last_sync', 'TEXT');
   runMigration('portal_credentials', 'last_sync_status', "TEXT DEFAULT 'never'");
 
+  // Medical Documents table
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS medical_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_type TEXT NOT NULL,
+        date TEXT,
+        provider TEXT,
+        facility TEXT,
+        title TEXT,
+        note_type TEXT,
+        modality TEXT,
+        body_region TEXT,
+        clinical_indication TEXT,
+        technique TEXT,
+        comparison TEXT,
+        chief_complaint TEXT,
+        diagnoses TEXT,
+        findings TEXT,
+        impression TEXT,
+        treatment_plan TEXT,
+        follow_up TEXT,
+        referrals TEXT,
+        recommendations TEXT,
+        critical_findings TEXT,
+        medications_mentioned TEXT,
+        labs_ordered TEXT,
+        imaging_ordered TEXT,
+        clinical_notes TEXT,
+        summary TEXT,
+        file_name TEXT,
+        tags TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (e) { /* already exists */ }
+
   // Medications extended fields
   const medCols = [
     ['type',                "TEXT DEFAULT 'supplement'"],

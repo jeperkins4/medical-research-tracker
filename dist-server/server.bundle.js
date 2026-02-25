@@ -30291,6 +30291,23 @@ var init_db_secure = __esm({
       };
       runMigration("portal_credentials", "last_sync", "TEXT");
       runMigration("portal_credentials", "last_sync_status", "TEXT DEFAULT 'never'");
+      const medCols = [
+        ["type", "TEXT DEFAULT 'supplement'"],
+        ["category", "TEXT"],
+        ["route", "TEXT DEFAULT 'oral'"],
+        ["active", "INTEGER DEFAULT 1"],
+        ["prescribed_by", "TEXT"],
+        ["effectiveness_rating", "INTEGER"],
+        ["evidence_strength", "TEXT"],
+        ["target_pathways", "TEXT"],
+        ["genomic_alignment", "TEXT"],
+        ["recommended_dosing", "TEXT"],
+        ["precautions", "TEXT"],
+        ["mechanism", "TEXT"],
+        ["brand", "TEXT"],
+        ["manufacturer", "TEXT"]
+      ];
+      for (const [col, def] of medCols) runMigration("medications", col, def);
       return db2;
     };
     query = (sql, params = []) => {
@@ -59948,7 +59965,7 @@ var ORGAN_PROTECTION_MAP = [
 function getProtectiveSupplements(organType) {
   let meds = [];
   try {
-    meds = query(`SELECT name, dosage FROM medications WHERE active = 1 ORDER BY name`, []);
+    meds = query(`SELECT name, dosage, brand, manufacturer FROM medications WHERE active = 1 ORDER BY name`, []);
   } catch (e2) {
     console.warn("[supplement-organs] could not query medications:", e2.message);
     return [];
@@ -59960,7 +59977,14 @@ function getProtectiveSupplements(organType) {
       if (!entry.organs.includes(organType)) continue;
       const hit = entry.keywords.some((kw) => nameLower.includes(kw.toLowerCase()));
       if (hit && !matches.find((m2) => m2.name === med.name)) {
-        matches.push({ name: med.name, dosage: med.dosage || null, organs: entry.organs, reason: entry.reason });
+        matches.push({
+          name: med.name,
+          dosage: med.dosage || null,
+          brand: med.brand || null,
+          manufacturer: med.manufacturer || null,
+          organs: entry.organs,
+          reason: entry.reason
+        });
       }
     }
   }
@@ -73531,12 +73555,121 @@ app.get("/api/medications", requireAuth, (req, res) => {
   res.json(medications);
 });
 app.post("/api/medications", requireAuth, (req, res) => {
-  const { name, dosage, frequency, started_date, notes } = req.body;
+  const {
+    name,
+    type,
+    category,
+    dosage,
+    frequency,
+    route,
+    started_date,
+    stopped_date,
+    active,
+    reason,
+    prescribed_by,
+    notes,
+    effectiveness_rating,
+    evidence_strength,
+    target_pathways,
+    genomic_alignment,
+    recommended_dosing,
+    precautions,
+    mechanism,
+    brand,
+    manufacturer
+  } = req.body;
   const result = run(
-    "INSERT INTO medications (name, dosage, frequency, started_date, notes) VALUES (?, ?, ?, ?, ?)",
-    [name, dosage, frequency, started_date, notes]
+    `INSERT INTO medications
+      (name, type, category, dosage, frequency, route, started_date, stopped_date,
+       active, reason, prescribed_by, notes, effectiveness_rating,
+       evidence_strength, target_pathways, genomic_alignment,
+       recommended_dosing, precautions, mechanism, brand, manufacturer)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      name,
+      type || "supplement",
+      category || null,
+      dosage || null,
+      frequency || null,
+      route || "oral",
+      started_date || null,
+      stopped_date || null,
+      active !== false ? 1 : 0,
+      reason || null,
+      prescribed_by || null,
+      notes || null,
+      effectiveness_rating || null,
+      evidence_strength || null,
+      target_pathways || null,
+      genomic_alignment || null,
+      recommended_dosing || null,
+      precautions || null,
+      mechanism || null,
+      brand || null,
+      manufacturer || null
+    ]
   );
-  res.json({ id: result.lastInsertRowid });
+  res.json({ id: result.lastInsertRowid, success: true });
+});
+app.put("/api/medications/:id", requireAuth, (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    type,
+    category,
+    dosage,
+    frequency,
+    route,
+    started_date,
+    stopped_date,
+    active,
+    reason,
+    prescribed_by,
+    notes,
+    effectiveness_rating,
+    evidence_strength,
+    target_pathways,
+    genomic_alignment,
+    recommended_dosing,
+    precautions,
+    mechanism,
+    brand,
+    manufacturer
+  } = req.body;
+  run(
+    `UPDATE medications SET
+      name=?, type=?, category=?, dosage=?, frequency=?, route=?,
+      started_date=?, stopped_date=?, active=?, reason=?, prescribed_by=?,
+      notes=?, effectiveness_rating=?, evidence_strength=?, target_pathways=?,
+      genomic_alignment=?, recommended_dosing=?, precautions=?, mechanism=?,
+      brand=?, manufacturer=?
+     WHERE id=?`,
+    [
+      name,
+      type || "supplement",
+      category || null,
+      dosage || null,
+      frequency || null,
+      route || "oral",
+      started_date || null,
+      stopped_date || null,
+      active !== false ? 1 : 0,
+      reason || null,
+      prescribed_by || null,
+      notes || null,
+      effectiveness_rating || null,
+      evidence_strength || null,
+      target_pathways || null,
+      genomic_alignment || null,
+      recommended_dosing || null,
+      precautions || null,
+      mechanism || null,
+      brand || null,
+      manufacturer || null,
+      id
+    ]
+  );
+  res.json({ success: true });
 });
 app.get("/api/tests", requireAuth, (req, res) => {
   const tests = query("SELECT * FROM test_results ORDER BY date DESC");

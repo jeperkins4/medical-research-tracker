@@ -21,6 +21,7 @@ import medicationEvidence from './medicationEvidence';
 import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
 import * as api from './api';
 import LabReportUploader from './components/LabReportUploader';
+import MedicalDocumentUploader from './components/MedicalDocumentUploader';
 
 // Simple apiFetch for components that don't use retry yet (legacy - will be migrated)
 const apiFetch = (url, options = {}) => {
@@ -1402,6 +1403,12 @@ function OverviewView() {
           Lab Results
         </button>
         <button 
+          className={subTab === 'documents' ? 'active' : ''}
+          onClick={() => setSubTab('documents')}
+        >
+          📋 Medical Documents
+        </button>
+        <button 
           className={subTab === 'settings' ? 'active' : ''}
           onClick={() => setSubTab('settings')}
         >
@@ -1412,6 +1419,15 @@ function OverviewView() {
       {subTab === 'vitals' && <ProfileView />}
       {subTab === 'patient' && <PatientView />}
       {subTab === 'labs' && <TestResultsView />}
+      {subTab === 'documents' && (
+        <div style={{ padding: '20px 0' }}>
+          <h2 style={{ margin: '0 0 4px', color: '#1e293b' }}>📋 Medical Documents</h2>
+          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
+            Upload and store radiology reports and doctor's notes. AI extracts structured clinical information. Everything stays local.
+          </p>
+          <MedicalDocumentUploader apiFetch={apiFetch} />
+        </div>
+      )}
       {subTab === 'settings' && (
         <>
           <h2>Settings</h2>

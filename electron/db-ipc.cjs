@@ -1153,6 +1153,119 @@ function getClinicalTrialsForMutations() {
   }
 }
 
+// ── Medical Documents (Radiology Reports, Doctor's Notes) ─────────────────────
+
+function migrateMedicalDocumentsTable() {
+  if (!db) return;
+  try {
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS medical_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_type TEXT NOT NULL,
+        date TEXT,
+        provider TEXT,
+        facility TEXT,
+        title TEXT,
+        note_type TEXT,
+        modality TEXT,
+        body_region TEXT,
+        clinical_indication TEXT,
+        technique TEXT,
+        comparison TEXT,
+        chief_complaint TEXT,
+        diagnoses TEXT,
+        findings TEXT,
+        impression TEXT,
+        treatment_plan TEXT,
+        follow_up TEXT,
+        referrals TEXT,
+        recommendations TEXT,
+        critical_findings TEXT,
+        medications_mentioned TEXT,
+        labs_ordered TEXT,
+        imaging_ordered TEXT,
+        clinical_notes TEXT,
+        summary TEXT,
+        file_name TEXT,
+        tags TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } catch (err) {
+    console.error('[DB-IPC] medical_documents table create failed:', err.message);
+  }
+}
+
+function addMedicalDocument(data) {
+  if (!db) throw new Error('Database not initialized');
+  migrateMedicalDocumentsTable();
+  // JSON-serialize array fields
+  const arr = (v) => Array.isArray(v) ? JSON.stringify(v) : (v || null);
+  const stmt = db.prepare(`
+    INSERT INTO medical_documents
+      (document_type, date, provider, facility, title, note_type, modality,
+       body_region, clinical_indication, technique, comparison, chief_complaint,
+       diagnoses, findings, impression, treatment_plan, follow_up, referrals,
+       recommendations, critical_findings, medications_mentioned, labs_ordered,
+       imaging_ordered, clinical_notes, summary, file_name, tags)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  `);
+  const result = stmt.run(
+    data.document_type || 'other',
+    data.date || null,
+    data.provider || null,
+    data.facility || null,
+    data.title || null,
+    data.note_type || null,
+    data.modality || null,
+    data.body_region || null,
+    data.clinical_indication || null,
+    data.technique || null,
+    data.comparison || null,
+    data.chief_complaint || null,
+    arr(data.diagnoses),
+    data.findings || null,
+    data.impression || null,
+    data.treatment_plan || null,
+    data.follow_up || null,
+    arr(data.referrals),
+    arr(data.recommendations),
+    arr(data.critical_findings),
+    arr(data.medications_mentioned),
+    arr(data.labs_ordered),
+    arr(data.imaging_ordered),
+    data.clinical_notes || null,
+    data.summary || null,
+    data.file_name || null,
+    arr(data.tags)
+  );
+  return { success: true, id: result.lastInsertRowid };
+}
+
+function getMedicalDocuments(docType = null) {
+  if (!db) throw new Error('Database not initialized');
+  migrateMedicalDocumentsTable();
+  const rows = docType
+    ? db.prepare('SELECT * FROM medical_documents WHERE document_type=? ORDER BY date DESC, created_at DESC').all(docType)
+    : db.prepare('SELECT * FROM medical_documents ORDER BY date DESC, created_at DESC').all();
+  // Parse JSON array fields back
+  const arrFields = ['diagnoses','referrals','recommendations','critical_findings',
+                     'medications_mentioned','labs_ordered','imaging_ordered','tags'];
+  return rows.map(r => {
+    const out = { ...r };
+    for (const f of arrFields) {
+      try { out[f] = r[f] ? JSON.parse(r[f]) : []; } catch { out[f] = []; }
+    }
+    return out;
+  });
+}
+
+function deleteMedicalDocument(id) {
+  if (!db) throw new Error('Database not initialized');
+  db.prepare('DELETE FROM medical_documents WHERE id=?').run(id);
+  return { success: true };
+}
+
 // ── Subscription Tracker ─────────────────────────────────────────────────────
 
 module.exports = {
@@ -1180,5 +1293,8 @@ module.exports = {
   getClinicalTrialsForMutations,
   getTestResults,
   importLabResults,
+  addMedicalDocument,
+  getMedicalDocuments,
+  deleteMedicalDocument,
   closeDatabase
 };
