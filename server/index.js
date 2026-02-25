@@ -28,6 +28,7 @@ import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 import { shouldMonitorLiver, shouldMonitorLungs, shouldMonitorKidneys, shouldMonitorLymphatic, getAllOrganStatuses, getMonitoringSummary } from './organ-health.js';
+import { getKidneyHealthData, getLiverHealthData, getLungHealthData } from './organ-health-trackers.js';
 import { getHealthStatus } from './health-check.js';
 import { initializeErrorHandlers, expressErrorHandler, requestTimeout } from './error-handler.js';
 import * as nutrition from './nutrition.js';
@@ -1564,6 +1565,31 @@ app.get('/api/organ-health/summary', requireAuth, (req, res) => {
   try {
     const summary = getMonitoringSummary();
     res.json(summary);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Rich organ health tracker endpoints (full trend data for React components)
+app.get('/api/kidney-health', requireAuth, (req, res) => {
+  try {
+    res.json(getKidneyHealthData());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/liver-health', requireAuth, (req, res) => {
+  try {
+    res.json(getLiverHealthData());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/lung-health', requireAuth, (req, res) => {
+  try {
+    res.json(getLungHealthData());
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

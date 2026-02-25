@@ -40,9 +40,14 @@ async function syncPortal(credentialId, dbPath) {
     throw new Error('Credential not found');
   }
   
-  // Decrypt credentials
-  const decryptedPassword = cred.password_encrypted ? vault.decrypt(cred.password_encrypted) : '';
-  const decryptedUsername = cred.username_encrypted ? vault.decrypt(cred.username_encrypted) : (cred.username || '');
+  // Decrypt credentials — safeDecrypt falls back to the raw value if it's plaintext
+  // (backfill from old schema may have written plaintext into username_encrypted)
+  function safeDecrypt(val, fallback = '') {
+    if (!val) return fallback;
+    try { return vault.decrypt(val); } catch { return val; }
+  }
+  const decryptedPassword = safeDecrypt(cred.password_encrypted);
+  const decryptedUsername = safeDecrypt(cred.username_encrypted, cred.username || '');
   const credential = {
     ...cred,
     username: decryptedUsername,

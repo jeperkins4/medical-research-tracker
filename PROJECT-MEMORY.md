@@ -1,4 +1,5 @@
 # MyTreatmentPath — Project Memory
+<!-- Last updated: 2026-02-24 18:00 EST -->
 Last updated: 2026-02-24
 
 ## Current Version

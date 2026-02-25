@@ -215,6 +215,26 @@ ipcMain.handle('db:add-medication', (event, data) => {
   return db.addMedication(currentUserId, data);
 });
 
+ipcMain.handle('db:update-medication', (event, id, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.updateMedication(id, data);
+});
+
+ipcMain.handle('db:delete-medication', (event, id) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.deleteMedication(id);
+});
+
+ipcMain.handle('db:get-medication-research', (event, medicationId) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getMedicationResearch(medicationId);
+});
+
+ipcMain.handle('db:add-medication-research', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addMedicationResearch(data);
+});
+
 ipcMain.handle('db:get-vitals', (event, limit) => {
   if (!currentUserId) return { success: false, error: 'Not authenticated' };
   return db.getVitals(currentUserId, limit || 10);
@@ -346,6 +366,64 @@ ipcMain.handle('genomics:add-mutation', (event, data) => {
 
 ipcMain.handle('genomics:add-therapy', (event, data) => {
   return db.addMutationTherapy(data);
+});
+
+// Genomics: clinical trials linked to mutations
+ipcMain.handle('genomics:get-clinical-trials', () => {
+  return db.getClinicalTrialsForMutations();
+});
+
+// Lab Results: get all test results
+ipcMain.handle('labs:get-results', () => {
+  return db.getTestResults();
+});
+
+// Lab Results: import parsed results
+ipcMain.handle('labs:import-results', (event, results, replaceExisting) => {
+  return db.importLabResults(results, replaceExisting || false);
+});
+
+// Lab Results: parse PDF with Claude AI
+ipcMain.handle('labs:parse-pdf', async (event, filePath) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) return { success: false, error: 'ANTHROPIC_API_KEY not configured' };
+    const { parseLabReportWithAI } = require('./lab-pdf-parser.cjs');
+    const result = await parseLabReportWithAI(filePath, apiKey);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Lab parse error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Genomics: mutation-drug-pathway network (Electron IPC mode for Network tab)
+ipcMain.handle('genomics:get-mutation-network', () => {
+  try {
+    const { buildMutationNetwork } = require('./genomics-network-ipc.cjs');
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    return buildMutationNetwork(dbPath);
+  } catch (error) {
+    console.error('[Electron] Network build error:', error);
+    return { nodes: [], edges: [], error: error.message };
+  }
+});
+
+// Genomics: search clinical trials for a list of mutations
+ipcMain.handle('genomics:search-trials', async (event, mutations) => {
+  try {
+    const { searchTrialsForMutations } = require('./genomics-trials-search.cjs');
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    const braveApiKey = process.env.BRAVE_API_KEY || null;
+    const result = await searchTrialsForMutations(mutations, dbPath, braveApiKey);
+    console.log(`[Electron] Trial search complete: ${result.trialsFound} trials for ${result.mutationsSearched} genes`);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Trial search error:', error);
+    return { success: false, error: error.message, trialsFound: 0, mutationsSearched: 0 };
+  }
 });
 
 // Error handling

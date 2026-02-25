@@ -514,13 +514,58 @@ function getConditions(userId) {
 }
 
 /**
+ * Migrate medications table to include all form fields + create medication_research table
+ */
+function migrateMedicationsSchema() {
+  if (!db) return;
+  const newCols = [
+    ['type',               'TEXT DEFAULT \'supplement\''],
+    ['category',           'TEXT'],
+    ['route',              'TEXT DEFAULT \'oral\''],
+    ['active',             'INTEGER DEFAULT 1'],
+    ['prescribed_by',      'TEXT'],
+    ['effectiveness_rating','INTEGER'],
+    ['evidence_strength',  'TEXT'],
+    ['target_pathways',    'TEXT'],
+    ['genomic_alignment',  'TEXT'],
+    ['recommended_dosing', 'TEXT'],
+    ['precautions',        'TEXT'],
+    ['mechanism',          'TEXT'],
+  ];
+  for (const [col, def] of newCols) {
+    try {
+      db.prepare(`ALTER TABLE medications ADD COLUMN ${col} ${def}`).run();
+    } catch (_) { /* column already exists */ }
+  }
+  // medication_research table
+  try {
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS medication_research (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        medication_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT,
+        publication_year INTEGER,
+        key_findings TEXT,
+        article_type TEXT DEFAULT 'supporting',
+        evidence_quality TEXT DEFAULT 'moderate',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (medication_id) REFERENCES medications(id) ON DELETE CASCADE
+      )
+    `).run();
+  } catch (err) {
+    console.error('[DB-IPC] medication_research table create failed:', err.message);
+  }
+}
+
+/**
  * Get all medications (legacy single-user format)
  */
 function getMedications(userId) {
   if (!db) throw new Error('Database not initialized');
   
   try {
-    // Legacy single-user - no user_id filter
+    migrateMedicationsSchema();
     const medications = db.prepare('SELECT * FROM medications ORDER BY created_at DESC').all();
     return { success: true, medications };
   } catch (err) {
@@ -563,18 +608,149 @@ function addCondition(userId, data) {
 }
 
 /**
- * Add medication (legacy single-user format)
+ * Add medication (full schema)
  */
 function addMedication(userId, data) {
   if (!db) throw new Error('Database not initialized');
   
   try {
-    // Legacy single-user - no user_id column, different column names
-    const stmt = db.prepare('INSERT INTO medications (name, dosage, frequency, started_date, stopped_date, reason, notes) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    const result = stmt.run(data.name, data.dosage, data.frequency, data.start_date, data.end_date, data.purpose, data.notes);
+    migrateMedicationsSchema();
+    const stmt = db.prepare(`
+      INSERT INTO medications
+        (name, type, category, dosage, frequency, route, started_date, stopped_date,
+         active, reason, prescribed_by, notes, effectiveness_rating,
+         evidence_strength, target_pathways, genomic_alignment,
+         recommended_dosing, precautions, mechanism)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `);
+    const result = stmt.run(
+      data.name,
+      data.type || 'supplement',
+      data.category || null,
+      data.dosage || null,
+      data.frequency || null,
+      data.route || 'oral',
+      data.started_date || null,
+      data.stopped_date || null,
+      data.active !== false ? 1 : 0,
+      data.reason || null,
+      data.prescribed_by || null,
+      data.notes || null,
+      data.effectiveness_rating || null,
+      data.evidence_strength || null,
+      data.target_pathways || null,
+      data.genomic_alignment || null,
+      data.recommended_dosing || null,
+      data.precautions || null,
+      data.mechanism || null
+    );
     return { success: true, id: result.lastInsertRowid };
   } catch (err) {
     console.error('[DB-IPC] Add medication failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Update medication
+ */
+function updateMedication(id, data) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    const stmt = db.prepare(`
+      UPDATE medications SET
+        name=?, type=?, category=?, dosage=?, frequency=?, route=?,
+        started_date=?, stopped_date=?, active=?, reason=?, prescribed_by=?,
+        notes=?, effectiveness_rating=?, evidence_strength=?, target_pathways=?,
+        genomic_alignment=?, recommended_dosing=?, precautions=?, mechanism=?
+      WHERE id=?
+    `);
+    stmt.run(
+      data.name,
+      data.type || 'supplement',
+      data.category || null,
+      data.dosage || null,
+      data.frequency || null,
+      data.route || 'oral',
+      data.started_date || null,
+      data.stopped_date || null,
+      data.active !== false ? 1 : 0,
+      data.reason || null,
+      data.prescribed_by || null,
+      data.notes || null,
+      data.effectiveness_rating || null,
+      data.evidence_strength || null,
+      data.target_pathways || null,
+      data.genomic_alignment || null,
+      data.recommended_dosing || null,
+      data.precautions || null,
+      data.mechanism || null,
+      id
+    );
+    return { success: true };
+  } catch (err) {
+    console.error('[DB-IPC] Update medication failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Delete medication
+ */
+function deleteMedication(id) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    db.prepare('DELETE FROM medications WHERE id=?').run(id);
+    return { success: true };
+  } catch (err) {
+    console.error('[DB-IPC] Delete medication failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Get research articles for a medication
+ */
+function getMedicationResearch(medicationId) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    migrateMedicationsSchema();
+    const articles = db.prepare('SELECT * FROM medication_research WHERE medication_id=? ORDER BY publication_year DESC').all(medicationId);
+    return { success: true, articles };
+  } catch (err) {
+    console.error('[DB-IPC] Get medication research failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Add research article for a medication
+ */
+function addMedicationResearch(data) {
+  if (!db) throw new Error('Database not initialized');
+  
+  try {
+    migrateMedicationsSchema();
+    const stmt = db.prepare(`
+      INSERT INTO medication_research
+        (medication_id, title, url, publication_year, key_findings, article_type, evidence_quality)
+      VALUES (?,?,?,?,?,?,?)
+    `);
+    const result = stmt.run(
+      data.medication_id,
+      data.title,
+      data.url || null,
+      data.publication_year || null,
+      data.key_findings || null,
+      data.article_type || 'supporting',
+      data.evidence_quality || 'moderate'
+    );
+    return { success: true, id: result.lastInsertRowid };
+  } catch (err) {
+    console.error('[DB-IPC] Add medication research failed:', err.message);
     return { success: false, error: err.message };
   }
 }
@@ -661,7 +837,15 @@ function getGenomicDashboard() {
           coding_effect: mutation.coding_effect || null,
           pathway_count: pathways.length,
           treatment_count: therapies.length,
-          trial_count: therapies.filter(t => t.clinical_trial_id).length,
+          trial_count: (() => {
+            const fromTherapies = therapies.filter(t => t.clinical_trial_id).length;
+            try {
+              const row = db.prepare(
+                'SELECT COUNT(*) as n FROM mutation_trial_links WHERE mutation_id = ?'
+              ).get(mutation.id);
+              return Math.max(fromTherapies, row?.n || 0);
+            } catch { return fromTherapies; }
+          })(),
           therapies,
           pathways
         };
@@ -840,6 +1024,128 @@ function addMutationTherapy(data) {
   }
 }
 
+// ── Lab Results ───────────────────────────────────────────────────────────────
+
+function migrateTestResultsSchema() {
+  if (!db) return;
+  const needed = [
+    ['unit',          'TEXT'],
+    ['normal_low',    'TEXT'],
+    ['normal_high',   'TEXT'],
+    ['flag',          "TEXT DEFAULT 'normal'"],   // 'high' | 'low' | 'critical' | 'normal'
+    ['value_numeric', 'REAL'],
+    ['panel_name',    "TEXT DEFAULT 'General'"],  // 'CMP', 'CBC', 'Lipid', 'Thyroid', etc.
+  ];
+  let existing;
+  try {
+    existing = new Set(db.prepare('PRAGMA table_info(test_results)').all().map(c => c.name));
+  } catch { return; }
+  for (const [col, def] of needed) {
+    if (!existing.has(col)) {
+      try {
+        db.exec(`ALTER TABLE test_results ADD COLUMN ${col} ${def}`);
+        console.log(`[DB-IPC] Migration: added test_results.${col}`);
+      } catch (e) {
+        if (!e.message.includes('duplicate column')) {
+          console.warn(`[DB-IPC] test_results migration ${col}:`, e.message);
+        }
+      }
+    }
+  }
+}
+
+function getTestResults(userId) {
+  if (!db) throw new Error('Database not initialized');
+  migrateTestResultsSchema();
+  try {
+    return db.prepare(`
+      SELECT id, test_name, result, value_numeric, unit, normal_low, normal_high,
+             flag, panel_name, date, provider, notes
+      FROM test_results
+      ORDER BY date DESC, test_name
+    `).all();
+  } catch (err) {
+    console.warn('[DB-IPC] getTestResults:', err.message);
+    return [];
+  }
+}
+
+function importLabResults(results, replaceExisting = false) {
+  if (!db) throw new Error('Database not initialized');
+  migrateTestResultsSchema();
+  let imported = 0, skipped = 0, updated = 0;
+
+  const upsert = db.transaction((rows) => {
+    for (const r of rows) {
+      try {
+        if (replaceExisting) {
+          const existing = db.prepare(
+            'SELECT id FROM test_results WHERE test_name = ? AND date = ?'
+          ).get(r.test_name, r.date);
+          if (existing) {
+            db.prepare(`
+              UPDATE test_results SET result=?, value_numeric=?, unit=?, normal_low=?,
+                normal_high=?, flag=?, panel_name=?, provider=?, notes=? WHERE id=?
+            `).run(r.result, r.value_numeric, r.unit, r.normal_low, r.normal_high,
+                   r.flag, r.panel_name, r.provider, r.notes, existing.id);
+            updated++;
+            continue;
+          }
+        }
+        // Try insert, ignore duplicate
+        const res = db.prepare(`
+          INSERT OR IGNORE INTO test_results
+            (test_name, result, value_numeric, unit, normal_low, normal_high, flag, panel_name, date, provider, notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(r.test_name, r.result, r.value_numeric, r.unit, r.normal_low, r.normal_high,
+               r.flag, r.panel_name, r.date, r.provider, r.notes);
+        if (res.changes > 0) imported++; else skipped++;
+      } catch (e) {
+        console.warn('[DB-IPC] importLabResults row error:', e.message);
+        skipped++;
+      }
+    }
+  });
+
+  upsert(results);
+  return { imported, updated, skipped, total: results.length };
+}
+
+// ── Clinical Trials ───────────────────────────────────────────────────────────
+
+function getClinicalTrialsForMutations() {
+  if (!db) throw new Error('Database not initialized');
+  try {
+    // Check if mutation_trial_links table exists
+    const hasLinks = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mutation_trial_links'").get();
+    if (hasLinks) {
+      // Return trials linked to mutations, enriched with gene info
+      const rows = db.prepare(`
+        SELECT
+          ct.id, ct.nct_id, ct.title, ct.status, ct.phase,
+          ct.conditions, ct.interventions, ct.locations, ct.url, ct.source,
+          GROUP_CONCAT(DISTINCT mtl.gene) as matched_genes,
+          COUNT(DISTINCT mtl.mutation_id) as mutation_match_count
+        FROM clinical_trials ct
+        JOIN mutation_trial_links mtl ON ct.id = mtl.trial_id
+        GROUP BY ct.id
+        ORDER BY mutation_match_count DESC, ct.phase DESC
+        LIMIT 50
+      `).all();
+      return rows;
+    }
+    // Fallback: return all saved clinical_trials regardless of link
+    const hasCT = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='clinical_trials'").get();
+    if (hasCT) {
+      return db.prepare('SELECT * FROM clinical_trials ORDER BY saved_at DESC LIMIT 50').all();
+    }
+    return [];
+  } catch (err) {
+    console.warn('[DB-IPC] getClinicalTrialsForMutations:', err.message);
+    return [];
+  }
+}
+
 // ── Subscription Tracker ─────────────────────────────────────────────────────
 
 module.exports = {
@@ -854,11 +1160,18 @@ module.exports = {
   getVitals,
   addCondition,
   addMedication,
+  updateMedication,
+  deleteMedication,
+  getMedicationResearch,
+  addMedicationResearch,
   addVitals,
   getGenomicDashboard,
   getMutationDetails,
   addGenomicMutation,
   addMutationTherapy,
   importFoundationOneMutations,
+  getClinicalTrialsForMutations,
+  getTestResults,
+  importLabResults,
   closeDatabase
 };

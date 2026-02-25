@@ -24,6 +24,10 @@ contextBridge.exposeInMainWorld('electron', {
     addCondition: (data) => ipcRenderer.invoke('db:add-condition', data),
     getMedications: () => ipcRenderer.invoke('db:get-medications'),
     addMedication: (data) => ipcRenderer.invoke('db:add-medication', data),
+    updateMedication: (id, data) => ipcRenderer.invoke('db:update-medication', id, data),
+    deleteMedication: (id) => ipcRenderer.invoke('db:delete-medication', id),
+    getMedicationResearch: (medicationId) => ipcRenderer.invoke('db:get-medication-research', medicationId),
+    addMedicationResearch: (data) => ipcRenderer.invoke('db:add-medication-research', data),
     getVitals: (limit) => ipcRenderer.invoke('db:get-vitals', limit),
     addVitals: (data) => ipcRenderer.invoke('db:add-vitals', data),
     logout: () => ipcRenderer.invoke('db:logout')
@@ -53,7 +57,18 @@ contextBridge.exposeInMainWorld('electron', {
     addTherapy:         (data)                 => ipcRenderer.invoke('genomics:add-therapy', data),
     parseFoundationOne: (filePath)             => ipcRenderer.invoke('genomics:parse-foundation-one', filePath),
     importMutations:    (mutations, replace)   => ipcRenderer.invoke('genomics:import-mutations', mutations, replace),
-    openFile:           (opts)                 => ipcRenderer.invoke('dialog:open-file', opts),
+    getMutationNetwork:  ()                     => ipcRenderer.invoke('genomics:get-mutation-network'),
+    getClinicalTrials:   ()                     => ipcRenderer.invoke('genomics:get-clinical-trials'),
+    searchTrials:        (mutations)            => ipcRenderer.invoke('genomics:search-trials', mutations),
+    openFile:            (opts)                 => ipcRenderer.invoke('dialog:open-file', opts),
+  },
+
+  // Lab Results operations
+  labs: {
+    getResults:    ()                          => ipcRenderer.invoke('labs:get-results'),
+    parsePDF:      (filePath)                  => ipcRenderer.invoke('labs:parse-pdf', filePath),
+    importResults: (results, replace)          => ipcRenderer.invoke('labs:import-results', results, replace),
+    openFile:      (opts)                      => ipcRenderer.invoke('dialog:open-file', opts),
   },
 
 });

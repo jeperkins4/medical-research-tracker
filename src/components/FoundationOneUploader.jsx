@@ -9,11 +9,13 @@ import { useState } from 'react';
 const isElectron = typeof window !== 'undefined' && window.electron && window.electron.genomics;
 
 export default function FoundationOneUploader({ onImported }) {
-  const [step, setStep]           = useState('idle'); // idle | parsing | preview | importing | done | error
-  const [parsed, setParsed]       = useState(null);
-  const [error, setError]         = useState(null);
+  const [step, setStep]               = useState('idle'); // idle | parsing | preview | importing | done | error
+  const [parsed, setParsed]           = useState(null);
+  const [error, setError]             = useState(null);
   const [replaceExisting, setReplaceExisting] = useState(false);
-  const [result, setResult]       = useState(null);
+  const [result, setResult]           = useState(null);
+  const [trialsSearching, setTrialsSearching] = useState(false);
+  const [trialsResult, setTrialsResult]       = useState(null);
 
   // ── Pick & Parse ───────────────────────────────────────────────────────────
 
@@ -95,6 +97,27 @@ export default function FoundationOneUploader({ onImported }) {
       setResult(res);
       setStep('done');
       onImported?.();
+
+      // Background: search for clinical trials for each imported mutation.
+      // We don't block on this — it runs after the user sees the success state.
+      if (isElectron && parsed.mutations?.length) {
+        setTrialsSearching(true);
+        setTrialsResult(null);
+        console.log('[FoundationOneUploader] Triggering background trial search…');
+        window.electron.genomics.searchTrials(parsed.mutations)
+          .then(r => {
+            setTrialsSearching(false);
+            setTrialsResult(r || null);
+            if (r?.trialsFound > 0) {
+              console.log(`[FoundationOneUploader] Trial search: ${r.trialsFound} trials found`);
+              onImported?.(); // refresh dashboard to update trial counts
+            }
+          })
+          .catch(err => {
+            console.warn('[FoundationOneUploader] Trial search failed:', err.message);
+            setTrialsSearching(false);
+          });
+      }
     } catch (err) {
       setError('Import failed: ' + err.message);
       setStep('error');
@@ -106,6 +129,8 @@ export default function FoundationOneUploader({ onImported }) {
     setParsed(null);
     setError(null);
     setResult(null);
+    setTrialsSearching(false);
+    setTrialsResult(null);
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -155,15 +180,38 @@ export default function FoundationOneUploader({ onImported }) {
       )}
 
       {step === 'parsing' && (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
-          <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>🧬</div>
-          <div style={{ fontWeight: 600, color: '#374151', marginBottom: '4px' }}>
+        <div style={{ padding: '32px 24px', textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+          <style>{`
+            @keyframes fo-spin { to { transform: rotate(360deg); } }
+            @keyframes fo-pulse { 0%,100% { opacity: .4; transform: scaleX(.6); } 50% { opacity: 1; transform: scaleX(1); } }
+            .fo-spinner {
+              width: 48px; height: 48px; margin: 0 auto 16px;
+              border: 4px solid #dbeafe;
+              border-top-color: #2563eb;
+              border-radius: 50%;
+              animation: fo-spin 0.9s linear infinite;
+            }
+            .fo-bar-track {
+              width: 220px; height: 6px; margin: 12px auto 0;
+              background: #dbeafe; border-radius: 99px; overflow: hidden;
+            }
+            .fo-bar-fill {
+              height: 100%; width: 45%; background: #2563eb; border-radius: 99px;
+              animation: fo-pulse 1.4s ease-in-out infinite;
+              transform-origin: left center;
+            }
+          `}</style>
+          <div className="fo-spinner" />
+          <div style={{ fontWeight: 600, color: '#1e40af', fontSize: '15px', marginBottom: '6px' }}>
             Analyzing report with AI…
           </div>
-          <div style={{ fontSize: '13px' }}>
-            Claude is reading your genomic report and extracting all mutations.
-            This takes 10–20 seconds.
+          <div style={{ fontSize: '13px', color: '#64748b' }}>
+            Claude is extracting all mutations from your Foundation One CDx report.
           </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+            This typically takes 10–20 seconds — hang tight
+          </div>
+          <div className="fo-bar-track"><div className="fo-bar-fill" /></div>
         </div>
       )}
 
@@ -285,25 +333,51 @@ export default function FoundationOneUploader({ onImported }) {
       )}
 
       {step === 'done' && result && (
-        <div style={{
-          padding: '16px 20px',
-          background: '#d1fae5',
-          border: '1px solid #6ee7b7',
-          borderRadius: '10px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div>
-            <strong style={{ color: '#065f46' }}>✅ Import complete</strong>
-            <span style={{ color: '#047857', marginLeft: '10px', fontSize: '14px' }}>
-              {result.imported} imported · {result.skipped} skipped (already exist)
-            </span>
+        <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #6ee7b7' }}>
+          <div style={{
+            padding: '16px 20px',
+            background: '#d1fae5',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div>
+              <strong style={{ color: '#065f46' }}>✅ Import complete</strong>
+              <span style={{ color: '#047857', marginLeft: '10px', fontSize: '14px' }}>
+                {result.imported} imported · {result.skipped} skipped (already exist)
+              </span>
+            </div>
+            <button onClick={reset} style={{
+              padding: '6px 14px', background: '#059669', color: '#fff',
+              border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px',
+            }}>Upload Another</button>
           </div>
-          <button onClick={reset} style={{
-            padding: '6px 14px', background: '#059669', color: '#fff',
-            border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px',
-          }}>Upload Another</button>
+
+          {/* Trial search status */}
+          {trialsSearching && (
+            <div style={{
+              padding: '10px 20px', background: '#eff6ff',
+              borderTop: '1px solid #bfdbfe',
+              display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#1e40af',
+            }}>
+              <style>{`@keyframes fo-spin2{to{transform:rotate(360deg)}} .fo-mini-spin{width:14px;height:14px;border:2px solid #bfdbfe;border-top-color:#2563eb;border-radius:50%;animation:fo-spin2 0.8s linear infinite;flex-shrink:0}`}</style>
+              <div className="fo-mini-spin" />
+              Searching ClinicalTrials.gov for active studies matching your mutations…
+            </div>
+          )}
+
+          {!trialsSearching && trialsResult && (
+            <div style={{
+              padding: '10px 20px', background: trialsResult.trialsFound > 0 ? '#eff6ff' : '#f8fafc',
+              borderTop: '1px solid #e2e8f0',
+              fontSize: '13px',
+              color: trialsResult.trialsFound > 0 ? '#1e40af' : '#64748b',
+            }}>
+              {trialsResult.trialsFound > 0
+                ? `🔬 Found ${trialsResult.trialsFound} clinical trial(s) across ${trialsResult.mutationsSearched} gene(s) — trial counts updated in the dashboard.`
+                : '🔬 No active recruiting trials found for these mutations at this time.'}
+            </div>
+          )}
         </div>
       )}
 

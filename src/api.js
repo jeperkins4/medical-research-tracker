@@ -448,3 +448,15 @@ export async function importFoundationOneMutations(mutations, replaceExisting = 
   });
   return res.json();
 }
+
+/**
+ * Get clinical trials linked to current mutations
+ */
+export async function getClinicalTrials() {
+  if (typeof window !== 'undefined' && window.electron?.genomics?.getClinicalTrials) {
+    return window.electron.genomics.getClinicalTrials();
+  }
+  const res = await fetch('/api/genomics/clinical-trials', { credentials: 'include' });
+  if (!res.ok) return [];
+  return res.json();
+}

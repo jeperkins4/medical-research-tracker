@@ -45,7 +45,12 @@ const supplementSources = {
   ]
 };
 
-export default function BoneHealthTracker() {
+// Credentialed fetch fallback (used when apiFetch prop is not passed)
+const credFetch = (url, opts = {}) =>
+  fetch(url, { ...opts, credentials: 'include' });
+
+export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
+  const apiFetch = propApiFetch || credFetch;
   const [enabled, setEnabled] = useState(false);
   const [disabledReason, setDisabledReason] = useState('');
   const [alkPhosData, setAlkPhosData] = useState([]);
@@ -61,7 +66,7 @@ export default function BoneHealthTracker() {
 
   const fetchBoneHealthData = async () => {
     try {
-      const response = await fetch('/api/bone-health');
+      const response = await apiFetch('/api/bone-health');
       const data = await response.json();
       
       // Check if bone health monitoring is enabled

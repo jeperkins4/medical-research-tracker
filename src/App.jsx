@@ -9,6 +9,9 @@ import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
 import NutritionTracker from './components/NutritionTracker';
+import KidneyHealthTracker from './components/KidneyHealthTracker';
+import LiverHealthTracker from './components/LiverHealthTracker';
+import LungHealthTracker from './components/LungHealthTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import MedicationManager from './components/MedicationManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -17,6 +20,7 @@ import PHITransfer from './components/PHITransfer';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch as robustApiFetch, fetchJSON, clearCache } from './utils/apiHelpers';
 import * as api from './api';
+import LabReportUploader from './components/LabReportUploader';
 
 // Simple apiFetch for components that don't use retry yet (legacy - will be migrated)
 const apiFetch = (url, options = {}) => {
@@ -249,32 +253,50 @@ function AppFooter() {
   );
 }
 
+const isElectronLabs = typeof window !== 'undefined' && window.electron?.labs?.getResults;
+
 function TestResultsView() {
   const [tests, setTests] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [viewMode, setViewMode] = useState('byDate'); // 'byDate' or 'trends'
+  const [showUploader, setShowUploader] = useState(false);
 
-  useEffect(() => {
-    apiFetch('/api/tests')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setTests(data);
-          if (data.length > 0 && !selectedDate) {
-            // Auto-select most recent date
-            const dates = [...new Set(data.map(t => t.date))].sort().reverse();
-            setSelectedDate(dates[0]);
+  const loadTests = () => {
+    if (isElectronLabs) {
+      window.electron.labs.getResults()
+        .then(data => {
+          if (Array.isArray(data)) {
+            setTests(data);
+            if (data.length > 0 && !selectedDate) {
+              const dates = [...new Set(data.map(t => t.date))].sort().reverse();
+              setSelectedDate(dates[0]);
+            }
           }
-        } else {
-          console.warn('[TestResultsView] Tests API returned non-array:', data);
+        })
+        .catch(err => console.error('[TestResultsView] IPC error:', err));
+    } else {
+      apiFetch('/api/tests')
+        .then(r => r.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setTests(data);
+            if (data.length > 0 && !selectedDate) {
+              const dates = [...new Set(data.map(t => t.date))].sort().reverse();
+              setSelectedDate(dates[0]);
+            }
+          } else {
+            console.warn('[TestResultsView] Tests API returned non-array:', data);
+            setTests([]);
+          }
+        })
+        .catch(err => {
+          console.error('[TestResultsView] Failed to fetch tests:', err);
           setTests([]);
-        }
-      })
-      .catch(err => {
-        console.error('[TestResultsView] Failed to fetch tests:', err);
-        setTests([]);
-      });
-  }, []);
+        });
+    }
+  };
+
+  useEffect(() => { loadTests(); }, []);
 
   // Group tests by date
   const testsByDate = tests.reduce((acc, test) => {
@@ -314,23 +336,36 @@ function TestResultsView() {
 
   return (
     <div className="view">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Laboratory Results</h2>
-        <div className="view-toggle">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h2 style={{ margin: 0 }}>Laboratory Results</h2>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
-            className={viewMode === 'byDate' ? 'active' : ''}
-            onClick={() => setViewMode('byDate')}
+            onClick={() => setShowUploader(v => !v)}
+            style={{ padding: '7px 16px', background: showUploader ? '#0c4a6e' : '#0369a1', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
           >
-            By Date
+            {showUploader ? '✕ Close Uploader' : '📄 Upload Lab Report'}
           </button>
-          <button
-            className={viewMode === 'trends' ? 'active' : ''}
-            onClick={() => setViewMode('trends')}
-          >
-            Trends
-          </button>
+          <div className="view-toggle">
+            <button className={viewMode === 'byDate' ? 'active' : ''} onClick={() => setViewMode('byDate')}>By Date</button>
+            <button className={viewMode === 'trends' ? 'active' : ''} onClick={() => setViewMode('trends')}>Trends</button>
+          </div>
         </div>
       </div>
+
+      {showUploader && (
+        <LabReportUploader onImported={() => { loadTests(); setShowUploader(false); }} />
+      )}
+
+      {!showUploader && tests.length === 0 && (
+        <div style={{ padding: '32px', textAlign: 'center', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', color: '#64748b', marginBottom: '20px' }}>
+          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧪</div>
+          <div style={{ fontWeight: 600, marginBottom: '6px' }}>No lab results yet</div>
+          <div style={{ fontSize: '13px', marginBottom: '14px' }}>Upload a lab report PDF to extract CMP, CBC, and other test results automatically.</div>
+          <button onClick={() => setShowUploader(true)} style={{ padding: '8px 20px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+            📄 Upload Lab Report
+          </button>
+        </div>
+      )}
 
       {viewMode === 'byDate' && (
         <div className="test-results-container">
@@ -368,12 +403,22 @@ function TestResultsView() {
               {testsByDate[selectedDate]
                 .sort((a, b) => a.test_name.localeCompare(b.test_name))
                 .map(test => (
-                  <div key={test.id} className={`test-result-card ${isAbnormal(test.result) ? 'abnormal' : ''}`}>
+                  <div key={test.id} className={`test-result-card ${(test.flag && test.flag !== 'normal') ? 'abnormal' : isAbnormal(test.result) ? 'abnormal' : ''}`}>
                     <div className="test-header">
                       <h4>{test.test_name}</h4>
-                      {isAbnormal(test.result) && <span className="flag">⚠️</span>}
+                      {(test.flag === 'high' || test.flag === 'critical') && <span className="flag" style={{ color: '#dc2626' }}>▲ {test.flag === 'critical' ? 'CRITICAL' : 'HIGH'}</span>}
+                      {test.flag === 'low' && <span className="flag" style={{ color: '#2563eb' }}>▼ LOW</span>}
+                      {(!test.flag || test.flag === 'normal') && isAbnormal(test.result) && <span className="flag">⚠️</span>}
                     </div>
-                    <div className="test-result">{test.result}</div>
+                    <div className="test-result" style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '1.1em' }}>{test.result}</span>
+                      {test.unit && <span style={{ fontSize: '0.85em', color: '#64748b' }}>{test.unit}</span>}
+                    </div>
+                    {(test.normal_low || test.normal_high) && (
+                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                        Ref: {test.normal_low && test.normal_high ? `${test.normal_low}–${test.normal_high}` : test.normal_low || test.normal_high} {test.unit || ''}
+                      </div>
+                    )}
                     {test.notes && <div className="test-notes">{test.notes}</div>}
                     {test.provider && <div className="test-provider">{test.provider}</div>}
                   </div>
@@ -1404,11 +1449,32 @@ function TreatmentView() {
         >
           🦴 Bone Health
         </button>
+        <button
+          className={subTab === 'kidney' ? 'active' : ''}
+          onClick={() => setSubTab('kidney')}
+        >
+          🫘 Kidney Health
+        </button>
+        <button
+          className={subTab === 'liver' ? 'active' : ''}
+          onClick={() => setSubTab('liver')}
+        >
+          🫀 Liver Health
+        </button>
+        <button
+          className={subTab === 'lung' ? 'active' : ''}
+          onClick={() => setSubTab('lung')}
+        >
+          🫁 Lung Health
+        </button>
       </div>
       
       {subTab === 'medications' && <MedicationManager apiFetch={apiFetch} />}
       {subTab === 'nutrition' && <NutritionTracker />}
-      {subTab === 'bone' && <BoneHealthTracker />}
+      {subTab === 'bone' && <BoneHealthTracker apiFetch={apiFetch} />}
+      {subTab === 'kidney' && <KidneyHealthTracker apiFetch={apiFetch} />}
+      {subTab === 'liver' && <LiverHealthTracker apiFetch={apiFetch} />}
+      {subTab === 'lung' && <LungHealthTracker apiFetch={apiFetch} />}
     </div>
   );
 }

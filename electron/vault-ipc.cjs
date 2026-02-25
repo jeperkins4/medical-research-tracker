@@ -339,8 +339,9 @@ function getPortalCredentials() {
   return credentials.map(cred => ({
     ...cred,
     portal_name: cred.service_name,   // legacy compat for older UI code
-    username: cred.username_encrypted ? (() => { try { return decryptField(cred.username_encrypted); } catch { return ''; } })() : '',
-    notes: cred.notes_encrypted ? (() => { try { return decryptField(cred.notes_encrypted); } catch { return ''; } })() : '',
+    // safeDecrypt: if value is plaintext (backfilled from old schema), return it as-is
+    username: cred.username_encrypted ? (() => { try { return decryptField(cred.username_encrypted); } catch { return cred.username_encrypted; } })() : (cred.username || ''),
+    notes: cred.notes_encrypted ? (() => { try { return decryptField(cred.notes_encrypted); } catch { return cred.notes_encrypted; } })() : '',
     url: cred.base_url,
     last_synced: cred.last_sync,      // legacy compat
     password: cred.password_encrypted ? (() => { try { return decryptField(cred.password_encrypted); } catch { return null; } })() : null,

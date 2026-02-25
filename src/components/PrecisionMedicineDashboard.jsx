@@ -10,6 +10,8 @@ export default function PrecisionMedicineDashboard() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('overview'); // overview, mutation-detail, network, tutorial, trials
   const [showUploader, setShowUploader] = useState(false);
+  const [clinicalTrials, setClinicalTrials] = useState(null);
+  const [trialsLoading, setTrialsLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -23,6 +25,20 @@ export default function PrecisionMedicineDashboard() {
     } catch (error) {
       console.error('Failed to fetch genomic dashboard:', error);
       setLoading(false);
+    }
+  };
+
+  const fetchClinicalTrials = async () => {
+    if (clinicalTrials !== null) return; // already loaded
+    setTrialsLoading(true);
+    try {
+      const data = await api.getClinicalTrials();
+      setClinicalTrials(data || []);
+    } catch (e) {
+      console.error('Failed to load clinical trials:', e);
+      setClinicalTrials([]);
+    } finally {
+      setTrialsLoading(false);
     }
   };
 
@@ -150,7 +166,7 @@ export default function PrecisionMedicineDashboard() {
           🎓 Tutorial
         </button>
         <button
-          onClick={() => setView('trials')}
+          onClick={() => { setView('trials'); fetchClinicalTrials(); }}
           className={`px-6 py-3 text-sm font-semibold transition-all ${
             view === 'trials'
               ? 'bg-blue-600 text-white shadow-md z-10'
@@ -679,94 +695,80 @@ export default function PrecisionMedicineDashboard() {
       {/* Trials Tab */}
       {view === 'trials' && (
         <div>
-          <h2 className="text-2xl font-bold mb-6">🔬 All Matched Clinical Trials (Card View)</h2>
-          <div className="space-y-6">
-            {(dashboard.topTrials || []).map((trial) => (
-              <div 
-                key={trial.id} 
-                className="bg-white rounded-lg"
-                style={{
-                  padding: '20px',
-                  border: '1px solid #e5e7eb',
-                  marginBottom: '24px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
-                  backgroundColor: '#ffffff',
-                  transition: 'box-shadow 0.2s ease, transform 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div className="flex justify-between items-start mb-5">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-xl text-gray-900 mb-6">{trial.trial_name}</h3>
-                    <div style={{
-                      backgroundColor: '#fafafa',
-                      borderRadius: '6px',
-                      padding: '10px 12px',
-                      marginBottom: '12px',
-                      border: '1px solid #f0f0f0'
-                    }}>
-                      <p className="text-sm text-gray-700">
-                        <strong className="text-blue-700">Biomarker:</strong> {trial.target_biomarker} 
-                        {trial.gene && ` (${trial.gene} ${trial.alteration})`}
-                      </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div>
+              <h2 style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '20px', color: '#1e293b' }}>🔬 Clinical Trials Matched to Your Mutations</h2>
+              <p style={{ margin: 0, color: '#64748b', fontSize: '13px' }}>
+                Active and recruiting trials from ClinicalTrials.gov — searched automatically after your last genomic import
+              </p>
+            </div>
+            <button
+              onClick={() => { setClinicalTrials(null); fetchClinicalTrials(); }}
+              style={{ padding: '7px 14px', fontSize: '12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '7px', color: '#1d4ed8', cursor: 'pointer', fontWeight: 600 }}
+            >
+              ↻ Refresh
+            </button>
+          </div>
+
+          {trialsLoading && (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+              <style>{`@keyframes ts{to{transform:rotate(360deg)}} .ts{width:36px;height:36px;border:3px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:ts 0.9s linear infinite;margin:0 auto 12px}`}</style>
+              <div className="ts" />
+              Searching ClinicalTrials.gov for your mutations…
+            </div>
+          )}
+
+          {!trialsLoading && clinicalTrials !== null && clinicalTrials.length === 0 && (
+            <div style={{ padding: '32px', textAlign: 'center', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '12px', color: '#64748b' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔬</div>
+              <div style={{ fontWeight: 600, marginBottom: '6px' }}>No matched trials found yet</div>
+              <div style={{ fontSize: '13px' }}>Upload a Foundation One CDx report — trials are searched automatically after import.</div>
+            </div>
+          )}
+
+          {!trialsLoading && (clinicalTrials || []).map((trial) => {
+            const statusColor = trial.status?.includes('RECRUIT') ? { bg: '#dcfce7', text: '#166534', border: '#86efac' }
+                              : trial.status?.includes('ACTIVE') ? { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' }
+                              : { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+            const sourceLabel = trial.nct_id ? 'ClinicalTrials.gov' : (trial.source || 'Web');
+            return (
+              <div key={trial.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '18px 20px', marginBottom: '14px', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '15px', color: '#1e293b', marginBottom: '6px', lineHeight: 1.4 }}>
+                      {trial.title}
                     </div>
-                    <p className="text-sm text-gray-800 mb-4">
-                      <strong className="text-purple-700">Agents:</strong> {trial.therapy_agents}
-                    </p>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                      {trial.matched_genes && trial.matched_genes.split(',').map(g => (
+                        <span key={g} style={{ padding: '2px 8px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '99px', fontSize: '11px', fontWeight: 700, color: '#dc2626' }}>{g.trim()}</span>
+                      ))}
+                      {trial.nct_id && <span style={{ padding: '2px 8px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '99px', fontSize: '11px', color: '#0369a1', fontWeight: 600 }}>{trial.nct_id}</span>}
+                      <span style={{ padding: '2px 8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '99px', fontSize: '11px', color: '#64748b' }}>{sourceLabel}</span>
+                    </div>
+                    {trial.conditions && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Conditions:</strong> {trial.conditions}</div>}
+                    {trial.interventions && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Interventions:</strong> {trial.interventions}</div>}
+                    {trial.locations && <div style={{ fontSize: '12px', color: '#475569' }}>📍 {trial.locations}</div>}
                   </div>
-                  <div className="text-right ml-6 flex flex-col gap-2">
-                    <div style={{
-                      backgroundColor: '#eff6ff',
-                      color: '#1e40af',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      border: '1px solid #dbeafe'
-                    }}>
-                      {trial.phase}
-                    </div>
-                    <div style={{
-                      backgroundColor: '#f0fdf4',
-                      color: '#166534',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontWeight: '600',
-                      fontSize: '12px',
-                      border: '1px solid #dcfce7'
-                    }}>
-                      Priority: {trial.priority_score}
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', flexShrink: 0 }}>
+                    {trial.status && (
+                      <span style={{ padding: '4px 10px', background: statusColor.bg, border: `1px solid ${statusColor.border}`, borderRadius: '6px', fontSize: '11px', fontWeight: 700, color: statusColor.text, whiteSpace: 'nowrap' }}>
+                        {trial.status.replace(/_/g, ' ')}
+                      </span>
+                    )}
+                    {trial.phase && <span style={{ padding: '4px 10px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>{trial.phase}</span>}
+                    {trial.url && (
+                      <a href={trial.url} target="_blank" rel="noreferrer" style={{ padding: '5px 12px', background: '#2563eb', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+                        View →
+                      </a>
+                    )}
                   </div>
-                </div>
-                
-                <div style={{
-                  borderTop: '1px solid #f3f4f6',
-                  paddingTop: '20px',
-                  marginTop: '20px'
-                }}>
-                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">{trial.eligibility_notes}</p>
-                  
-                  <p style={{
-                    backgroundColor: '#f9fafb',
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    color: '#4b5563',
-                    borderLeft: '3px solid #3b82f6'
-                  }}>
-                    <strong style={{ color: '#1f2937' }}>📍 Locations:</strong> {trial.locations}
-                  </p>
                 </div>
               </div>
-            ))}
+            );
+          })}
+
+          <div style={{ marginTop: '16px', padding: '12px 16px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '10px', fontSize: '12px', color: '#0369a1' }}>
+            💡 Trials are matched by gene name from your Foundation One CDx report. Always discuss eligibility with your oncologist before applying.
           </div>
         </div>
       )}
