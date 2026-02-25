@@ -7,6 +7,9 @@ import { useState, useEffect } from 'react';
 import './MedicationManager.css';
 import medicationEvidence from '../medicationEvidence';
 
+// Evaluated as a getter so it's always current (guards against preload timing edge cases)
+const getIsElectron = () => typeof window !== 'undefined' && !!window?.electron?.db;
+
 export default function MedicationManager({ apiFetch }) {
   const [medications, setMedications] = useState([]);
   const [editingMed, setEditingMed] = useState(null);
@@ -65,10 +68,19 @@ export default function MedicationManager({ apiFetch }) {
 
   const fetchMedications = async () => {
     try {
-      const res = await apiFetch('/api/medications');
-      if (res.ok) {
-        const data = await res.json();
-        setMedications(data.medications || []);
+      if (getIsElectron()) {
+        const result = await window.electron.db.getMedications();
+        if (result.success) setMedications(result.medications || []);
+        else console.error('Failed to fetch medications (IPC):', result.error);
+      } else {
+        const res = await apiFetch('/api/medications');
+        if (res.ok) {
+          const data = await res.json();
+          setMedications(data.medications || []);
+        } else if (res.status === 401) {
+          console.warn('[MedicationManager] 401 on fetchMedications — session expired or no auth cookie');
+          window.location.reload();
+        }
       }
     } catch (err) {
       console.error('Failed to fetch medications:', err);
@@ -93,47 +105,78 @@ export default function MedicationManager({ apiFetch }) {
         precautions: evidence?.precautions || formData.precautions
       };
 
-      const url = editingMed 
-        ? `/api/medications/${editingMed.id}`
-        : '/api/medications';
-      
-      const method = editingMed ? 'PUT' : 'POST';
-      
-      const res = await apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(medData)
-      });
+      if (getIsElectron()) {
+        let result;
+        if (editingMed) {
+          result = await window.electron.db.updateMedication(editingMed.id, medData);
+        } else {
+          result = await window.electron.db.addMedication(medData);
+        }
 
-      if (res.ok) {
-        // If new medication and has evidence, auto-add research articles
-        if (!editingMed && evidence?.research) {
-          const result = await res.json();
-          const newMedId = result.id;
-          
-          // Add research articles
-          for (const article of evidence.research) {
-            await apiFetch('/api/medications/research', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                medication_id: newMedId,
+        if (result.success) {
+          // Auto-add research articles for new medications with evidence
+          if (!editingMed && evidence?.research && result.id) {
+            for (const article of evidence.research) {
+              await window.electron.db.addMedicationResearch({
+                medication_id: result.id,
                 title: article.title,
                 url: article.url,
                 publication_year: article.year,
                 key_findings: article.summary,
                 article_type: 'supporting',
                 evidence_quality: 'high'
-              })
-            });
+              });
+            }
+          }
+          resetForm();
+          fetchMedications();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      } else {
+        const url = editingMed 
+          ? `/api/medications/${editingMed.id}`
+          : '/api/medications';
+        
+        const method = editingMed ? 'PUT' : 'POST';
+        
+        const res = await apiFetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(medData)
+        });
+
+        if (res.ok) {
+          if (!editingMed && evidence?.research) {
+            const resData = await res.json();
+            const newMedId = resData.id;
+            for (const article of evidence.research) {
+              await apiFetch('/api/medications/research', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  medication_id: newMedId,
+                  title: article.title,
+                  url: article.url,
+                  publication_year: article.year,
+                  key_findings: article.summary,
+                  article_type: 'supporting',
+                  evidence_quality: 'high'
+                })
+              });
+            }
+          }
+          resetForm();
+          fetchMedications();
+        } else {
+          const error = await res.json();
+          if (res.status === 401) {
+            alert('Session expired. Please log in again.');
+            window.location.reload();
+          } else {
+            alert(`Error: ${error.error}`);
           }
         }
-
-        resetForm();
-        fetchMedications();
-      } else {
-        const error = await res.json();
-        alert(`Error: ${error.error}`);
       }
     } catch (err) {
       console.error('Failed to save medication:', err);
@@ -145,12 +188,13 @@ export default function MedicationManager({ apiFetch }) {
     if (!confirm('Are you sure you want to delete this medication?')) return;
 
     try {
-      const res = await apiFetch(`/api/medications/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (res.ok) {
-        fetchMedications();
+      if (getIsElectron()) {
+        const result = await window.electron.db.deleteMedication(id);
+        if (result.success) fetchMedications();
+        else console.error('Failed to delete medication (IPC):', result.error);
+      } else {
+        const res = await apiFetch(`/api/medications/${id}`, { method: 'DELETE' });
+        if (res.ok) fetchMedications();
       }
     } catch (err) {
       console.error('Failed to delete medication:', err);
@@ -200,12 +244,18 @@ export default function MedicationManager({ apiFetch }) {
   };
 
   const viewEvidence = async (med) => {
-    // Fetch research articles for this medication
     try {
-      const res = await apiFetch(`/api/medications/${med.id}/research`);
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedMed({ ...med, research: data.articles || [] });
+      if (getIsElectron()) {
+        const result = await window.electron.db.getMedicationResearch(med.id);
+        setSelectedMed({ ...med, research: result.success ? (result.articles || []) : [] });
+      } else {
+        const res = await apiFetch(`/api/medications/${med.id}/research`);
+        if (res.ok) {
+          const data = await res.json();
+          setSelectedMed({ ...med, research: data.articles || [] });
+        } else {
+          setSelectedMed({ ...med, research: [] });
+        }
       }
     } catch (err) {
       console.error('Failed to fetch research:', err);
