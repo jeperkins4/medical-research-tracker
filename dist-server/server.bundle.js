@@ -60611,6 +60611,245 @@ function getMonitoringSummary() {
   };
 }
 
+// server/organ-health-trackers.js
+init_db_secure();
+function parseNumeric(result) {
+  if (!result) return null;
+  const m2 = String(result).match(/([\d.]+)/);
+  return m2 ? parseFloat(m2[1]) : null;
+}
+function dedup(rows) {
+  const seen = {};
+  for (const r2 of rows) {
+    if (!seen[r2.date] || r2.value !== null && r2.value > seen[r2.date].value) {
+      seen[r2.date] = r2;
+    }
+  }
+  return Object.values(seen).sort((a, b) => a.date.localeCompare(b.date));
+}
+function fetchSeries(patterns) {
+  const allRows = [];
+  for (const pat of patterns) {
+    try {
+      const rows = query(
+        `SELECT test_name, result, value_numeric, unit, flag, date
+         FROM test_results
+         WHERE test_name LIKE ?
+         ORDER BY date ASC`,
+        [pat]
+      );
+      for (const r2 of rows) {
+        allRows.push({
+          test_name: r2.test_name,
+          result: r2.result,
+          value: r2.value_numeric ?? parseNumeric(r2.result),
+          unit: r2.unit,
+          flag: r2.flag,
+          date: r2.date
+        });
+      }
+    } catch (e2) {
+      console.warn(`[organ-health] fetchSeries error for "${pat}":`, e2.message);
+    }
+  }
+  return allRows.filter((r2) => r2.value !== null);
+}
+function getKidneyHealthData() {
+  try {
+    const creatRows = dedup(fetchSeries(["Creatinine", "%CREAT%"]));
+    const gfrRows = dedup(fetchSeries(["GFR", "%eGFR%"]));
+    const bunRows = dedup(fetchSeries(["BUN", "%Blood Urea%"]));
+    const ratioRows = dedup(fetchSeries(["%BUN%Creat%", "%BUN%Ratio%"]));
+    const latestGFR = gfrRows.at(-1)?.value ?? null;
+    const latestCr = creatRows.at(-1)?.value ?? null;
+    const latestBUN = bunRows.at(-1)?.value ?? null;
+    const triggers = [];
+    if (latestGFR !== null && latestGFR < 60) triggers.push(`eGFR ${latestGFR.toFixed(1)} \u2014 below CKD threshold (cisplatin eligibility at risk)`);
+    if (latestGFR !== null && latestGFR < 90) triggers.push(`eGFR ${latestGFR.toFixed(1)} \u2014 mildly decreased (monitor closely)`);
+    if (latestCr !== null && latestCr > 1.2) triggers.push(`Creatinine ${latestCr} mg/dL \u2014 elevated`);
+    if (latestBUN !== null && latestBUN > 23) triggers.push(`BUN ${latestBUN} mg/dL \u2014 elevated`);
+    try {
+      const conditions = query(
+        `SELECT COUNT(*) as count FROM conditions WHERE status='active'
+         AND (name LIKE '%hydronephrosis%' OR name LIKE '%ureteral%obstruct%'
+           OR name LIKE '%kidney%' OR notes LIKE '%renal%impairment%')`,
+        []
+      );
+      if (conditions[0].count > 0) triggers.push("Kidney-related condition active (hydronephrosis / obstruction)");
+    } catch (_) {
+    }
+    const enabled = triggers.length > 0 || gfrRows.length > 0;
+    const ckdStage = (gfr) => {
+      if (gfr === null) return "Unknown";
+      if (gfr >= 90) return "G1 \u2014 Normal (\u226590)";
+      if (gfr >= 60) return "G2 \u2014 Mildly Decreased (60\u201389)";
+      if (gfr >= 45) return "G3a \u2014 Mildly-Moderately Decreased (45\u201359)";
+      if (gfr >= 30) return "G3b \u2014 Moderately-Severely Decreased (30\u201344)";
+      if (gfr >= 15) return "G4 \u2014 Severely Decreased (15\u201329)";
+      return "G5 \u2014 Kidney Failure (<15)";
+    };
+    const trend = (rows) => {
+      if (rows.length < 2) return null;
+      const change = (rows.at(-1).value - rows[0].value) / rows[0].value * 100;
+      return { change: +change.toFixed(1), direction: change > 0 ? "up" : "down" };
+    };
+    const allNormal = triggers.length === 0 && gfrRows.length > 0;
+    return {
+      enabled,
+      allNormal,
+      triggers,
+      latestGFR,
+      latestCreatinine: latestCr,
+      ckdStage: ckdStage(latestGFR),
+      gfrNormal: latestGFR === null || latestGFR >= 60,
+      creatinineNormal: latestCr === null || latestCr >= 0.3 && latestCr <= 1.2,
+      series: {
+        creatinine: creatRows,
+        gfr: gfrRows,
+        bun: bunRows,
+        bunCreatRatio: ratioRows
+      },
+      trends: {
+        creatinine: trend(creatRows),
+        gfr: trend(gfrRows)
+      },
+      normalRanges: {
+        creatinine: "0.3\u20131.2 mg/dL",
+        gfr: ">60 mL/min/1.73m\xB2",
+        bun: "6\u201323 mg/dL",
+        bunCreatRatio: "10\u201320"
+      }
+    };
+  } catch (err) {
+    console.error("[organ-health] kidney error:", err);
+    return { enabled: false, error: err.message };
+  }
+}
+function getLiverHealthData() {
+  try {
+    const altRows = dedup(fetchSeries(["ALT", "%Alanine%Aminotransferase%"]));
+    const astRows = dedup(fetchSeries(["AST", "%Aspartate%Aminotransferase%"]));
+    const albRows = dedup(fetchSeries(["Albumin"]));
+    const biliRows = dedup(fetchSeries(["%Total%Bilirubin%", "Bilirubin%"]));
+    const protRows = dedup(fetchSeries(["Total Protein"]));
+    const alkRows = dedup(fetchSeries(["%Alk%Phos%", "%Alkaline%Phosphatase%"]));
+    const latestALT = altRows.at(-1)?.value ?? null;
+    const latestAST = astRows.at(-1)?.value ?? null;
+    const latestAlb = albRows.at(-1)?.value ?? null;
+    const latestBili = biliRows.at(-1)?.value ?? null;
+    const latestAlk = alkRows.at(-1)?.value ?? null;
+    const astAltRatio = latestAST && latestALT ? +(latestAST / latestALT).toFixed(2) : null;
+    const trend = (rows) => {
+      if (rows.length < 2) return null;
+      const change = (rows.at(-1).value - rows[0].value) / rows[0].value * 100;
+      return { change: +change.toFixed(1), direction: change > 0 ? "up" : "down" };
+    };
+    const flags = [];
+    if (latestALT !== null && latestALT > 40) flags.push({ label: "ALT Elevated", severity: latestALT > 120 ? "high" : "medium" });
+    if (latestAST !== null && latestAST > 40) flags.push({ label: "AST Elevated", severity: latestAST > 120 ? "high" : "medium" });
+    if (latestAlb !== null && latestAlb < 3.2) flags.push({ label: "Albumin Low \u2014 hepatic synthetic dysfunction", severity: "high" });
+    if (latestBili !== null && latestBili > 1.2) flags.push({ label: "Bilirubin Elevated \u2014 possible cholestasis or hemolysis", severity: "medium" });
+    if (latestAlk !== null && latestAlk > 147) flags.push({ label: "Alk Phos Elevated (hepatic or bone origin)", severity: "medium" });
+    try {
+      const livCond = query(
+        `SELECT COUNT(*) as count FROM conditions WHERE status='active'
+         AND (name LIKE '%liver%metast%' OR name LIKE '%hepatic%' OR name LIKE '%jaundice%'
+           OR notes LIKE '%hepatotoxic%')`,
+        []
+      );
+      if (livCond[0].count > 0) flags.push({ label: "Liver-related condition active", severity: "high" });
+    } catch (_) {
+    }
+    const hasData = altRows.length > 0 || astRows.length > 0;
+    const allNormal = flags.length === 0 && hasData;
+    const enabled = hasData;
+    return {
+      enabled,
+      allNormal,
+      triggers: flags.map((f3) => f3.label),
+      latestALT,
+      latestAST,
+      latestAlbumin: latestAlb,
+      latestBilirubin: latestBili,
+      latestAlkPhos: latestAlk,
+      astAltRatio,
+      flags,
+      series: {
+        alt: altRows,
+        ast: astRows,
+        albumin: albRows,
+        bilirubin: biliRows,
+        totalProtein: protRows,
+        alkPhos: alkRows
+      },
+      trends: {
+        alt: trend(altRows),
+        ast: trend(astRows),
+        albumin: trend(albRows)
+      },
+      normalRanges: {
+        alt: "0\u201340 U/L",
+        ast: "0\u201340 U/L",
+        albumin: "3.2\u20135.2 g/dL",
+        bilirubin: "0\u20131.2 mg/dL",
+        alkPhos: "39\u2013147 U/L"
+      }
+    };
+  } catch (err) {
+    console.error("[organ-health] liver error:", err);
+    return { enabled: false, error: err.message };
+  }
+}
+function getLungHealthData() {
+  try {
+    const co2Rows = dedup(fetchSeries(["CO2", "Carbon Dioxide", "%Bicarbonate%"]));
+    const spo2Rows = dedup(fetchSeries(["SpO2", "%Oxygen%Saturation%", "%O2 Sat%"]));
+    const wbcRows = dedup(fetchSeries(["WBC", "%White Blood%"]));
+    const latestCO2 = co2Rows.at(-1)?.value ?? null;
+    const latestSpO2 = spo2Rows.at(-1)?.value ?? null;
+    const flags = [];
+    if (latestCO2 !== null && latestCO2 < 22) flags.push({ label: "CO2 Low \u2014 possible metabolic acidosis or hyperventilation", severity: "medium" });
+    if (latestCO2 !== null && latestCO2 > 29) flags.push({ label: "CO2 High \u2014 possible respiratory compensation", severity: "medium" });
+    if (latestSpO2 !== null && latestSpO2 < 95) flags.push({ label: "SpO2 Below Normal \u2014 discuss with Dr. Do", severity: "high" });
+    try {
+      const lungCond = query(
+        `SELECT COUNT(*) as count FROM conditions WHERE status='active'
+         AND (name LIKE '%lung%metast%' OR name LIKE '%pulmonary%' OR name LIKE '%pneumonitis%'
+           OR notes LIKE '%lung%lesion%' OR notes LIKE '%pleural%effusion%')`,
+        []
+      );
+      if (lungCond[0].count > 0) flags.push({ label: "Lung-related condition active", severity: "high" });
+    } catch (_) {
+    }
+    const noData = co2Rows.length === 0 && spo2Rows.length === 0;
+    const allNormal = flags.length === 0 && !noData;
+    const enabled = true;
+    return {
+      enabled,
+      allNormal,
+      triggers: flags.map((f3) => f3.label),
+      noDirectMarkers: noData,
+      latestCO2,
+      latestSpO2,
+      flags,
+      series: {
+        co2: co2Rows,
+        spo2: spo2Rows,
+        wbc: wbcRows
+      },
+      normalRanges: {
+        co2: "22\u201329 mEq/L",
+        spo2: "95\u2013100%",
+        wbc: "4.5\u201311.0 K/\u03BCL"
+      },
+      note: noData ? "No direct pulmonary lab markers found in your results. CO2 and SpO2 not yet in record. Consider requesting a chest X-ray or pulmonary function test if symptoms present." : null
+    };
+  } catch (err) {
+    console.error("[organ-health] lung error:", err);
+    return { enabled: false, error: err.message };
+  }
+}
+
 // server/health-check.js
 init_db_secure();
 function checkDatabase() {
@@ -73991,6 +74230,27 @@ app.get("/api/organ-health/summary", requireAuth, (req, res) => {
   try {
     const summary = getMonitoringSummary();
     res.json(summary);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/kidney-health", requireAuth, (req, res) => {
+  try {
+    res.json(getKidneyHealthData());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/liver-health", requireAuth, (req, res) => {
+  try {
+    res.json(getLiverHealthData());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/lung-health", requireAuth, (req, res) => {
+  try {
+    res.json(getLungHealthData());
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

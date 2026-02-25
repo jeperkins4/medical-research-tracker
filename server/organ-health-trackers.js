@@ -4,6 +4,12 @@
  */
 
 import { query } from './db-secure.js';
+import { getProtectiveSupplements } from './supplement-organs.js';
+
+// ── (supplement map + getProtectiveSupplements moved to supplement-organs.js) ─
+// Keys are lowercase keyword fragments matched against supplement/medication names.
+// Each entry defines which organs it protects and the clinical rationale.
+
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,12 +111,14 @@ export function getKidneyHealthData() {
       return { change: +change.toFixed(1), direction: change > 0 ? 'up' : 'down' };
     };
 
-    const allNormal = triggers.length === 0 && gfrRows.length > 0;
+    const allNormal = triggers.filter(t => t.includes('below CKD') || t.includes('elevated')).length === 0 && gfrRows.length > 0;
+    const protectiveSupplements = getProtectiveSupplements('kidney');
 
     return {
       enabled,
       allNormal,
       triggers,
+      protectiveSupplements,
       latestGFR,
       latestCreatinine: latestCr,
       ckdStage: ckdStage(latestGFR),
@@ -185,11 +193,13 @@ export function getLiverHealthData() {
     const hasData = altRows.length > 0 || astRows.length > 0;
     const allNormal = flags.length === 0 && hasData;
     const enabled   = hasData; // always show if we have labs
+    const protectiveSupplements = getProtectiveSupplements('liver');
 
     return {
       enabled,
       allNormal,
       triggers: flags.map(f => f.label),
+      protectiveSupplements,
       latestALT,
       latestAST,
       latestAlbumin: latestAlb,
@@ -253,11 +263,13 @@ export function getLungHealthData() {
     const noData  = co2Rows.length === 0 && spo2Rows.length === 0;
     const allNormal = flags.length === 0 && !noData;
     const enabled   = true; // always show — important for cancer patients even without direct markers
+    const protectiveSupplements = getProtectiveSupplements('lung');
 
     return {
       enabled,
       allNormal,
       triggers: flags.map(f => f.label),
+      protectiveSupplements,
       noDirectMarkers: noData,
       latestCO2,
       latestSpO2,

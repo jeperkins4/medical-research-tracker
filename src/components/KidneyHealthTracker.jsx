@@ -12,6 +12,26 @@ const credFetch = (url, opts = {}) => fetch(url, { ...opts, credentials: 'includ
 
 const STATUS_COLOR = { normal: '#4caf50', warning: '#ff9800', critical: '#f44336' };
 
+function ProtectiveSupplementsCard({ supplements, organ }) {
+  if (!supplements?.length) return null;
+  const color = { kidney: '#e3f2fd', liver: '#fce4ec', lung: '#e0f7fa', bone: '#f3e5f5' }[organ] || '#f5f5f5';
+  const border = { kidney: '#2196f3', liver: '#e91e63', lung: '#00bcd4', bone: '#9c27b0' }[organ] || '#999';
+  return (
+    <div style={{ marginTop: 20, padding: 20, borderRadius: 12, background: color, boxShadow: '0 1px 6px rgba(0,0,0,.08)', borderLeft: `4px solid ${border}` }}>
+      <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>✅ Supplements Already Protecting Your {organ.charAt(0).toUpperCase() + organ.slice(1)}</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {supplements.map((s, i) => (
+          <div key={i} style={{ flex: '1 1 260px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.name}</div>
+            {s.dosage && <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{s.dosage}</div>}
+            <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{s.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TrendBadge({ trend, invertBad = false }) {
   if (!trend) return <span style={{ color: '#888' }}>—</span>;
   const bad = invertBad ? trend.direction === 'down' : trend.direction === 'up';
@@ -63,6 +83,9 @@ export default function KidneyHealthTracker({ apiFetch: propFetch }) {
             <strong>CKD Stage:</strong> {data.ckdStage}
           </p>
         </div>
+        {data.protectiveSupplements?.length > 0 && (
+          <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="kidney" />
+        )}
         <div style={{ marginTop: 20, padding: 16, borderRadius: 10, background: '#fff3e0', fontSize: 13, color: '#555' }}>
           <strong>Still watch for:</strong> Creatinine rise &gt;0.3 in 48h (hydronephrosis from bladder tumor).
           Adequate hydration (2.5–3L/day) is your best kidney protection.
@@ -161,8 +184,13 @@ export default function KidneyHealthTracker({ apiFetch: propFetch }) {
         </div>
       )}
 
+      {/* Protective supplements */}
+      {data.protectiveSupplements?.length > 0 && (
+        <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="kidney" />
+      )}
+
       {/* Clinical context */}
-      <div style={{ background: '#e3f2fd', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
+      <div style={{ background: '#e3f2fd', borderRadius: 12, padding: 20, marginTop: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
         <h3 style={{ marginBottom: 12 }}>📋 Clinical Context for Bladder Cancer</h3>
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8, fontSize: 14, color: '#333' }}>
           <li><strong>eGFR &lt;60:</strong> Cisplatin ineligible — limits standard MVAC/GC chemotherapy options. Erdafitinib (your FGFR3 target) does NOT require renal dosing adjustment at your current GFR.</li>

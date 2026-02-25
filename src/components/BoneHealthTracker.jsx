@@ -45,6 +45,34 @@ const supplementSources = {
   ]
 };
 
+function ProtectiveSupplementsCard({ supplements }) {
+  if (!supplements?.length) return null;
+  return (
+    <Box sx={{ mt: 3 }}>
+      <Card>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CheckCircleIcon color="success" />
+            Supplements Already Protecting Your Bones
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={2}>
+            {supplements.map((s, i) => (
+              <Grid item xs={12} sm={6} key={i}>
+                <Box sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold">{s.name}</Typography>
+                  {s.dosage && <Typography variant="body2" color="text.secondary">{s.dosage}</Typography>}
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: '0.8rem' }}>{s.reason}</Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+
 // Credentialed fetch fallback (used when apiFetch prop is not passed)
 const credFetch = (url, opts = {}) =>
   fetch(url, { ...opts, credentials: 'include' });
@@ -56,6 +84,7 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
   const [alkPhosData, setAlkPhosData] = useState([]);
   const [currentSupplements, setCurrentSupplements] = useState([]);
   const [missingSupplements, setMissingSupplements] = useState([]);
+  const [protectiveSupplements, setProtectiveSupplements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderMenuAnchor, setOrderMenuAnchor] = useState(null);
   const [selectedSupplement, setSelectedSupplement] = useState(null);
@@ -81,6 +110,7 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
       setAlkPhosData(data.alkPhosData || []);
       setCurrentSupplements(data.currentSupplements || []);
       setMissingSupplements(data.missingSupplements || []);
+      setProtectiveSupplements(data.protectiveSupplements || []);
     } catch (error) {
       console.error('Error fetching bone health data:', error);
       setEnabled(false);
@@ -390,6 +420,9 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Dynamic protective supplements from current protocol */}
+      <ProtectiveSupplementsCard supplements={protectiveSupplements} />
 
       {/* Evidence Section */}
       <Card sx={{ mt: 3 }}>

@@ -11,6 +11,26 @@ import {
 const credFetch = (url, opts = {}) => fetch(url, { ...opts, credentials: 'include' });
 const STATUS_COLOR = { normal: '#4caf50', warning: '#ff9800', critical: '#f44336' };
 
+function ProtectiveSupplementsCard({ supplements, organ }) {
+  if (!supplements?.length) return null;
+  const color = { kidney: '#e3f2fd', liver: '#fce4ec', lung: '#e0f7fa', bone: '#f3e5f5' }[organ] || '#f5f5f5';
+  const border = { kidney: '#2196f3', liver: '#e91e63', lung: '#00bcd4', bone: '#9c27b0' }[organ] || '#999';
+  return (
+    <div style={{ marginTop: 20, padding: 20, borderRadius: 12, background: color, boxShadow: '0 1px 6px rgba(0,0,0,.08)', borderLeft: `4px solid ${border}` }}>
+      <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>✅ Supplements Already Protecting Your {organ.charAt(0).toUpperCase() + organ.slice(1)}</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {supplements.map((s, i) => (
+          <div key={i} style={{ flex: '1 1 260px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.name}</div>
+            {s.dosage && <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{s.dosage}</div>}
+            <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{s.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FlagBanner({ flags }) {
   if (!flags?.length) return null;
   return (
@@ -67,6 +87,9 @@ export default function LungHealthTracker({ apiFetch: propFetch }) {
             No current clinical indicators for elevated pulmonary monitoring.
           </p>
         </div>
+        {data.protectiveSupplements?.length > 0 && (
+          <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="lung" />
+        )}
         <div style={{ marginTop: 20, padding: 16, borderRadius: 10, background: '#fff3e0', fontSize: 13, color: '#555' }}>
           <strong>Ongoing vigilance:</strong> Bladder cancer can metastasize to lungs. Report any new shortness of breath,
           hemoptysis, or persistent cough to Dr. Do. Annual CT chest recommended at your stage.
@@ -188,8 +211,13 @@ export default function LungHealthTracker({ apiFetch: propFetch }) {
         </ul>
       </div>
 
+      {/* Protective supplements */}
+      {data.protectiveSupplements?.length > 0 && (
+        <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="lung" />
+      )}
+
       {/* Add SpO2 reading */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
+      <div style={{ background: '#fff', borderRadius: 12, padding: 20, marginTop: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
         <h3 style={{ marginBottom: 8 }}>📟 Track SpO2 Manually</h3>
         <p style={{ fontSize: 14, color: '#555', marginBottom: 12 }}>
           SpO2 isn't typically included in standard lab panels. If you have a pulse oximeter, log your reading here or in the Vitals section.

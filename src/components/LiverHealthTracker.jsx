@@ -21,6 +21,26 @@ function TrendBadge({ trend, invertBad = false }) {
   );
 }
 
+function ProtectiveSupplementsCard({ supplements, organ }) {
+  if (!supplements?.length) return null;
+  const color = { kidney: '#e3f2fd', liver: '#fce4ec', lung: '#e0f7fa', bone: '#f3e5f5' }[organ] || '#f5f5f5';
+  const border = { kidney: '#2196f3', liver: '#e91e63', lung: '#00bcd4', bone: '#9c27b0' }[organ] || '#999';
+  return (
+    <div style={{ marginTop: 20, padding: 20, borderRadius: 12, background: color, boxShadow: '0 1px 6px rgba(0,0,0,.08)', borderLeft: `4px solid ${border}` }}>
+      <h3 style={{ margin: '0 0 14px', fontSize: 15 }}>✅ Supplements Already Protecting Your {organ.charAt(0).toUpperCase() + organ.slice(1)}</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {supplements.map((s, i) => (
+          <div key={i} style={{ flex: '1 1 260px', background: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '12px 14px' }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{s.name}</div>
+            {s.dosage && <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{s.dosage}</div>}
+            <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>{s.reason}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FlagBanner({ flags }) {
   if (!flags?.length) return null;
   return (
@@ -89,6 +109,9 @@ export default function LiverHealthTracker({ apiFetch: propFetch }) {
           <strong>Erdafitinib alert:</strong> If started on FGFR3 inhibitor therapy, liver enzymes should be checked every 2 weeks for the first 3 months.
           Report any fatigue, jaundice, or dark urine immediately.
         </div>
+        {data.protectiveSupplements?.length > 0 && (
+          <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="liver" />
+        )}
       </div>
     );
   }
@@ -179,8 +202,13 @@ export default function LiverHealthTracker({ apiFetch: propFetch }) {
         </div>
       )}
 
+      {/* Protective supplements */}
+      {data.protectiveSupplements?.length > 0 && (
+        <ProtectiveSupplementsCard supplements={data.protectiveSupplements} organ="liver" />
+      )}
+
       {/* Clinical context */}
-      <div style={{ background: '#fce4ec', borderRadius: 12, padding: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
+      <div style={{ background: '#fce4ec', borderRadius: 12, padding: 20, marginTop: 20, boxShadow: '0 1px 6px rgba(0,0,0,.08)' }}>
         <h3 style={{ marginBottom: 12 }}>📋 Clinical Context for Bladder Cancer Treatment</h3>
         <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8, fontSize: 14, color: '#333' }}>
           <li><strong>ALT/AST monitoring critical:</strong> Erdafitinib (FGFR3 inhibitor) can cause hepatotoxicity. Baseline and regular liver function monitoring required.</li>

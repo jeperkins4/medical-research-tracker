@@ -4,6 +4,7 @@
  */
 
 import { query } from './db-secure.js';
+import { getProtectiveSupplements } from './supplement-organs.js';
 
 /**
  * Check if bone health monitoring is warranted based on clinical indicators
@@ -303,6 +304,7 @@ export function getBoneHealthData() {
       alkPhosData: formattedAlkPhos,
       currentSupplements,
       missingSupplements,
+      protectiveSupplements: getProtectiveSupplements('bone'),
       trend,
       riskLevel,
       lastUpdated: new Date().toISOString()
