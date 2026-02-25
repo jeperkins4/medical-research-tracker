@@ -118,70 +118,62 @@ export default function PrecisionMedicineDashboard() {
         </button>
       </div>
 
-      {/* Navigation Button Group */}
-      <div className="inline-flex rounded-lg shadow-sm mb-6" role="group">
-        <button
-          onClick={() => setView('overview')}
-          className={`px-6 py-3 text-sm font-semibold transition-all ${
-            view === 'overview'
-              ? 'bg-blue-600 text-white shadow-md z-10'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-          }`}
-          style={{
-            borderTopLeftRadius: '8px',
-            borderBottomLeftRadius: '8px',
-            borderRight: view === 'overview' ? '1px solid #2563eb' : 'none'
-          }}
-        >
-          Overview
-        </button>
-        <button
-          onClick={() => setView('network')}
-          className={`px-6 py-3 text-sm font-semibold transition-all ${
-            view === 'network'
-              ? 'bg-blue-600 text-white shadow-md z-10'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border-t border-b border-gray-300'
-          }`}
-          style={{
-            borderLeft: view === 'network' ? '1px solid #2563eb' : 'none',
-            borderRight: view === 'network' ? '1px solid #2563eb' : 'none',
-            marginLeft: view === 'network' ? '0' : '-1px'
-          }}
-        >
-          Network
-        </button>
-        <button
-          onClick={() => setView('tutorial')}
-          className={`px-6 py-3 text-sm font-semibold transition-all ${
-            view === 'tutorial'
-              ? 'bg-blue-600 text-white shadow-md z-10'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border-t border-b border-gray-300'
-          }`}
-          style={{
-            borderLeft: view === 'tutorial' ? '1px solid #2563eb' : 'none',
-            borderRight: view === 'tutorial' ? '1px solid #2563eb' : 'none',
-            marginLeft: view === 'tutorial' ? '0' : '-1px'
-          }}
-        >
-          🎓 Tutorial
-        </button>
-        <button
-          onClick={() => { setView('trials'); fetchClinicalTrials(); }}
-          className={`px-6 py-3 text-sm font-semibold transition-all ${
-            view === 'trials'
-              ? 'bg-blue-600 text-white shadow-md z-10'
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-          }`}
-          style={{
-            borderTopRightRadius: '8px',
-            borderBottomRightRadius: '8px',
-            borderLeft: view === 'trials' ? '1px solid #2563eb' : 'none',
-            marginLeft: view === 'trials' ? '0' : '-1px'
-          }}
-        >
-          Clinical Trials
-        </button>
-      </div>
+      {/* Navigation — Segmented Control */}
+      {(() => {
+        const tabs = [
+          { id: 'overview',  label: 'Overview',        icon: '📊', onClick: () => setView('overview') },
+          { id: 'network',   label: 'Network',          icon: '🕸️', onClick: () => setView('network') },
+          { id: 'tutorial',  label: 'Tutorial',         icon: '🎓', onClick: () => setView('tutorial') },
+          { id: 'trials',    label: 'Clinical Trials',  icon: '🧬', onClick: () => { setView('trials'); fetchClinicalTrials(); } },
+        ];
+        return (
+          <div style={{
+            display: 'inline-flex',
+            background: '#f1f5f9',
+            borderRadius: 14,
+            padding: 4,
+            gap: 2,
+            marginBottom: 28,
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.08)'
+          }}>
+            {tabs.map(tab => {
+              const active = view === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={tab.onClick}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '8px 18px',
+                    borderRadius: 10,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 500,
+                    transition: 'all 0.18s ease',
+                    background: active
+                      ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)'
+                      : 'transparent',
+                    color: active ? '#fff' : '#64748b',
+                    boxShadow: active
+                      ? '0 2px 8px rgba(37,99,235,0.35), 0 1px 3px rgba(0,0,0,0.12)'
+                      : 'none',
+                    transform: active ? 'translateY(-0.5px)' : 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#334155'; }}
+                  onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b'; }}}
+                >
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{tab.icon}</span>
+                  <span style={{ letterSpacing: '0.01em' }}>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Overview Tab */}
       {view === 'overview' && (
