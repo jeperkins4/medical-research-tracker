@@ -1194,6 +1194,14 @@ function migrateMedicalDocumentsTable() {
   } catch (err) {
     console.error('[DB-IPC] medical_documents table create failed:', err.message);
   }
+  // Add body anatomy columns to existing tables
+  const extraCols = [
+    ['body_regions_affected', 'TEXT'],
+    ['body_markers',          'TEXT'],
+  ];
+  for (const [col, def] of extraCols) {
+    try { db.prepare(`ALTER TABLE medical_documents ADD COLUMN ${col} ${def}`).run(); } catch (_) {}
+  }
 }
 
 function addMedicalDocument(data) {
@@ -1207,8 +1215,9 @@ function addMedicalDocument(data) {
        body_region, clinical_indication, technique, comparison, chief_complaint,
        diagnoses, findings, impression, treatment_plan, follow_up, referrals,
        recommendations, critical_findings, medications_mentioned, labs_ordered,
-       imaging_ordered, clinical_notes, summary, file_name, tags)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       imaging_ordered, clinical_notes, summary, file_name, tags,
+       body_regions_affected, body_markers)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
   `);
   const result = stmt.run(
     data.document_type || 'other',
@@ -1237,7 +1246,9 @@ function addMedicalDocument(data) {
     data.clinical_notes || null,
     data.summary || null,
     data.file_name || null,
-    arr(data.tags)
+    arr(data.tags),
+    arr(data.body_regions_affected),
+    arr(data.body_markers)
   );
   return { success: true, id: result.lastInsertRowid };
 }
@@ -1250,7 +1261,8 @@ function getMedicalDocuments(docType = null) {
     : db.prepare('SELECT * FROM medical_documents ORDER BY date DESC, created_at DESC').all();
   // Parse JSON array fields back
   const arrFields = ['diagnoses','referrals','recommendations','critical_findings',
-                     'medications_mentioned','labs_ordered','imaging_ordered','tags'];
+                     'medications_mentioned','labs_ordered','imaging_ordered','tags',
+                     'body_regions_affected','body_markers'];
   return rows.map(r => {
     const out = { ...r };
     for (const f of arrFields) {
@@ -1258,6 +1270,13 @@ function getMedicalDocuments(docType = null) {
     }
     return out;
   });
+}
+
+function updateMedicalDocumentMarkers(id, bodyMarkers) {
+  if (!db) throw new Error('Database not initialized');
+  db.prepare('UPDATE medical_documents SET body_markers=? WHERE id=?')
+    .run(JSON.stringify(bodyMarkers), id);
+  return { success: true };
 }
 
 function deleteMedicalDocument(id) {
@@ -1295,6 +1314,7 @@ module.exports = {
   importLabResults,
   addMedicalDocument,
   getMedicalDocuments,
+  updateMedicalDocumentMarkers,
   deleteMedicalDocument,
   closeDatabase
 };

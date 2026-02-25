@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('electron', {
     saveDocument:   (data)                => ipcRenderer.invoke('docs:save-document', data),
     getDocuments:   (docType)             => ipcRenderer.invoke('docs:get-documents', docType),
     deleteDocument: (id)                  => ipcRenderer.invoke('docs:delete-document', id),
+    updateMarkers:  (id, markers)         => ipcRenderer.invoke('docs:update-markers', id, markers),
     openFile:       (opts)                => ipcRenderer.invoke('dialog:open-file', opts),
   },
 

@@ -442,6 +442,16 @@ ipcMain.handle('docs:delete-document', (event, id) => {
   }
 });
 
+ipcMain.handle('docs:update-markers', (event, id, markers) => {
+  try {
+    const { updateMedicalDocumentMarkers } = require('./db-ipc.cjs');
+    return updateMedicalDocumentMarkers(id, markers);
+  } catch (error) {
+    console.error('[Electron] Update markers error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Genomics: mutation-drug-pathway network (Electron IPC mode for Network tab)
 ipcMain.handle('genomics:get-mutation-network', () => {
   try {

@@ -4,6 +4,7 @@
  * Stores structured extractions locally (HIPAA, no cloud).
  */
 import { useState, useEffect } from 'react';
+import BodyDiagram from './BodyDiagram';
 
 const isElectron = typeof window !== 'undefined' && !!window.electron?.docs;
 
@@ -36,6 +37,9 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
   const [savedResult, setSavedResult] = useState(null);
   const [documents, setDocuments]   = useState([]);
   const [viewTab, setViewTab]       = useState('upload'); // upload | history
+  const [manualMarkers, setManualMarkers] = useState([]);
+  const [expandedDocId, setExpandedDocId] = useState(null);
+  const [docMarkers, setDocMarkers] = useState({}); // id -> markers[]
 
   const cfg = DOC_TYPES[docType];
 
@@ -116,14 +120,15 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
     if (!parsed) return;
     setStep('saving');
     try {
+      const payload = { ...parsed, body_markers: manualMarkers };
       let result;
       if (isElectron) {
-        result = await window.electron.docs.saveDocument(parsed);
+        result = await window.electron.docs.saveDocument(payload);
       } else {
         const r = await apiFetch('/api/documents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsed),
+          body: JSON.stringify(payload),
         });
         result = await r.json();
       }
@@ -133,6 +138,23 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
     } catch (err) {
       setError('Save failed: ' + err.message);
       setStep('error');
+    }
+  }
+
+  async function saveDocMarkers(docId, markers) {
+    try {
+      if (isElectron) {
+        await window.electron.docs.updateMarkers(docId, markers);
+      } else {
+        await apiFetch(`/api/documents/${docId}/markers`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markers }),
+        });
+      }
+      setDocuments(prev => prev.map(d => d.id === docId ? { ...d, body_markers: markers } : d));
+    } catch (err) {
+      console.error('Failed to save markers:', err);
     }
   }
 
@@ -152,6 +174,7 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
 
   function reset() {
     setStep('idle'); setParsed(null); setError(null); setSavedResult(null);
+    setManualMarkers([]);
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────
@@ -340,6 +363,14 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
                         <List items={parsed.recommendations} />
                       </Section>
                     )}
+                    {/* Body Diagram */}
+                    <Section title="Anatomy Map" border={cfg.border}>
+                      <BodyDiagram
+                        findings={parsed.body_regions_affected || []}
+                        markers={manualMarkers}
+                        onMarkersChange={setManualMarkers}
+                      />
+                    </Section>
                   </>
                 )}
 
@@ -491,15 +522,31 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
                       }} title="Delete">🗑️</button>
                     </div>
                     {doc.summary && (
-                      <div style={{ padding: '12px 18px', fontSize: 13, color: '#334155', lineHeight: 1.6,
-                        borderTop: '1px solid #f1f5f9' }}>
+                      <div
+                        style={{ padding: '12px 18px', fontSize: 13, color: '#334155', lineHeight: 1.6,
+                          borderTop: '1px solid #f1f5f9', cursor: 'pointer' }}
+                        onClick={() => setExpandedDocId(expandedDocId === doc.id ? null : doc.id)}
+                      >
                         {doc.summary}
+                        <span style={{ marginLeft: 8, fontSize: 12, color: '#94a3b8' }}>
+                          {expandedDocId === doc.id ? '▲ collapse' : '▼ anatomy map'}
+                        </span>
                       </div>
                     )}
                     {hasCritical && (
                       <div style={{ padding: '8px 18px', background: '#fef2f2', borderTop: '1px solid #fecaca' }}>
                         <strong style={{ fontSize: 12, color: '#dc2626' }}>⚡ Critical: </strong>
                         <span style={{ fontSize: 12, color: '#991b1b' }}>{doc.critical_findings.join(' · ')}</span>
+                      </div>
+                    )}
+                    {/* Expandable body diagram */}
+                    {expandedDocId === doc.id && doc.document_type === 'radiology' && (
+                      <div style={{ padding: '16px 18px', borderTop: '1px solid #e2e8f0', background: '#fafbfc' }}>
+                        <BodyDiagram
+                          findings={doc.body_regions_affected || []}
+                          markers={doc.body_markers || []}
+                          onMarkersChange={(markers) => saveDocMarkers(doc.id, markers)}
+                        />
                       </div>
                     )}
                   </div>

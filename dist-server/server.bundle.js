@@ -30291,6 +30291,42 @@ var init_db_secure = __esm({
       };
       runMigration("portal_credentials", "last_sync", "TEXT");
       runMigration("portal_credentials", "last_sync_status", "TEXT DEFAULT 'never'");
+      try {
+        db2.exec(`
+      CREATE TABLE IF NOT EXISTS medical_documents (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_type TEXT NOT NULL,
+        date TEXT,
+        provider TEXT,
+        facility TEXT,
+        title TEXT,
+        note_type TEXT,
+        modality TEXT,
+        body_region TEXT,
+        clinical_indication TEXT,
+        technique TEXT,
+        comparison TEXT,
+        chief_complaint TEXT,
+        diagnoses TEXT,
+        findings TEXT,
+        impression TEXT,
+        treatment_plan TEXT,
+        follow_up TEXT,
+        referrals TEXT,
+        recommendations TEXT,
+        critical_findings TEXT,
+        medications_mentioned TEXT,
+        labs_ordered TEXT,
+        imaging_ordered TEXT,
+        clinical_notes TEXT,
+        summary TEXT,
+        file_name TEXT,
+        tags TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+      } catch (e2) {
+      }
       const medCols = [
         ["type", "TEXT DEFAULT 'supplement'"],
         ["category", "TEXT"],
@@ -49262,6 +49298,136 @@ var require_main4 = __commonJS({
     module.exports.parse = DotenvModule.parse;
     module.exports.populate = DotenvModule.populate;
     module.exports = DotenvModule;
+  }
+});
+
+// electron/medical-doc-parser.cjs
+var require_medical_doc_parser = __commonJS({
+  "electron/medical-doc-parser.cjs"(exports, module) {
+    var fs2 = __require("fs");
+    var https2 = __require("https");
+    function callClaude(apiKey, messages, model = "claude-opus-4-5") {
+      return new Promise((resolve, reject) => {
+        const body = JSON.stringify({ model, max_tokens: 4096, messages });
+        const req = https2.request({
+          hostname: "api.anthropic.com",
+          path: "/v1/messages",
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01"
+          }
+        }, (res) => {
+          let data = "";
+          res.on("data", (chunk) => {
+            data += chunk;
+          });
+          res.on("end", () => {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.error) return reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
+              resolve(parsed);
+            } catch (e2) {
+              reject(e2);
+            }
+          });
+        });
+        req.on("error", reject);
+        req.write(body);
+        req.end();
+      });
+    }
+    function pdfToBase64Pages(filePath) {
+      const bytes = fs2.readFileSync(filePath);
+      return bytes.toString("base64");
+    }
+    var PROMPTS = {
+      radiology: `You are a medical AI assistant specializing in radiology report interpretation.
+Extract ALL key information from this radiology report and return ONLY valid JSON with this exact structure:
+{
+  "document_type": "radiology",
+  "date": "YYYY-MM-DD or null",
+  "provider": "radiologist name or null",
+  "facility": "imaging center/hospital name or null",
+  "title": "study title (e.g. CT Abdomen/Pelvis with Contrast) or null",
+  "modality": "CT | MRI | X-Ray | PET | Ultrasound | Nuclear Medicine | Other",
+  "body_region": "body area scanned, e.g. Chest, Abdomen/Pelvis, Brain",
+  "clinical_indication": "reason for study",
+  "technique": "imaging technique/protocol used",
+  "comparison": "prior studies compared if any, or null",
+  "findings": "detailed findings section verbatim or summarized",
+  "impression": "impression/conclusion section verbatim",
+  "recommendations": ["list of follow-up recommendations if any"],
+  "critical_findings": ["any urgent/critical findings flagged"],
+  "summary": "1-2 sentence plain-language summary of what this study showed"
+}
+Return ONLY the JSON. No markdown, no explanation.`,
+      doctor_note: `You are a medical AI assistant specializing in clinical documentation.
+Extract ALL key information from this doctor's note or clinical document and return ONLY valid JSON with this exact structure:
+{
+  "document_type": "doctor_note",
+  "date": "YYYY-MM-DD or null",
+  "provider": "doctor/provider name and credentials or null",
+  "facility": "clinic/hospital name or null",
+  "title": "visit type (e.g. Follow-up Visit, Consultation, Progress Note) or null",
+  "note_type": "office_visit | consultation | referral | discharge | operative | pathology | other",
+  "chief_complaint": "primary reason for visit",
+  "diagnoses": ["list of diagnoses/problems addressed"],
+  "medications_mentioned": ["medications discussed, changed, or prescribed"],
+  "labs_ordered": ["any labs/tests ordered"],
+  "imaging_ordered": ["any imaging ordered"],
+  "treatment_plan": "treatment plan section verbatim or summarized",
+  "follow_up": "follow-up instructions and timeline",
+  "referrals": ["any specialist referrals"],
+  "clinical_notes": "any other important clinical observations",
+  "summary": "2-3 sentence plain-language summary of the visit and plan"
+}
+Return ONLY the JSON. No markdown, no explanation.`
+    };
+    async function parseMedicalDocumentWithAI(filePath, docType, apiKey) {
+      if (!fs2.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
+      const ext = filePath.toLowerCase().split(".").pop();
+      const prompt = PROMPTS[docType];
+      if (!prompt) throw new Error(`Unknown document type: ${docType}`);
+      let content;
+      if (ext === "pdf") {
+        const b64 = pdfToBase64Pages(filePath);
+        content = [
+          {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: b64 }
+          },
+          { type: "text", text: prompt }
+        ];
+      } else if (["jpg", "jpeg", "png", "webp", "gif"].includes(ext)) {
+        const b64 = fs2.readFileSync(filePath).toString("base64");
+        const mediaType = ext === "jpg" ? "image/jpeg" : `image/${ext}`;
+        content = [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: b64 } },
+          { type: "text", text: prompt }
+        ];
+      } else if (ext === "txt" || ext === "rtf") {
+        const text = fs2.readFileSync(filePath, "utf8");
+        content = [{ type: "text", text: `${prompt}
+
+DOCUMENT TEXT:
+${text}` }];
+      } else {
+        throw new Error(`Unsupported file type: .${ext}. Supported: PDF, JPG, PNG, TXT`);
+      }
+      const response = await callClaude(apiKey, [{ role: "user", content }], "claude-opus-4-5");
+      const rawText = response.content?.[0]?.text || "";
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("AI did not return valid JSON");
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        ...parsed,
+        file_name: __require("path").basename(filePath),
+        raw_text: rawText
+      };
+    }
+    module.exports = { parseMedicalDocumentWithAI };
   }
 });
 
@@ -73669,6 +73835,103 @@ app.put("/api/medications/:id", requireAuth, (req, res) => {
       id
     ]
   );
+  res.json({ success: true });
+});
+app.get("/api/documents", requireAuth, (req, res) => {
+  const { type } = req.query;
+  const docs = type ? query("SELECT * FROM medical_documents WHERE document_type=? ORDER BY date DESC, created_at DESC", [type]) : query("SELECT * FROM medical_documents ORDER BY date DESC, created_at DESC");
+  const arrFields = [
+    "diagnoses",
+    "referrals",
+    "recommendations",
+    "critical_findings",
+    "medications_mentioned",
+    "labs_ordered",
+    "imaging_ordered",
+    "tags"
+  ];
+  const parsed = docs.map((d) => {
+    const out = { ...d };
+    for (const f3 of arrFields) {
+      try {
+        out[f3] = d[f3] ? JSON.parse(d[f3]) : [];
+      } catch {
+        out[f3] = [];
+      }
+    }
+    return out;
+  });
+  res.json(parsed);
+});
+app.post("/api/documents", requireAuth, (req, res) => {
+  const arr = (v) => Array.isArray(v) ? JSON.stringify(v) : v || null;
+  const d = req.body;
+  const result = run(
+    `INSERT INTO medical_documents
+      (document_type, date, provider, facility, title, note_type, modality,
+       body_region, clinical_indication, technique, comparison, chief_complaint,
+       diagnoses, findings, impression, treatment_plan, follow_up, referrals,
+       recommendations, critical_findings, medications_mentioned, labs_ordered,
+       imaging_ordered, clinical_notes, summary, file_name, tags)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [
+      d.document_type || "other",
+      d.date || null,
+      d.provider || null,
+      d.facility || null,
+      d.title || null,
+      d.note_type || null,
+      d.modality || null,
+      d.body_region || null,
+      d.clinical_indication || null,
+      d.technique || null,
+      d.comparison || null,
+      d.chief_complaint || null,
+      arr(d.diagnoses),
+      d.findings || null,
+      d.impression || null,
+      d.treatment_plan || null,
+      d.follow_up || null,
+      arr(d.referrals),
+      arr(d.recommendations),
+      arr(d.critical_findings),
+      arr(d.medications_mentioned),
+      arr(d.labs_ordered),
+      arr(d.imaging_ordered),
+      d.clinical_notes || null,
+      d.summary || null,
+      d.file_name || null,
+      arr(d.tags)
+    ]
+  );
+  res.json({ id: result.lastInsertRowid, success: true });
+});
+app.post("/api/documents/parse", requireAuth, async (req, res) => {
+  if (!req.files?.document) return res.status(400).json({ error: "No file uploaded" });
+  const file = req.files.document;
+  const docType = req.body.docType || "radiology";
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured" });
+  const os = await import("os");
+  const path3 = await import("path");
+  const fs2 = await import("fs");
+  const tmpPath = path3.join(os.tmpdir(), `mrt_doc_${Date.now()}_${file.name}`);
+  try {
+    await file.mv(tmpPath);
+    const { parseMedicalDocumentWithAI } = await Promise.resolve().then(() => __toESM(require_medical_doc_parser(), 1));
+    const result = await parseMedicalDocumentWithAI(tmpPath, docType, apiKey);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  } finally {
+    try {
+      fs2.unlinkSync(tmpPath);
+    } catch (_) {
+    }
+  }
+});
+app.delete("/api/documents/:id", requireAuth, (req, res) => {
+  run("DELETE FROM medical_documents WHERE id=?", [req.params.id]);
   res.json({ success: true });
 });
 app.get("/api/tests", requireAuth, (req, res) => {

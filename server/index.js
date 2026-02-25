@@ -651,6 +651,13 @@ app.post('/api/documents/parse', requireAuth, async (req, res) => {
   }
 });
 
+app.put('/api/documents/:id/markers', requireAuth, (req, res) => {
+  const { markers } = req.body;
+  run('UPDATE medical_documents SET body_markers=? WHERE id=?',
+    [JSON.stringify(markers || []), req.params.id]);
+  res.json({ success: true });
+});
+
 app.delete('/api/documents/:id', requireAuth, (req, res) => {
   run('DELETE FROM medical_documents WHERE id=?', [req.params.id]);
   res.json({ success: true });
