@@ -60188,6 +60188,114 @@ function getProtectiveSupplements(organType) {
   return matches;
 }
 
+// server/radiology-triggers.js
+init_db_secure();
+var ORGAN_REGION_MAP = {
+  bone: [
+    "spine",
+    "left-hip",
+    "right-hip",
+    "left-shoulder",
+    "right-shoulder",
+    "left-arm",
+    "right-arm",
+    "left-leg",
+    "right-leg",
+    "pelvis",
+    "soft-tissue"
+  ],
+  kidney: ["left-kidney", "right-kidney", "left-adrenal", "right-adrenal"],
+  liver: ["liver", "spleen"],
+  lung: ["left-lung", "right-lung", "heart"],
+  lymph: ["left-lymph-node", "right-lymph-node", "abdominal-lymph-nodes"],
+  bladder: ["bladder", "pelvis", "peritoneum"]
+};
+var CONCERNING_TYPES = /* @__PURE__ */ new Set([
+  "metastasis",
+  "primary-tumor",
+  "mass",
+  "lymphadenopathy",
+  "suspicious",
+  "other"
+]);
+function getRadiologyFindingsForOrgan(organKey) {
+  const regionList = ORGAN_REGION_MAP[organKey] || [];
+  if (!regionList.length) return [];
+  try {
+    const docs = query(`
+      SELECT id, title, date, provider, body_regions_affected, critical_findings
+      FROM medical_documents
+      WHERE document_type = 'radiology'
+        AND body_regions_affected IS NOT NULL
+        AND body_regions_affected != '[]'
+      ORDER BY date DESC
+    `, []);
+    const findings = [];
+    for (const doc of docs) {
+      let regions = [];
+      try {
+        regions = JSON.parse(doc.body_regions_affected);
+      } catch {
+        continue;
+      }
+      for (const r2 of regions) {
+        if (regionList.includes(r2.region) && CONCERNING_TYPES.has(r2.type)) {
+          findings.push({
+            docId: doc.id,
+            docDate: doc.date,
+            docTitle: doc.title || "Radiology Report",
+            provider: doc.provider,
+            region: r2.region,
+            finding: r2.finding,
+            type: r2.type,
+            size_mm: r2.size_mm || null
+          });
+        }
+      }
+    }
+    return findings;
+  } catch (err) {
+    console.error("[RadiologyTriggers] Query failed:", err.message);
+    return [];
+  }
+}
+function getCriticalFindingsByKeyword(keywords = []) {
+  if (!keywords.length) return [];
+  try {
+    const docs = query(`
+      SELECT id, title, date, provider, critical_findings, impression, summary
+      FROM medical_documents
+      WHERE document_type = 'radiology'
+        AND (critical_findings IS NOT NULL OR impression IS NOT NULL)
+      ORDER BY date DESC
+      LIMIT 20
+    `, []);
+    const hits = [];
+    for (const doc of docs) {
+      const text = [
+        doc.critical_findings || "",
+        doc.impression || "",
+        doc.summary || ""
+      ].join(" ").toLowerCase();
+      const matched = keywords.filter((kw) => text.includes(kw.toLowerCase()));
+      if (matched.length) {
+        hits.push({
+          docId: doc.id,
+          docDate: doc.date,
+          docTitle: doc.title || "Radiology Report",
+          provider: doc.provider,
+          keywords: matched,
+          snippet: doc.summary || doc.impression?.slice(0, 200)
+        });
+      }
+    }
+    return hits;
+  } catch (err) {
+    console.error("[RadiologyTriggers] Keyword search failed:", err.message);
+    return [];
+  }
+}
+
 // server/bone-health.js
 function shouldMonitorBoneHealth() {
   try {
@@ -60271,6 +60379,38 @@ function shouldMonitorBoneHealth() {
           shouldMonitor: true,
           reason: "abnormal_imaging",
           message: "Abnormal findings on bone imaging"
+        };
+      }
+    } catch (err) {
+    }
+    try {
+      const boneFindings = getRadiologyFindingsForOrgan("bone");
+      if (boneFindings.length > 0) {
+        const f3 = boneFindings[0];
+        return {
+          shouldMonitor: true,
+          reason: "radiology_finding",
+          message: `Imaging finding: ${f3.type} in ${f3.region} (${f3.docDate || f3.docTitle})`,
+          imagingFindings: boneFindings
+        };
+      }
+      const criticalHits = getCriticalFindingsByKeyword([
+        "bone",
+        "osseous",
+        "skeletal",
+        "vertebra",
+        "spine",
+        "metastas",
+        "lesion",
+        "lytic",
+        "sclerotic"
+      ]);
+      if (criticalHits.length > 0) {
+        return {
+          shouldMonitor: true,
+          reason: "radiology_keyword",
+          message: `Radiology report mentions bone findings (${criticalHits[0].docDate || criticalHits[0].docTitle})`,
+          imagingFindings: criticalHits
         };
       }
     } catch (err) {
@@ -61073,6 +61213,17 @@ function getKidneyHealthData() {
       if (conditions[0].count > 0) triggers.push("Kidney-related condition active (hydronephrosis / obstruction)");
     } catch (_) {
     }
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan("kidney");
+      for (const f3 of imagingFindings) {
+        triggers.push(`Imaging (${f3.docDate || f3.docTitle}): ${f3.type} in ${f3.region}${f3.size_mm ? ` \u2014 ${f3.size_mm}mm` : ""}`);
+      }
+      const critHits = getCriticalFindingsByKeyword(["kidney", "renal", "hydronephrosis", "adrenal"]);
+      for (const h2 of critHits) {
+        if (!imagingFindings.length) triggers.push(`Radiology report mentions renal findings (${h2.docDate || h2.docTitle})`);
+      }
+    } catch (_) {
+    }
     const enabled = triggers.length > 0 || gfrRows.length > 0;
     const ckdStage = (gfr) => {
       if (gfr === null) return "Unknown";
@@ -61157,9 +61308,20 @@ function getLiverHealthData() {
       if (livCond[0].count > 0) flags.push({ label: "Liver-related condition active", severity: "high" });
     } catch (_) {
     }
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan("liver");
+      for (const f3 of imagingFindings) {
+        flags.push({ label: `Imaging (${f3.docDate || f3.docTitle}): ${f3.type} in ${f3.region}${f3.size_mm ? ` \u2014 ${f3.size_mm}mm` : ""}`, severity: f3.type === "metastasis" ? "high" : "medium" });
+      }
+      const critHits = getCriticalFindingsByKeyword(["liver", "hepatic", "spleen", "biliary", "cirrhosis", "lesion"]);
+      for (const h2 of critHits) {
+        if (!imagingFindings.length) flags.push({ label: `Radiology report mentions hepatic findings (${h2.docDate || h2.docTitle})`, severity: "medium" });
+      }
+    } catch (_) {
+    }
     const hasData = altRows.length > 0 || astRows.length > 0;
     const allNormal = flags.length === 0 && hasData;
-    const enabled = hasData;
+    const enabled = hasData || flags.length > 0;
     const protectiveSupplements = getProtectiveSupplements("liver");
     return {
       enabled,
@@ -61218,6 +61380,17 @@ function getLungHealthData() {
         []
       );
       if (lungCond[0].count > 0) flags.push({ label: "Lung-related condition active", severity: "high" });
+    } catch (_) {
+    }
+    try {
+      const imagingFindings = getRadiologyFindingsForOrgan("lung");
+      for (const f3 of imagingFindings) {
+        flags.push({ label: `Imaging (${f3.docDate || f3.docTitle}): ${f3.type} in ${f3.region}${f3.size_mm ? ` \u2014 ${f3.size_mm}mm` : ""}`, severity: f3.type === "metastasis" ? "high" : "medium" });
+      }
+      const critHits = getCriticalFindingsByKeyword(["lung", "pulmonary", "pleural", "nodule", "effusion", "pneumonitis", "chest"]);
+      for (const h2 of critHits) {
+        if (!imagingFindings.length) flags.push({ label: `Radiology report mentions pulmonary findings (${h2.docDate || h2.docTitle})`, severity: "medium" });
+      }
     } catch (_) {
     }
     const noData = co2Rows.length === 0 && spo2Rows.length === 0;

@@ -85,6 +85,12 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
   const [currentSupplements, setCurrentSupplements] = useState([]);
   const [missingSupplements, setMissingSupplements] = useState([]);
   const [protectiveSupplements, setProtectiveSupplements] = useState([]);
+  const [labFlags, setLabFlags] = useState([]);
+  const [tumorFlags, setTumorFlags] = useState([]);
+  const [panelData, setPanelData] = useState({});
+  const [softTissueData, setSoftTissueData] = useState({});
+  const [tumorMarkerData, setTumorMarkerData] = useState({});
+  const [imagingFindings, setImagingFindings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [orderMenuAnchor, setOrderMenuAnchor] = useState(null);
   const [selectedSupplement, setSelectedSupplement] = useState(null);
@@ -111,6 +117,12 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
       setCurrentSupplements(data.currentSupplements || []);
       setMissingSupplements(data.missingSupplements || []);
       setProtectiveSupplements(data.protectiveSupplements || []);
+      setLabFlags(data.labFlags || []);
+      setTumorFlags(data.tumorFlags || []);
+      setPanelData(data.panelData || {});
+      setSoftTissueData(data.softTissueData || {});
+      setTumorMarkerData(data.tumorMarkerData || {});
+      setImagingFindings(data.imagingFindings || []);
     } catch (error) {
       console.error('Error fetching bone health data:', error);
       setEnabled(false);
@@ -262,6 +274,130 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Lab Flags — all abnormal values ─────────────────────────────── */}
+      {(labFlags.length > 0 || tumorFlags.length > 0 || imagingFindings.length > 0) && (
+        <Card sx={{ mb: 3, border: '1px solid #fecaca', background: '#fef2f2' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom sx={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: 1 }}>
+              ⚠️ Active Clinical Flags
+            </Typography>
+            {labFlags.map((f, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1, background: '#fff', borderRadius: 1, border: '1px solid #fecaca' }}>
+                <Chip label={f.status} color={f.severity === 'critical' ? 'error' : 'warning'} size="small" />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{f.marker}: {f.value}</Typography>
+                  <Typography variant="caption" color="text.secondary">{f.note}</Typography>
+                </Box>
+              </Box>
+            ))}
+            {tumorFlags.map((f, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1, background: '#fff', borderRadius: 1, border: '1px solid #fbbf24' }}>
+                <Chip label={f.status} color="warning" size="small" />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{f.marker}: {f.value}</Typography>
+                  <Typography variant="caption" color="text.secondary">{f.note}</Typography>
+                </Box>
+              </Box>
+            ))}
+            {imagingFindings.map((f, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, p: 1, background: '#fff', borderRadius: 1, border: '1px solid #a78bfa' }}>
+                <Chip label="IMAGING" color="secondary" size="small" />
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {f.type} — {f.region || f.keywords?.join(', ')}{f.size_mm ? ` (${f.size_mm}mm)` : ''}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {f.docTitle || 'Radiology Report'}{f.docDate ? ` · ${f.docDate}` : ''}
+                    {f.finding && ` · ${f.finding}`}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Extended Blood Panel ─────────────────────────────────────────── */}
+      {Object.keys(panelData).length > 0 && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>🧪 Bone Panel — Blood Markers</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2 }}>
+              {Object.values(panelData).map((m, i) => m.latest !== null && (
+                <Box key={i} sx={{
+                  p: 1.5, borderRadius: 2, border: '1px solid',
+                  borderColor: m.latest < (m.normal?.min ?? -Infinity) || m.latest > (m.normal?.max ?? Infinity) ? '#fca5a5' : '#bbf7d0',
+                  background: m.latest < (m.normal?.min ?? -Infinity) || m.latest > (m.normal?.max ?? Infinity) ? '#fef2f2' : '#f0fdf4',
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">{m.label}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {m.latest} <Typography component="span" variant="caption">{m.unit}</Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Normal: {m.normal?.min ?? '–'}–{m.normal?.max} {m.unit}
+                    {m.trend && ` · ${m.trend.direction === 'up' ? '▲' : '▼'} ${Math.abs(m.trend.change)}%`}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Soft Tissue & Inflammatory Markers ───────────────────────────── */}
+      {Object.keys(softTissueData).length > 0 && Object.values(softTissueData).some(m => m.latest !== null) && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>🫀 Soft Tissue & Inflammatory Markers</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 2 }}>
+              {Object.values(softTissueData).map((m, i) => m.latest !== null && (
+                <Box key={i} sx={{
+                  p: 1.5, borderRadius: 2, border: '1px solid',
+                  borderColor: m.latest < (m.normal?.min ?? -Infinity) || m.latest > (m.normal?.max ?? Infinity) ? '#fca5a5' : '#bbf7d0',
+                  background: m.latest < (m.normal?.min ?? -Infinity) || m.latest > (m.normal?.max ?? Infinity) ? '#fef2f2' : '#f0fdf4',
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">{m.label}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {m.latest} <Typography component="span" variant="caption">{m.unit}</Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Normal: {m.normal?.min !== undefined ? `${m.normal.min}–` : '≤'}{m.normal?.max} {m.unit}
+                    {m.trend && ` · ${m.trend.direction === 'up' ? '▲' : '▼'} ${Math.abs(m.trend.change)}%`}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tumor Markers ────────────────────────────────────────────────── */}
+      {Object.values(tumorMarkerData).some(m => m.latest !== null) && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>🔬 Tumor Markers</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 2 }}>
+              {Object.values(tumorMarkerData).map((m, i) => m.latest !== null && (
+                <Box key={i} sx={{
+                  p: 1.5, borderRadius: 2, border: '1px solid',
+                  borderColor: m.latest > (m.normal?.max ?? Infinity) ? '#fca5a5' : '#bbf7d0',
+                  background: m.latest > (m.normal?.max ?? Infinity) ? '#fef2f2' : '#f0fdf4',
+                }}>
+                  <Typography variant="caption" color="text.secondary" display="block">{m.label}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {m.latest} <Typography component="span" variant="caption">{m.unit}</Typography>
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Normal: ≤{m.normal?.max} {m.unit}
+                    {m.trend && ` · ${m.trend.direction === 'up' ? '▲' : '▼'} ${Math.abs(m.trend.change)}%`}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
       <Grid container spacing={3}>
         {/* Current Supplements Supporting Bone Health */}

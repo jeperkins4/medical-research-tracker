@@ -63,6 +63,19 @@ export function shouldMonitorBoneHealth() {
       }
     }
 
+    // Check for elevated LDH (tissue breakdown / tumor burden)
+    try {
+      const recentLDH = query(
+        `SELECT result FROM test_results WHERE (test_name LIKE '%LDH%' OR test_name LIKE '%Lactate Dehydrogenase%') ORDER BY date DESC LIMIT 1`, []
+      );
+      if (recentLDH.length > 0) {
+        const match = recentLDH[0].result?.match(/([\d.]+)/);
+        if (match && parseFloat(match[1]) > 246) {
+          return { shouldMonitor: true, reason: 'elevated_ldh', message: `Elevated LDH: ${parseFloat(match[1])} U/L — tissue breakdown / tumor burden indicator` };
+        }
+      }
+    } catch (_) {}
+
     // Check for elevated calcium
     const recentCalcium = query(`
       SELECT result 
@@ -174,13 +187,77 @@ export function getBoneHealthData() {
     };
   }
   try {
-    // Get Alkaline Phosphatase trend data
-    const alkPhosData = query(`
-      SELECT date, result 
-      FROM test_results 
-      WHERE test_name LIKE '%Alk%Phos%' OR test_name LIKE '%Alkaline%Phosphatase%'
-      ORDER BY date ASC
-    `);
+    // ── Helper: fetch a test series and parse numeric values ──────────────────
+    const fetchSeries = (patterns) => {
+      const whereClause = patterns.map(() => 'test_name LIKE ?').join(' OR ');
+      const params = patterns.map(p => p.includes('%') ? p : `%${p}%`);
+      const rows = query(
+        `SELECT date, test_name, result FROM test_results WHERE (${whereClause}) ORDER BY date ASC`,
+        params
+      );
+      return rows.map(row => {
+        const match = row.result?.match(/([\d.]+)/);
+        const value = match ? parseFloat(match[1]) : null;
+        return { date: row.date, test_name: row.test_name, result: row.result, value };
+      }).filter(r => r.value !== null);
+    };
+
+    const latest = (series) => series.at(-1) ?? null;
+    const trendCalc = (series) => {
+      if (series.length < 2) return null;
+      const change = ((series.at(-1).value - series[0].value) / series[0].value) * 100;
+      return { change: +change.toFixed(1), direction: change > 0 ? 'up' : 'down', latestValue: series.at(-1).value, latestDate: series.at(-1).date };
+    };
+
+    // ── Bone markers ──────────────────────────────────────────────────────────
+    const alkPhosData  = fetchSeries(['%Alk%Phos%', '%Alkaline%Phosphatase%']);
+    const calciumData  = fetchSeries(['%Calcium%']);
+    const phosphData   = fetchSeries(['%Phosphorus%', '%Phosphate%']);
+    const vitDData     = fetchSeries(['%Vitamin D%', '%25-OH%', '%25 OH%', '%Calcidiol%']);
+    const ldhData      = fetchSeries(['%LDH%', '%Lactate Dehydrogenase%']);
+
+    // ── Soft tissue / tumor burden markers ────────────────────────────────────
+    const albuminData  = fetchSeries(['%Albumin%']);
+    const crpData      = fetchSeries(['%CRP%', '%C-Reactive%']);
+    const ferritinData = fetchSeries(['%Ferritin%']);
+    const uricAcidData = fetchSeries(['%Uric Acid%']);
+
+    // ── Tumor markers ─────────────────────────────────────────────────────────
+    const ceaData      = fetchSeries(['%CEA%', '%Carcinoembryonic%']);
+    const ca125Data    = fetchSeries(['%CA 125%', '%CA-125%']);
+    const ca199Data    = fetchSeries(['%CA 19-9%', '%CA19-9%']);
+
+    // ── Lab-driven clinical flags ─────────────────────────────────────────────
+    const labFlags = [];
+    const latestAlkPhos = latest(alkPhosData)?.value ?? null;
+    const latestCalcium = latest(calciumData)?.value ?? null;
+    const latestLDH     = latest(ldhData)?.value ?? null;
+    const latestVitD    = latest(vitDData)?.value ?? null;
+    const latestPhosph  = latest(phosphData)?.value ?? null;
+    const latestAlbumin = latest(albuminData)?.value ?? null;
+    const latestCRP     = latest(crpData)?.value ?? null;
+    const latestUric    = latest(uricAcidData)?.value ?? null;
+
+    if (latestAlkPhos !== null && latestAlkPhos > 147) labFlags.push({ marker: 'Alk Phos', value: `${latestAlkPhos} U/L`, status: 'HIGH', note: 'Bone resorption / hepatic marker — monitor for bone metastases', severity: latestAlkPhos > 200 ? 'critical' : 'warning' });
+    if (latestCalcium !== null && latestCalcium > 10.2) labFlags.push({ marker: 'Calcium', value: `${latestCalcium} mg/dL`, status: 'HIGH', note: 'Hypercalcemia — possible osteolytic activity', severity: latestCalcium > 12 ? 'critical' : 'warning' });
+    if (latestLDH     !== null && latestLDH > 246)  labFlags.push({ marker: 'LDH', value: `${latestLDH} U/L`, status: 'HIGH', note: 'Elevated — tissue breakdown / tumor burden indicator', severity: latestLDH > 400 ? 'critical' : 'warning' });
+    if (latestVitD    !== null && latestVitD < 30)  labFlags.push({ marker: 'Vitamin D', value: `${latestVitD} ng/mL`, status: latestVitD < 20 ? 'DEFICIENT' : 'LOW', note: 'Insufficient for bone protection — cancer patients need 50–80 ng/mL', severity: latestVitD < 20 ? 'warning' : 'info' });
+    if (latestPhosph  !== null && (latestPhosph < 2.5 || latestPhosph > 4.5)) labFlags.push({ marker: 'Phosphorus', value: `${latestPhosph} mg/dL`, status: latestPhosph < 2.5 ? 'LOW' : 'HIGH', note: 'Abnormal — may reflect bone metabolism changes', severity: 'warning' });
+    if (latestAlbumin !== null && latestAlbumin < 3.5) labFlags.push({ marker: 'Albumin', value: `${latestAlbumin} g/dL`, status: 'LOW', note: 'Low albumin — soft tissue / nutritional status concern', severity: 'warning' });
+    if (latestCRP     !== null && latestCRP > 1.0)  labFlags.push({ marker: 'CRP', value: `${latestCRP} mg/L`, status: 'ELEVATED', note: 'Systemic inflammation — soft tissue involvement', severity: latestCRP > 10 ? 'warning' : 'info' });
+    if (latestUric    !== null && latestUric > 7.0) labFlags.push({ marker: 'Uric Acid', value: `${latestUric} mg/dL`, status: 'HIGH', note: 'Elevated — possible cell turnover / bone breakdown', severity: 'info' });
+
+    // ── Tumor marker flags ────────────────────────────────────────────────────
+    const tumorFlags = [];
+    const latestCEA  = latest(ceaData)?.value ?? null;
+    const latestCA125 = latest(ca125Data)?.value ?? null;
+    const latestCA199 = latest(ca199Data)?.value ?? null;
+    if (latestCEA   !== null && latestCEA > 3.0)  tumorFlags.push({ marker: 'CEA',    value: `${latestCEA} ng/mL`,  status: 'ELEVATED', note: 'Carcinoembryonic antigen — tumor burden indicator' });
+    if (latestCA125 !== null && latestCA125 > 35)  tumorFlags.push({ marker: 'CA-125', value: `${latestCA125} U/mL`, status: 'ELEVATED', note: 'CA-125 elevated — monitor' });
+    if (latestCA199 !== null && latestCA199 > 37)  tumorFlags.push({ marker: 'CA 19-9', value: `${latestCA199} U/mL`, status: 'ELEVATED', note: 'CA 19-9 elevated — monitor' });
+
+    // ── Get Alkaline Phosphatase trend data (legacy format for chart) ─────────
+    const formattedAlkPhos = alkPhosData;
 
     // Parse values and format for chart
     const formattedAlkPhos = alkPhosData.map(row => {
@@ -328,12 +405,44 @@ export function getBoneHealthData() {
       enabled: true,
       reason: monitorCheck.reason,
       message: monitorCheck.message,
+
+      // ── Primary bone marker trends ────────────────────────────────────────
       alkPhosData: formattedAlkPhos,
+      trend,
+      riskLevel,
+
+      // ── Extended panel trends ─────────────────────────────────────────────
+      panelData: {
+        calcium:   { series: calciumData,  trend: trendCalc(calciumData),  latest: latestCalcium, normal: { min: 8.5,  max: 10.2 }, unit: 'mg/dL', label: 'Calcium' },
+        phosphorus:{ series: phosphData,   trend: trendCalc(phosphData),   latest: latestPhosph,  normal: { min: 2.5,  max: 4.5  }, unit: 'mg/dL', label: 'Phosphorus' },
+        vitaminD:  { series: vitDData,     trend: trendCalc(vitDData),     latest: latestVitD,    normal: { min: 30,   max: 80   }, unit: 'ng/mL', label: 'Vitamin D (25-OH)' },
+        ldh:       { series: ldhData,      trend: trendCalc(ldhData),      latest: latestLDH,     normal: { min: 100,  max: 246  }, unit: 'U/L',   label: 'LDH' },
+      },
+
+      // ── Soft tissue / inflammatory markers ───────────────────────────────
+      softTissueData: {
+        albumin:   { series: albuminData,  trend: trendCalc(albuminData),  latest: latestAlbumin, normal: { min: 3.5,  max: 5.0  }, unit: 'g/dL',  label: 'Albumin' },
+        crp:       { series: crpData,      trend: trendCalc(crpData),      latest: latestCRP,     normal: { min: 0,    max: 1.0  }, unit: 'mg/L',  label: 'CRP' },
+        ferritin:  { series: ferritinData, trend: trendCalc(ferritinData), latest: latest(ferritinData)?.value ?? null, normal: { min: 12, max: 300 }, unit: 'ng/mL', label: 'Ferritin' },
+        uricAcid:  { series: uricAcidData, trend: trendCalc(uricAcidData), latest: latestUric,    normal: { min: 2.4,  max: 7.0  }, unit: 'mg/dL', label: 'Uric Acid' },
+      },
+
+      // ── Tumor markers ─────────────────────────────────────────────────────
+      tumorMarkerData: {
+        cea:  { series: ceaData,   trend: trendCalc(ceaData),   latest: latestCEA,   normal: { max: 3.0 },  unit: 'ng/mL',  label: 'CEA' },
+        ca125:{ series: ca125Data, trend: trendCalc(ca125Data), latest: latestCA125, normal: { max: 35 },   unit: 'U/mL',   label: 'CA-125' },
+        ca199:{ series: ca199Data, trend: trendCalc(ca199Data), latest: latestCA199, normal: { max: 37 },   unit: 'U/mL',   label: 'CA 19-9' },
+      },
+
+      // ── Clinical flags (all abnormal values) ──────────────────────────────
+      labFlags,
+      tumorFlags,
+
+      // ── Existing data ─────────────────────────────────────────────────────
       currentSupplements,
       missingSupplements,
       protectiveSupplements: getProtectiveSupplements('bone'),
-      trend,
-      riskLevel,
+      imagingFindings: monitorCheck.imagingFindings || [],
       lastUpdated: new Date().toISOString()
     };
 
