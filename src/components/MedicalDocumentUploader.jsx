@@ -96,7 +96,7 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
       setParsed(data);
       setStep('preview');
     } catch (err) {
-      setError('Parse failed: ' + err.message);
+      setError(friendlyError(err.message));
       setStep('error');
     }
   }
@@ -109,9 +109,22 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
       setParsed(data);
       setStep('preview');
     } catch (err) {
-      setError('Parse failed: ' + err.message);
+      setError(friendlyError(err.message));
       setStep('error');
     }
+  }
+
+  function friendlyError(msg = '') {
+    const m = msg.toLowerCase();
+    if (m.includes('overload') || m.includes('529'))
+      return 'Claude AI is busy right now — retrying automatically. If this keeps happening, try again in 30 seconds.';
+    if (m.includes('api key') || m.includes('auth') || m.includes('401'))
+      return 'API key issue — check that ANTHROPIC_API_KEY is set in your .env file.';
+    if (m.includes('timeout') || m.includes('timed out'))
+      return 'Request timed out — the PDF may be too large. Try a smaller file or a TXT version.';
+    if (m.includes('file not found'))
+      return 'File not found — it may have been moved or deleted.';
+    return msg;
   }
 
   // ── Save ────────────────────────────────────────────────────────────────
@@ -290,7 +303,9 @@ export default function MedicalDocumentUploader({ apiFetch, onSaved }) {
               <div style={{ fontSize: 13, color: '#64748b' }}>
                 Claude is extracting clinical information and structuring findings.
               </div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>This takes 15–30 seconds</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>
+                Takes 15–30 seconds · Auto-retries if API is busy
+              </div>
               <div className="md-bar-track"><div className="md-bar-fill" /></div>
             </div>
           )}

@@ -9,18 +9,22 @@ const https = require('https');
 
 // ── Claude API ────────────────────────────────────────────────────────────
 
-function callClaude(apiKey, messages, model = 'claude-opus-4-5') {
+function callClaude(apiKey, messages, model = 'claude-opus-4-5', usePdfBeta = false) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ model, max_tokens: 4096, messages });
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    };
+    // PDF document type requires beta header
+    if (usePdfBeta) headers['anthropic-beta'] = 'pdfs-2024-09-25';
+
     const req = https.request({
       hostname: 'api.anthropic.com',
       path: '/v1/messages',
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers,
     }, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
@@ -28,7 +32,7 @@ function callClaude(apiKey, messages, model = 'claude-opus-4-5') {
         try {
           const parsed = JSON.parse(data);
           if (parsed.error) return reject(new Error(parsed.error.message || JSON.stringify(parsed.error)));
-          resolve(parsed);
+          resolve({ ...parsed, _statusCode: res.statusCode });
         } catch (e) { reject(e); }
       });
     });
@@ -36,6 +40,34 @@ function callClaude(apiKey, messages, model = 'claude-opus-4-5') {
     req.write(body);
     req.end();
   });
+}
+
+// ── Retry with exponential backoff ────────────────────────────────────────
+
+async function callClaudeWithRetry(apiKey, messages, model, usePdfBeta, maxRetries = 3) {
+  const FALLBACK_MODEL = 'claude-haiku-4-5'; // lighter model as fallback
+  let lastError;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // On last retry, switch to lighter model
+    const tryModel = attempt === maxRetries ? FALLBACK_MODEL : model;
+    try {
+      const result = await callClaude(apiKey, messages, tryModel, usePdfBeta);
+      return result;
+    } catch (err) {
+      lastError = err;
+      const isOverloaded = err.message?.toLowerCase().includes('overload') ||
+                           err.message?.toLowerCase().includes('529') ||
+                           err.message?.toLowerCase().includes('rate limit') ||
+                           err.message?.toLowerCase().includes('529');
+      if (!isOverloaded || attempt === maxRetries) break;
+      // Exponential backoff: 2s, 4s, 8s
+      const delay = Math.pow(2, attempt + 1) * 1000;
+      console.log(`[MedDocParser] Overloaded (attempt ${attempt + 1}), retrying in ${delay}ms...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastError;
 }
 
 // ── PDF → base64 images ───────────────────────────────────────────────────
@@ -112,7 +144,10 @@ async function parseMedicalDocumentWithAI(filePath, docType, apiKey) {
 
   let content;
 
+  let usePdfBeta = false;
+
   if (ext === 'pdf') {
+    usePdfBeta = true;
     const b64 = pdfToBase64Pages(filePath);
     content = [
       {
@@ -135,7 +170,7 @@ async function parseMedicalDocumentWithAI(filePath, docType, apiKey) {
     throw new Error(`Unsupported file type: .${ext}. Supported: PDF, JPG, PNG, TXT`);
   }
 
-  const response = await callClaude(apiKey, [{ role: 'user', content }], 'claude-opus-4-5');
+  const response = await callClaudeWithRetry(apiKey, [{ role: 'user', content }], 'claude-opus-4-5', usePdfBeta);
   const rawText = response.content?.[0]?.text || '';
 
   // Extract JSON from response

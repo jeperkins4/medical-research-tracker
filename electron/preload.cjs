@@ -27,7 +27,8 @@ contextBridge.exposeInMainWorld('electron', {
     updateMedication: (id, data) => ipcRenderer.invoke('db:update-medication', id, data),
     deleteMedication: (id) => ipcRenderer.invoke('db:delete-medication', id),
     getMedicationResearch: (medicationId) => ipcRenderer.invoke('db:get-medication-research', medicationId),
-    addMedicationResearch: (data) => ipcRenderer.invoke('db:add-medication-research', data),
+    addMedicationResearch: (data)   => ipcRenderer.invoke('db:add-medication-research', data),
+    deleteMedicationResearch: (id)  => ipcRenderer.invoke('db:delete-medication-research', id),
     getVitals: (limit) => ipcRenderer.invoke('db:get-vitals', limit),
     addVitals: (data) => ipcRenderer.invoke('db:add-vitals', data),
     logout: () => ipcRenderer.invoke('db:logout')

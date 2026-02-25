@@ -49360,9 +49360,17 @@ Extract ALL key information from this radiology report and return ONLY valid JSO
   "impression": "impression/conclusion section verbatim",
   "recommendations": ["list of follow-up recommendations if any"],
   "critical_findings": ["any urgent/critical findings flagged"],
-  "summary": "1-2 sentence plain-language summary of what this study showed"
+  "summary": "1-2 sentence plain-language summary of what this study showed",
+  "body_regions_affected": [
+    {
+      "region": "one of: head, neck, left-lung, right-lung, heart, liver, spleen, stomach, left-kidney, right-kidney, bladder, pelvis, spine, left-adrenal, right-adrenal, left-lymph-node, right-lymph-node, abdominal-lymph-nodes, left-shoulder, right-shoulder, left-arm, right-arm, left-hip, right-hip, left-leg, right-leg, peritoneum, soft-tissue",
+      "finding": "brief description of what was found here (1 sentence max)",
+      "type": "one of: metastasis | primary-tumor | mass | lymphadenopathy | inflammation | normal | suspicious | other",
+      "size_mm": number or null
+    }
+  ]
 }
-Return ONLY the JSON. No markdown, no explanation.`,
+body_regions_affected should list EVERY anatomical region specifically mentioned in the report, including normal findings. Use precise region names from the list above. Return ONLY the JSON. No markdown, no explanation.`,
       doctor_note: `You are a medical AI assistant specializing in clinical documentation.
 Extract ALL key information from this doctor's note or clinical document and return ONLY valid JSON with this exact structure:
 {
@@ -73929,6 +73937,14 @@ app.post("/api/documents/parse", requireAuth, async (req, res) => {
     } catch (_) {
     }
   }
+});
+app.put("/api/documents/:id/markers", requireAuth, (req, res) => {
+  const { markers } = req.body;
+  run(
+    "UPDATE medical_documents SET body_markers=? WHERE id=?",
+    [JSON.stringify(markers || []), req.params.id]
+  );
+  res.json({ success: true });
 });
 app.delete("/api/documents/:id", requireAuth, (req, res) => {
   run("DELETE FROM medical_documents WHERE id=?", [req.params.id]);

@@ -16,6 +16,9 @@ export default function MedicationManager({ apiFetch }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [filterType, setFilterType] = useState('all'); // all, prescription, supplement
   const [selectedMed, setSelectedMed] = useState(null); // For viewing evidence
+  const [showResearchForm, setShowResearchForm] = useState(false);
+  const [researchForm, setResearchForm] = useState({ title: '', url: '', publication_year: '', key_findings: '', article_type: 'supporting', evidence_quality: 'moderate' });
+  const [researchSaving, setResearchSaving] = useState(false);
 
   // Form state with persistence
   const getInitialFormData = () => {
@@ -247,6 +250,64 @@ export default function MedicationManager({ apiFetch }) {
     setShowAddForm(false);
     // Clear saved form data from sessionStorage
     sessionStorage.removeItem('medicationFormData');
+  };
+
+  const handleAddResearch = async (e) => {
+    e.preventDefault();
+    if (!researchForm.title.trim() || !selectedMed) return;
+    setResearchSaving(true);
+    try {
+      const data = {
+        medication_id: selectedMed.id,
+        title: researchForm.title.trim(),
+        url: researchForm.url.trim() || null,
+        publication_year: researchForm.publication_year ? parseInt(researchForm.publication_year) : null,
+        key_findings: researchForm.key_findings.trim() || null,
+        article_type: researchForm.article_type,
+        evidence_quality: researchForm.evidence_quality,
+      };
+      let result;
+      if (getIsElectron()) {
+        result = await window.electron.db.addMedicationResearch(data);
+      } else {
+        const res = await apiFetch(`/api/medications/${selectedMed.id}/research`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        result = await res.json();
+      }
+      if (result.success || result.id) {
+        // Reload research for this med
+        const fresh = await (getIsElectron()
+          ? window.electron.db.getMedicationResearch(selectedMed.id)
+          : apiFetch(`/api/medications/${selectedMed.id}/research`).then(r => r.json()));
+        const articles = getIsElectron() ? (fresh.success ? fresh.articles : []) : fresh;
+        setSelectedMed(prev => ({ ...prev, research: articles }));
+        setResearchForm({ title: '', url: '', publication_year: '', key_findings: '', article_type: 'supporting', evidence_quality: 'moderate' });
+        setShowResearchForm(false);
+      }
+    } catch (err) {
+      console.error('Add research failed:', err);
+    } finally {
+      setResearchSaving(false);
+    }
+  };
+
+  const handleDeleteResearch = async (articleId) => {
+    if (!confirm('Remove this research article?')) return;
+    try {
+      if (getIsElectron()) {
+        await window.electron.db.deleteMedicationResearch(articleId);
+      } else {
+        await apiFetch(`/api/medications/research/${articleId}`, { method: 'DELETE' });
+      }
+      setSelectedMed(prev => ({
+        ...prev,
+        research: (prev.research || []).filter(a => a.id !== articleId),
+      }));
+    } catch (err) {
+      console.error('Delete research failed:', err);
+    }
   };
 
   const viewEvidence = async (med) => {
@@ -640,19 +701,31 @@ export default function MedicationManager({ apiFetch }) {
                 <div className="research-articles">
                   <h3>Research Articles ({selectedMed.research.length})</h3>
                   {selectedMed.research.map((article, idx) => (
-                    <div key={idx} className="research-article">
+                    <div key={idx} className="research-article" style={{ position: 'relative' }}>
+                      <button
+                        onClick={() => handleDeleteResearch(article.id)}
+                        title="Remove article"
+                        style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 15, lineHeight: 1, padding: '2px 4px' }}
+                      >✕</button>
                       <h4>
-                        <a href={article.url} target="_blank" rel="noopener noreferrer">
-                          {article.title}
-                        </a>
+                        {article.url
+                          ? <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title}</a>
+                          : article.title}
                       </h4>
                       {article.publication_year && <p className="year">({article.publication_year})</p>}
                       {article.key_findings && <p>{article.key_findings}</p>}
-                      {article.article_type && (
-                        <span className={`article-type-badge ${article.article_type}`}>
-                          {article.article_type}
-                        </span>
-                      )}
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                        {article.article_type && (
+                          <span className={`article-type-badge ${article.article_type}`}>
+                            {article.article_type}
+                          </span>
+                        )}
+                        {article.evidence_quality && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: '#f1f5f9', color: '#475569', fontWeight: 500 }}>
+                            {article.evidence_quality} evidence
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -660,12 +733,110 @@ export default function MedicationManager({ apiFetch }) {
                 <p>No research articles linked yet. Click "Add Research Article" to add supporting evidence or warnings.</p>
               )}
 
-              <button 
-                onClick={() => alert('Research article form coming soon')} 
-                className="btn-add-research"
-              >
-                + Add Research Article
-              </button>
+              {/* Add Research Article */}
+              {!showResearchForm ? (
+                <button
+                  onClick={() => setShowResearchForm(true)}
+                  className="btn-add-research"
+                >
+                  + Add Research Article
+                </button>
+              ) : (
+                <form onSubmit={handleAddResearch} style={{
+                  marginTop: 16, padding: '16px 18px', background: '#f8fafc',
+                  border: '1px solid #e2e8f0', borderRadius: 12,
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>
+                    📄 Add Research Article
+                  </div>
+
+                  {/* Title */}
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>
+                      Title <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text" required autoFocus
+                      value={researchForm.title}
+                      onChange={e => setResearchForm(f => ({ ...f, title: e.target.value }))}
+                      placeholder="e.g., BMJ Published Double-Blind RCT"
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* URL + Year row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>URL</label>
+                      <input
+                        type="url"
+                        value={researchForm.url}
+                        onChange={e => setResearchForm(f => ({ ...f, url: e.target.value }))}
+                        placeholder="https://pubmed.ncbi.nlm.nih.gov/..."
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Year</label>
+                      <input
+                        type="number" min="1900" max="2099"
+                        value={researchForm.publication_year}
+                        onChange={e => setResearchForm(f => ({ ...f, publication_year: e.target.value }))}
+                        placeholder="2024"
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Key Findings */}
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Key Findings</label>
+                    <textarea
+                      rows={3}
+                      value={researchForm.key_findings}
+                      onChange={e => setResearchForm(f => ({ ...f, key_findings: e.target.value }))}
+                      placeholder="Summarize the key findings relevant to your treatment..."
+                      style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Type + Quality row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Article Type</label>
+                      <select value={researchForm.article_type} onChange={e => setResearchForm(f => ({ ...f, article_type: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="supporting">✅ Supporting</option>
+                        <option value="warning">⚠️ Warning</option>
+                        <option value="neutral">➖ Neutral</option>
+                        <option value="mixed">🔄 Mixed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Evidence Quality</label>
+                      <select value={researchForm.evidence_quality} onChange={e => setResearchForm(f => ({ ...f, evidence_quality: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="high">🔬 High (RCT/Meta-analysis)</option>
+                        <option value="moderate">📊 Moderate (Cohort study)</option>
+                        <option value="low">📝 Low (Case report)</option>
+                        <option value="anecdotal">💬 Anecdotal</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => setShowResearchForm(false)}
+                      style={{ padding: '7px 16px', background: '#f1f5f9', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={researchSaving || !researchForm.title.trim()}
+                      style={{ padding: '7px 18px', background: '#0369a1', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: (researchSaving || !researchForm.title.trim()) ? 0.6 : 1 }}>
+                      {researchSaving ? 'Saving…' : '💾 Save Article'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>

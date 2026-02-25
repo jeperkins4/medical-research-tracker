@@ -763,6 +763,20 @@ function addMedicationResearch(data) {
 }
 
 /**
+ * Delete a research article
+ */
+function deleteMedicationResearch(id) {
+  if (!db) throw new Error('Database not initialized');
+  try {
+    db.prepare('DELETE FROM medication_research WHERE id=?').run(id);
+    return { success: true };
+  } catch (err) {
+    console.error('[DB-IPC] Delete medication research failed:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * Add vitals (legacy single-user format)
  */
 function addVitals(userId, data) {
@@ -1303,6 +1317,7 @@ module.exports = {
   deleteMedication,
   getMedicationResearch,
   addMedicationResearch,
+  deleteMedicationResearch,
   addVitals,
   getGenomicDashboard,
   getMutationDetails,

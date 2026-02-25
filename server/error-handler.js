@@ -50,25 +50,27 @@ function logError(error, context = {}) {
 }
 
 /**
- * Log crash event
+ * Log crash event (with 50MB rotation guard)
  */
 function logCrash(error, origin) {
+  // Skip timeout errors — they spam the log (WhatsApp 408s, etc.)
+  const msg = error?.message || String(error);
+  if (msg.includes('timeout') || msg.includes('408') || origin === 'requestTimeout') return;
+
+  // Rotate if file exceeds 50MB
+  try {
+    const { statSync } = require('fs');
+    const MAX_BYTES = 50 * 1024 * 1024; // 50MB
+    if (existsSync(crashLogPath) && statSync(crashLogPath).size > MAX_BYTES) {
+      writeFileSync(crashLogPath, ''); // truncate
+    }
+  } catch (_) {}
+
   const timestamp = new Date().toISOString();
   const crashEntry = {
     timestamp,
     origin,
-    error: {
-      message: error?.message || String(error),
-      stack: error?.stack,
-      name: error?.name,
-      code: error?.code
-    },
-    process: {
-      pid: process.pid,
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      nodeVersion: process.version
-    }
+    error: { message: msg, name: error?.name, code: error?.code },
   };
   
   try {
@@ -198,12 +200,7 @@ export function requestTimeout(timeoutMs = 30000) {
   return (req, res, next) => {
     const timeout = setTimeout(() => {
       if (!res.headersSent) {
-        console.error('⏱️  Request timeout:', req.method, req.originalUrl);
-        logError(new Error('Request timeout'), {
-          url: req.originalUrl,
-          method: req.method,
-          timeout: timeoutMs
-        });
+        // Don't log to file — timeouts are frequent and fill crash logs
         res.status(408).json({ error: 'Request timeout' });
       }
     }, timeoutMs);

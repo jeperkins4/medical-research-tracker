@@ -235,6 +235,11 @@ ipcMain.handle('db:add-medication-research', (event, data) => {
   return db.addMedicationResearch(data);
 });
 
+ipcMain.handle('db:delete-medication-research', (event, id) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.deleteMedicationResearch(id);
+});
+
 ipcMain.handle('db:get-vitals', (event, limit) => {
   if (!currentUserId) return { success: false, error: 'Not authenticated' };
   return db.getVitals(currentUserId, limit || 10);
