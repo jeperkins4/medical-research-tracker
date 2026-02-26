@@ -343,6 +343,47 @@ ipcMain.handle('genomics:import-mutations', (event, mutations, replaceExisting) 
   return db.importFoundationOneMutations(mutations, replaceExisting || false);
 });
 
+// ── Analytics dashboard ───────────────────────────────────────────────────
+
+ipcMain.handle('analytics:dashboard', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, message: 'Database not ready' };
+
+    const run = (sql, params = []) => {
+      try { return db_.prepare(sql).all(...params); } catch { return []; }
+    };
+
+    // Check if analytics tables exist
+    const tableCheck = run(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'analytics_%'`);
+    if (tableCheck.length === 0) {
+      return {
+        enabled: false,
+        message: 'Analytics tables not created yet.',
+        userMetrics: {}, diagnoses: [], mutations: [], treatments: [], demographics: {}
+      };
+    }
+
+    const userMetricsRows = run(`SELECT * FROM analytics_user_metrics ORDER BY metric_date DESC LIMIT 1`);
+    const userMetrics     = userMetricsRows[0] || {};
+    const MIN_CELL        = 1; // single-user app — no k-anonymity needed
+    const diagnoses       = run(`SELECT * FROM analytics_diagnosis_aggregates WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
+    const mutations       = run(`SELECT * FROM analytics_mutation_aggregates  WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
+    const treatments      = run(`SELECT * FROM analytics_treatment_aggregates WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
+    const demogRows       = run(`SELECT * FROM analytics_demographics ORDER BY snapshot_date DESC LIMIT 1`);
+    const demographics    = demogRows[0] || {};
+
+    return {
+      enabled: true,
+      userMetrics, diagnoses, mutations, treatments, demographics,
+      lastUpdated: userMetrics.metric_date || new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error('[Main] analytics:dashboard failed:', err.message);
+    return { error: err.message };
+  }
+});
+
 // ── AI Analysis (healthcare summary + meal analysis) ──────────────────────
 // Lazy-loaded so startup never fails if the module has an issue.
 

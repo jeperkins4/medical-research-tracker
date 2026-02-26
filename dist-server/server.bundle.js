@@ -60339,6 +60339,19 @@ function shouldMonitorBoneHealth() {
         }
       }
     }
+    try {
+      const recentLDH = query(
+        `SELECT result FROM test_results WHERE (test_name LIKE '%LDH%' OR test_name LIKE '%Lactate Dehydrogenase%') ORDER BY date DESC LIMIT 1`,
+        []
+      );
+      if (recentLDH.length > 0) {
+        const match = recentLDH[0].result?.match(/([\d.]+)/);
+        if (match && parseFloat(match[1]) > 246) {
+          return { shouldMonitor: true, reason: "elevated_ldh", message: `Elevated LDH: ${parseFloat(match[1])} U/L \u2014 tissue breakdown / tumor burden indicator` };
+        }
+      }
+    } catch (_) {
+    }
     const recentCalcium = query(`
       SELECT result 
       FROM test_results 
@@ -60439,21 +60452,62 @@ function getBoneHealthData() {
     };
   }
   try {
-    const alkPhosData = query(`
-      SELECT date, result 
-      FROM test_results 
-      WHERE test_name LIKE '%Alk%Phos%' OR test_name LIKE '%Alkaline%Phosphatase%'
-      ORDER BY date ASC
-    `);
-    const formattedAlkPhos = alkPhosData.map((row) => {
-      const match = row.result.match(/([\d.]+)/);
-      const value = match ? parseFloat(match[1]) : null;
-      return {
-        date: row.date,
-        value,
-        result: row.result
-      };
-    }).filter((row) => row.value !== null);
+    const fetchSeries2 = (patterns) => {
+      const whereClause = patterns.map(() => "test_name LIKE ?").join(" OR ");
+      const params = patterns.map((p) => p.includes("%") ? p : `%${p}%`);
+      const rows = query(
+        `SELECT date, test_name, result FROM test_results WHERE (${whereClause}) ORDER BY date ASC`,
+        params
+      );
+      return rows.map((row) => {
+        const match = row.result?.match(/([\d.]+)/);
+        const value = match ? parseFloat(match[1]) : null;
+        return { date: row.date, test_name: row.test_name, result: row.result, value };
+      }).filter((r2) => r2.value !== null);
+    };
+    const latest = (series) => series.at(-1) ?? null;
+    const trendCalc = (series) => {
+      if (series.length < 2) return null;
+      const change = (series.at(-1).value - series[0].value) / series[0].value * 100;
+      return { change: +change.toFixed(1), direction: change > 0 ? "up" : "down", latestValue: series.at(-1).value, latestDate: series.at(-1).date };
+    };
+    const alkPhosData = fetchSeries2(["%Alk%Phos%", "%Alkaline%Phosphatase%"]);
+    const calciumData = fetchSeries2(["%Calcium%"]);
+    const phosphData = fetchSeries2(["%Phosphorus%", "%Phosphate%"]);
+    const vitDData = fetchSeries2(["%Vitamin D%", "%25-OH%", "%25 OH%", "%Calcidiol%"]);
+    const ldhData = fetchSeries2(["%LDH%", "%Lactate Dehydrogenase%"]);
+    const albuminData = fetchSeries2(["%Albumin%"]);
+    const crpData = fetchSeries2(["%CRP%", "%C-Reactive%"]);
+    const ferritinData = fetchSeries2(["%Ferritin%"]);
+    const uricAcidData = fetchSeries2(["%Uric Acid%"]);
+    const ceaData = fetchSeries2(["%CEA%", "%Carcinoembryonic%"]);
+    const ca125Data = fetchSeries2(["%CA 125%", "%CA-125%"]);
+    const ca199Data = fetchSeries2(["%CA 19-9%", "%CA19-9%"]);
+    const labFlags = [];
+    const latestAlkPhos = latest(alkPhosData)?.value ?? null;
+    const latestCalcium = latest(calciumData)?.value ?? null;
+    const latestLDH = latest(ldhData)?.value ?? null;
+    const latestVitD = latest(vitDData)?.value ?? null;
+    const latestPhosph = latest(phosphData)?.value ?? null;
+    const latestAlbumin = latest(albuminData)?.value ?? null;
+    const latestCRP = latest(crpData)?.value ?? null;
+    const latestUric = latest(uricAcidData)?.value ?? null;
+    if (latestAlkPhos !== null && latestAlkPhos > 147) labFlags.push({ marker: "Alk Phos", value: `${latestAlkPhos} U/L`, status: "HIGH", note: "Bone resorption / hepatic marker \u2014 monitor for bone metastases", severity: latestAlkPhos > 200 ? "critical" : "warning" });
+    if (latestCalcium !== null && latestCalcium > 10.2) labFlags.push({ marker: "Calcium", value: `${latestCalcium} mg/dL`, status: "HIGH", note: "Hypercalcemia \u2014 possible osteolytic activity", severity: latestCalcium > 12 ? "critical" : "warning" });
+    if (latestLDH !== null && latestLDH > 246) labFlags.push({ marker: "LDH", value: `${latestLDH} U/L`, status: "HIGH", note: "Elevated \u2014 tissue breakdown / tumor burden indicator", severity: latestLDH > 400 ? "critical" : "warning" });
+    if (latestVitD !== null && latestVitD < 30) labFlags.push({ marker: "Vitamin D", value: `${latestVitD} ng/mL`, status: latestVitD < 20 ? "DEFICIENT" : "LOW", note: "Insufficient for bone protection \u2014 cancer patients need 50\u201380 ng/mL", severity: latestVitD < 20 ? "warning" : "info" });
+    if (latestPhosph !== null && (latestPhosph < 2.5 || latestPhosph > 4.5)) labFlags.push({ marker: "Phosphorus", value: `${latestPhosph} mg/dL`, status: latestPhosph < 2.5 ? "LOW" : "HIGH", note: "Abnormal \u2014 may reflect bone metabolism changes", severity: "warning" });
+    if (latestAlbumin !== null && latestAlbumin < 3.5) labFlags.push({ marker: "Albumin", value: `${latestAlbumin} g/dL`, status: "LOW", note: "Low albumin \u2014 soft tissue / nutritional status concern", severity: "warning" });
+    if (latestCRP !== null && latestCRP > 1) labFlags.push({ marker: "CRP", value: `${latestCRP} mg/L`, status: "ELEVATED", note: "Systemic inflammation \u2014 soft tissue involvement", severity: latestCRP > 10 ? "warning" : "info" });
+    if (latestUric !== null && latestUric > 7) labFlags.push({ marker: "Uric Acid", value: `${latestUric} mg/dL`, status: "HIGH", note: "Elevated \u2014 possible cell turnover / bone breakdown", severity: "info" });
+    const tumorFlags = [];
+    const latestCEA = latest(ceaData)?.value ?? null;
+    const latestCA125 = latest(ca125Data)?.value ?? null;
+    const latestCA199 = latest(ca199Data)?.value ?? null;
+    if (latestCEA !== null && latestCEA > 3) tumorFlags.push({ marker: "CEA", value: `${latestCEA} ng/mL`, status: "ELEVATED", note: "Carcinoembryonic antigen \u2014 tumor burden indicator" });
+    if (latestCA125 !== null && latestCA125 > 35) tumorFlags.push({ marker: "CA-125", value: `${latestCA125} U/mL`, status: "ELEVATED", note: "CA-125 elevated \u2014 monitor" });
+    if (latestCA199 !== null && latestCA199 > 37) tumorFlags.push({ marker: "CA 19-9", value: `${latestCA199} U/mL`, status: "ELEVATED", note: "CA 19-9 elevated \u2014 monitor" });
+    const formattedAlkPhos = alkPhosData;
     const currentSupplements = [
       {
         name: "Alpha-Ketoglutarate (AKG)",
@@ -60555,19 +60609,19 @@ function getBoneHealthData() {
     let trend = null;
     let riskLevel = "unknown";
     if (formattedAlkPhos.length >= 2) {
-      const latest = formattedAlkPhos[formattedAlkPhos.length - 1];
+      const latest2 = formattedAlkPhos[formattedAlkPhos.length - 1];
       const earliest = formattedAlkPhos[0];
-      const change = (latest.value - earliest.value) / earliest.value * 100;
+      const change = (latest2.value - earliest.value) / earliest.value * 100;
       trend = {
         change: change.toFixed(1),
         direction: change > 0 ? "up" : "down",
-        latestValue: latest.value,
-        latestDate: latest.date,
-        isAbnormal: latest.value > 147
+        latestValue: latest2.value,
+        latestDate: latest2.date,
+        isAbnormal: latest2.value > 147
       };
-      if (latest.value > 147 && change > 20) {
+      if (latest2.value > 147 && change > 20) {
         riskLevel = "high";
-      } else if (latest.value > 147 || change > 10 && change <= 20) {
+      } else if (latest2.value > 147 || change > 10 && change <= 20) {
         riskLevel = "medium";
       } else {
         riskLevel = "low";
@@ -60577,12 +60631,38 @@ function getBoneHealthData() {
       enabled: true,
       reason: monitorCheck.reason,
       message: monitorCheck.message,
+      // ── Primary bone marker trends ────────────────────────────────────────
       alkPhosData: formattedAlkPhos,
+      trend,
+      riskLevel,
+      // ── Extended panel trends ─────────────────────────────────────────────
+      panelData: {
+        calcium: { series: calciumData, trend: trendCalc(calciumData), latest: latestCalcium, normal: { min: 8.5, max: 10.2 }, unit: "mg/dL", label: "Calcium" },
+        phosphorus: { series: phosphData, trend: trendCalc(phosphData), latest: latestPhosph, normal: { min: 2.5, max: 4.5 }, unit: "mg/dL", label: "Phosphorus" },
+        vitaminD: { series: vitDData, trend: trendCalc(vitDData), latest: latestVitD, normal: { min: 30, max: 80 }, unit: "ng/mL", label: "Vitamin D (25-OH)" },
+        ldh: { series: ldhData, trend: trendCalc(ldhData), latest: latestLDH, normal: { min: 100, max: 246 }, unit: "U/L", label: "LDH" }
+      },
+      // ── Soft tissue / inflammatory markers ───────────────────────────────
+      softTissueData: {
+        albumin: { series: albuminData, trend: trendCalc(albuminData), latest: latestAlbumin, normal: { min: 3.5, max: 5 }, unit: "g/dL", label: "Albumin" },
+        crp: { series: crpData, trend: trendCalc(crpData), latest: latestCRP, normal: { min: 0, max: 1 }, unit: "mg/L", label: "CRP" },
+        ferritin: { series: ferritinData, trend: trendCalc(ferritinData), latest: latest(ferritinData)?.value ?? null, normal: { min: 12, max: 300 }, unit: "ng/mL", label: "Ferritin" },
+        uricAcid: { series: uricAcidData, trend: trendCalc(uricAcidData), latest: latestUric, normal: { min: 2.4, max: 7 }, unit: "mg/dL", label: "Uric Acid" }
+      },
+      // ── Tumor markers ─────────────────────────────────────────────────────
+      tumorMarkerData: {
+        cea: { series: ceaData, trend: trendCalc(ceaData), latest: latestCEA, normal: { max: 3 }, unit: "ng/mL", label: "CEA" },
+        ca125: { series: ca125Data, trend: trendCalc(ca125Data), latest: latestCA125, normal: { max: 35 }, unit: "U/mL", label: "CA-125" },
+        ca199: { series: ca199Data, trend: trendCalc(ca199Data), latest: latestCA199, normal: { max: 37 }, unit: "U/mL", label: "CA 19-9" }
+      },
+      // ── Clinical flags (all abnormal values) ──────────────────────────────
+      labFlags,
+      tumorFlags,
+      // ── Existing data ─────────────────────────────────────────────────────
       currentSupplements,
       missingSupplements,
       protectiveSupplements: getProtectiveSupplements("bone"),
-      trend,
-      riskLevel,
+      imagingFindings: monitorCheck.imagingFindings || [],
       lastUpdated: (/* @__PURE__ */ new Date()).toISOString()
     };
   } catch (error) {

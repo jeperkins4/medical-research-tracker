@@ -13,15 +13,20 @@ export default function AnalyticsDashboard({ apiFetch }) {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch('/api/analytics/dashboard');
-      
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Analytics API error:', res.status, errorData);
-        throw new Error(errorData.error || errorData.message || `HTTP ${res.status}`);
+
+      // Use IPC in packaged Electron app, HTTP in web/dev mode
+      let analyticsData;
+      if (typeof window !== 'undefined' && window.electron?.analytics?.getDashboard) {
+        analyticsData = await window.electron.analytics.getDashboard();
+      } else {
+        const res = await apiFetch('/api/analytics/dashboard');
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Analytics API error:', res.status, errorData);
+          throw new Error(errorData.error || errorData.message || `HTTP ${res.status}`);
+        }
+        analyticsData = await res.json();
       }
-      
-      const analyticsData = await res.json();
       console.log('Analytics data received:', analyticsData);
       
       // Check if analytics is disabled
