@@ -19,61 +19,85 @@ export default function HealthcareSummary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handlePrint = () => {
-    // Inject print styles, trigger print, then remove them
+  const buildPdfHtml = (summaryData) => {
+    const sections = formatSection(summaryData.summary);
+    const date = new Date(summaryData.generatedAt).toLocaleString();
+    const sectionHtml = sections.map(s => `
+      <div class="section">
+        <h2>${s.title}</h2>
+        <div class="body">
+          ${s.content.map(line => {
+            if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+              return `<li>${line.replace(/^[-*]\s*/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`;
+            }
+            const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            return formatted.trim() ? `<p>${formatted}</p>` : '';
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Healthcare Strategy Summary</title>
+<style>
+  body { font-family: Georgia, serif; font-size: 11pt; color: #111; margin: 0; padding: 1.5cm 2cm; }
+  h1 { font-size: 18pt; color: #2c5282; margin-bottom: 4pt; }
+  .meta { font-size: 9pt; color: #555; border-bottom: 1px solid #ccc; padding-bottom: 6pt; margin-bottom: 1cm; }
+  .section { page-break-inside: avoid; margin-bottom: 1cm; }
+  .section h2 { font-size: 12pt; color: #2c5282; border-bottom: 1px solid #cbd5e1; padding-bottom: 3pt; margin-bottom: 6pt; }
+  .body p { margin: 0 0 5pt 0; line-height: 1.6; }
+  .body li { margin: 0 0 4pt 1.5em; line-height: 1.6; }
+  .footer { margin-top: 1cm; border-top: 1px solid #ccc; padding-top: 6pt; font-size: 8pt; color: #666; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<h1>🩺 Healthcare Strategy Summary</h1>
+<div class="meta">
+  <span>Generated: ${date}</span> &nbsp;|&nbsp;
+  <span>Model: ${summaryData.model}</span> &nbsp;|&nbsp;
+  <span>${summaryData.dataSnapshot.mutationCount} mutations · ${summaryData.dataSnapshot.medicationCount} medications · ${summaryData.dataSnapshot.paperCount} papers</span>
+</div>
+${sectionHtml}
+<div class="footer">
+  <span>MyTreatmentPath — Healthcare Strategy Summary</span>
+  <span>Confidential — For personal use only</span>
+  <span>${date}</span>
+</div>
+</body>
+</html>`;
+  };
+
+  const handlePrint = async () => {
+    if (!summary) return;
+
+    // Electron: generate a real PDF file via IPC
+    if (typeof window !== 'undefined' && window.electron?.pdf?.save) {
+      const html = buildPdfHtml(summary);
+      const filename = `HealthcareStrategy-${new Date().toISOString().split('T')[0]}.pdf`;
+      const result = await window.electron.pdf.save(html, filename);
+      if (result?.success) {
+        alert(`✅ PDF saved to:\n${result.filePath}`);
+      } else if (!result?.canceled) {
+        alert(`❌ PDF generation failed: ${result?.error || 'Unknown error'}`);
+      }
+      return;
+    }
+
+    // Web/dev fallback: browser print dialog
     const style = document.createElement('style');
     style.id = 'mrt-print-styles';
     style.innerHTML = `
       @media print {
         body * { visibility: hidden !important; }
         #mrt-printable, #mrt-printable * { visibility: visible !important; }
-        #mrt-printable {
-          position: absolute !important;
-          top: 0; left: 0;
-          width: 100%;
-          padding: 1.5cm 2cm !important;
-          background: white !important;
-          font-family: Georgia, 'Times New Roman', serif !important;
-          font-size: 11pt !important;
-          color: #000 !important;
-        }
-        #mrt-printable .no-print { display: none !important; }
-        #mrt-printable h1 { font-size: 16pt; margin-bottom: 0.3cm; }
-        #mrt-printable h2 { font-size: 13pt; margin-bottom: 0.2cm; border-bottom: 1px solid #999; padding-bottom: 2pt; }
-        #mrt-printable .summary-section {
-          page-break-inside: avoid;
-          margin-bottom: 0.6cm !important;
-          border: none !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-        }
-        #mrt-printable .summary-section h3 {
-          font-size: 12pt;
-          color: #000 !important;
-          border-bottom: 1px solid #ccc !important;
-          margin-bottom: 4pt !important;
-        }
-        #mrt-printable .summary-meta {
-          background: none !important;
-          border-bottom: 1px solid #ccc !important;
-          border-radius: 0 !important;
-          padding: 0 0 6pt 0 !important;
-          margin-bottom: 0.5cm !important;
-          font-size: 9pt;
-          color: #444 !important;
-        }
-        #mrt-printable .print-footer {
-          position: fixed;
-          bottom: 1cm;
-          left: 2cm;
-          right: 2cm;
-          font-size: 8pt;
-          color: #666;
-          border-top: 1px solid #ccc;
-          padding-top: 4pt;
-          display: flex !important;
-          justify-content: space-between;
-        }
+        #mrt-printable { position: absolute !important; top: 0; left: 0; width: 100%;
+          padding: 2cm !important; background: white !important;
+          font-family: Georgia, serif !important; font-size: 11pt !important; }
+        .no-print { display: none !important; }
+        .summary-section { page-break-inside: avoid; border: none !important; box-shadow: none !important; }
       }
     `;
     document.head.appendChild(style);
@@ -308,7 +332,7 @@ export default function HealthcareSummary() {
                   fontSize: '0.95rem',
                 }}
               >
-                🖨️ Print / Save PDF
+                📄 Generate PDF
               </button>
             </div>
           </div>

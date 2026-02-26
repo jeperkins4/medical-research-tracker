@@ -87,6 +87,11 @@ contextBridge.exposeInMainWorld('electron', {
     getDashboard: () => ipcRenderer.invoke('analytics:dashboard'),
   },
 
+  // PDF export
+  pdf: {
+    save: (htmlContent, filename) => ipcRenderer.invoke('dialog:save-pdf', htmlContent, filename),
+  },
+
   // AI Analysis (healthcare summary + meal analysis) — works in packaged app without HTTP server
   ai: {
     generateHealthcareSummary: ()                              => ipcRenderer.invoke('ai:healthcare-summary'),

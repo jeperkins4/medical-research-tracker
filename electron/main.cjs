@@ -415,6 +415,42 @@ ipcMain.handle('ai:analyze-meal', async (_event, mealDescription, mealData = {})
   }
 });
 
+// Print-to-PDF (for Healthcare Strategy Summary and any printable content)
+ipcMain.handle('dialog:save-pdf', async (event, htmlContent, filename) => {
+  try {
+    const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+      title:       'Save as PDF',
+      defaultPath: filename || 'HealthcareStrategySummary.pdf',
+      filters:     [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    // Create a hidden window, load the HTML, then print to PDF
+    const pdfWin = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+
+    await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    const pdfBuffer = await pdfWin.webContents.printToPDF({
+      marginsType:        1,          // 1 = minimum margins
+      pageSize:           'Letter',
+      printBackground:    true,
+      printSelectionOnly: false,
+      landscape:          false,
+    });
+
+    pdfWin.destroy();
+
+    const fs = require('fs');
+    fs.writeFileSync(filePath, pdfBuffer);
+
+    return { success: true, filePath };
+  } catch (err) {
+    console.error('[Main] dialog:save-pdf failed:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
 // File dialog for report upload
 ipcMain.handle('dialog:open-file', async (event, options) => {
   const { dialog } = require('electron');
