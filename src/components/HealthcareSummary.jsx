@@ -19,6 +19,68 @@ export default function HealthcareSummary() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const handlePrint = () => {
+    // Inject print styles, trigger print, then remove them
+    const style = document.createElement('style');
+    style.id = 'mrt-print-styles';
+    style.innerHTML = `
+      @media print {
+        body * { visibility: hidden !important; }
+        #mrt-printable, #mrt-printable * { visibility: visible !important; }
+        #mrt-printable {
+          position: absolute !important;
+          top: 0; left: 0;
+          width: 100%;
+          padding: 1.5cm 2cm !important;
+          background: white !important;
+          font-family: Georgia, 'Times New Roman', serif !important;
+          font-size: 11pt !important;
+          color: #000 !important;
+        }
+        #mrt-printable .no-print { display: none !important; }
+        #mrt-printable h1 { font-size: 16pt; margin-bottom: 0.3cm; }
+        #mrt-printable h2 { font-size: 13pt; margin-bottom: 0.2cm; border-bottom: 1px solid #999; padding-bottom: 2pt; }
+        #mrt-printable .summary-section {
+          page-break-inside: avoid;
+          margin-bottom: 0.6cm !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        #mrt-printable .summary-section h3 {
+          font-size: 12pt;
+          color: #000 !important;
+          border-bottom: 1px solid #ccc !important;
+          margin-bottom: 4pt !important;
+        }
+        #mrt-printable .summary-meta {
+          background: none !important;
+          border-bottom: 1px solid #ccc !important;
+          border-radius: 0 !important;
+          padding: 0 0 6pt 0 !important;
+          margin-bottom: 0.5cm !important;
+          font-size: 9pt;
+          color: #444 !important;
+        }
+        #mrt-printable .print-footer {
+          position: fixed;
+          bottom: 1cm;
+          left: 2cm;
+          right: 2cm;
+          font-size: 8pt;
+          color: #666;
+          border-top: 1px solid #ccc;
+          padding-top: 4pt;
+          display: flex !important;
+          justify-content: space-between;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => document.getElementById('mrt-print-styles')?.remove(), 1000);
+  };
+
   const generateSummary = async () => {
     setLoading(true);
     setError(null);
@@ -129,7 +191,7 @@ export default function HealthcareSummary() {
       )}
 
       {summary && (
-        <div className="summary-content">
+        <div className="summary-content" id="mrt-printable">
           {/* Metadata banner */}
           <div className="summary-meta" style={{
             display: 'flex',
@@ -215,7 +277,7 @@ export default function HealthcareSummary() {
           </div>
 
           {/* Action buttons */}
-          <div style={{ 
+          <div className="no-print" style={{ 
             marginTop: '2rem',
             padding: '1rem',
             backgroundColor: '#f7fafc',
@@ -232,7 +294,30 @@ export default function HealthcareSummary() {
               >
                 🔄 Regenerate
               </button>
+              <button
+                onClick={handlePrint}
+                style={{
+                  minWidth: '140px',
+                  backgroundColor: '#2c5282',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.5rem 1.25rem',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                }}
+              >
+                🖨️ Print / Save PDF
+              </button>
             </div>
+          </div>
+
+          {/* Print-only footer */}
+          <div className="print-footer" style={{ display: 'none' }}>
+            <span>MyTreatmentPath — Healthcare Strategy Summary</span>
+            <span>Generated: {summary ? new Date(summary.generatedAt).toLocaleDateString() : ''}</span>
+            <span>Confidential — For personal use only</span>
           </div>
         </div>
       )}
