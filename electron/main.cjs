@@ -384,6 +384,60 @@ ipcMain.handle('analytics:dashboard', (_event) => {
   }
 });
 
+// ── Organ Health IPC (kidney, liver, lung, bone) ──────────────────────────
+
+ipcMain.handle('organ-health:kidney', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getKidneyHealthData } = require('./organ-health-ipc.cjs');
+    return getKidneyHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:kidney failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:liver', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getLiverHealthData } = require('./organ-health-ipc.cjs');
+    return getLiverHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:liver failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:lung', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getLungHealthData } = require('./organ-health-ipc.cjs');
+    return getLungHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:lung failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:bone', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getBoneHealthData } = require('./organ-health-ipc.cjs');
+    return getBoneHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:bone failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
 // ── AI Analysis (healthcare summary + meal analysis) ──────────────────────
 // Lazy-loaded so startup never fails if the module has an issue.
 

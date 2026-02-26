@@ -101,8 +101,13 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
 
   const fetchBoneHealthData = async () => {
     try {
-      const response = await apiFetch('/api/bone-health');
-      const data = await response.json();
+      let data;
+      if (window.electron?.organHealth?.getBone) {
+        data = await window.electron.organHealth.getBone();
+      } else {
+        const response = await apiFetch('/api/bone-health');
+        data = await response.json();
+      }
       
       // Check if bone health monitoring is enabled
       if (!data.enabled) {

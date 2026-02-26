@@ -75,9 +75,13 @@ export default function LiverHealthTracker({ apiFetch: propFetch }) {
 
   const load = async () => {
     try {
-      const res = await apiFetch('/api/liver-health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
+      if (window.electron?.organHealth?.getLiver) {
+        setData(await window.electron.organHealth.getLiver());
+      } else {
+        const res = await apiFetch('/api/liver-health');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setData(await res.json());
+      }
     } catch (e) {
       setError(e.message);
     } finally {

@@ -57,9 +57,13 @@ export default function KidneyHealthTracker({ apiFetch: propFetch }) {
 
   const load = async () => {
     try {
-      const res = await apiFetch('/api/kidney-health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
+      if (window.electron?.organHealth?.getKidney) {
+        setData(await window.electron.organHealth.getKidney());
+      } else {
+        const res = await apiFetch('/api/kidney-health');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setData(await res.json());
+      }
     } catch (e) {
       setError(e.message);
     } finally {

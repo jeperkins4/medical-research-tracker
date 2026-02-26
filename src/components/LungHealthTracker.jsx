@@ -63,9 +63,13 @@ export default function LungHealthTracker({ apiFetch: propFetch }) {
 
   const load = async () => {
     try {
-      const res = await apiFetch('/api/lung-health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
+      if (window.electron?.organHealth?.getLung) {
+        setData(await window.electron.organHealth.getLung());
+      } else {
+        const res = await apiFetch('/api/lung-health');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setData(await res.json());
+      }
     } catch (e) {
       setError(e.message);
     } finally {

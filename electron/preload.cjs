@@ -87,6 +87,14 @@ contextBridge.exposeInMainWorld('electron', {
     getDashboard: () => ipcRenderer.invoke('analytics:dashboard'),
   },
 
+  // Organ health trackers — bypass HTTP in packaged app
+  organHealth: {
+    getKidney: () => ipcRenderer.invoke('organ-health:kidney'),
+    getLiver:  () => ipcRenderer.invoke('organ-health:liver'),
+    getLung:   () => ipcRenderer.invoke('organ-health:lung'),
+    getBone:   () => ipcRenderer.invoke('organ-health:bone'),
+  },
+
   // PDF export
   pdf: {
     save: (htmlContent, filename) => ipcRenderer.invoke('dialog:save-pdf', htmlContent, filename),
