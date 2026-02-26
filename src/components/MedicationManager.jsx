@@ -139,6 +139,7 @@ export default function MedicationManager({ apiFetch }) {
           alert(`Error: ${result.error}`);
         }
       } else {
+        // HTTP dev-server path (window.electron is NOT available here)
         const url = editingMed 
           ? `/api/medications/${editingMed.id}`
           : '/api/medications';
@@ -155,6 +156,7 @@ export default function MedicationManager({ apiFetch }) {
           if (!editingMed && evidence?.research) {
             const resData = await res.json();
             const newMedId = resData.id;
+            // window.electron unavailable in this branch — use HTTP endpoint
             for (const article of evidence.research) {
               await apiFetch('/api/medications/research', {
                 method: 'POST',

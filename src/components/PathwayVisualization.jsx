@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+// Packaged Electron app: no pathway-graph HTTP endpoint — use IPC mutation network instead.
+const isElectron = typeof window !== 'undefined' && !!window.electron?.genomics?.getMutationNetwork;
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -21,6 +23,19 @@ export default function PathwayVisualization() {
   }, []);
 
   const fetchPathwayGraph = async () => {
+    if (isElectron) {
+      // window.electron: use IPC mutation network (closest available in packaged app)
+      try {
+        const data = await window.electron.genomics.getMutationNetwork();
+        setGraphData(data);
+        if (data) buildGraph(data);
+      } catch (error) {
+        console.error('IPC getMutationNetwork failed:', error);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     try {
       const response = await fetch('/api/genomics/pathway-graph', {
         credentials: 'include'

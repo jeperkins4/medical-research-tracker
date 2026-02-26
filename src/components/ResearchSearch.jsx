@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+// Packaged Electron app: no HTTP research server — IPC handlers not yet implemented.
+// Guard all /api/tags and /api/papers calls so they degrade gracefully.
+const isElectron = typeof window !== 'undefined' && !!window.electron;
 
 export default function ResearchSearch() {
   const [query, setQuery] = useState('');
@@ -16,6 +19,10 @@ export default function ResearchSearch() {
   }, []);
 
   const loadTags = async () => {
+    if (isElectron) {
+      // window.electron: research/tags IPC not yet implemented — skip gracefully
+      return;
+    }
     try {
       const response = await fetch('/api/tags', {
         credentials: 'include'
@@ -28,6 +35,10 @@ export default function ResearchSearch() {
   };
 
   const loadSavedPapers = async () => {
+    if (isElectron) {
+      // window.electron: research/papers IPC not yet implemented — skip gracefully
+      return;
+    }
     try {
       const response = await fetch('/api/papers/detailed', {
         credentials: 'include'
@@ -42,6 +53,12 @@ export default function ResearchSearch() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
+
+    if (isElectron) {
+      // window.electron: research search IPC not yet implemented
+      alert('Online research search is not available in the offline app. Use PubMed directly.');
+      return;
+    }
 
     setSearching(true);
     
@@ -66,6 +83,12 @@ export default function ResearchSearch() {
   const createTag = async () => {
     if (!newTagName.trim()) return;
 
+    if (isElectron) {
+      // window.electron: tags IPC not yet implemented
+      alert('Tag management is not yet available in the offline app.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/tags', {
         method: 'POST',
@@ -86,6 +109,12 @@ export default function ResearchSearch() {
   const savePaper = async (paper) => {
     const tagIds = Object.keys(selectedTags[paper.url] || {}).filter(id => selectedTags[paper.url][id]);
     
+    if (isElectron) {
+      // window.electron: papers IPC not yet implemented
+      alert('Saving papers is not yet available in the offline app.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/papers', {
         method: 'POST',
@@ -122,6 +151,10 @@ export default function ResearchSearch() {
   };
 
   const addTagToPaper = async (paperId, tagId) => {
+    if (isElectron) {
+      // window.electron: paper-tag IPC not yet implemented
+      return;
+    }
     try {
       await fetch(`/api/papers/${paperId}/tags`, {
         method: 'POST',
@@ -136,6 +169,10 @@ export default function ResearchSearch() {
   };
 
   const removeTagFromPaper = async (paperId, tagId) => {
+    if (isElectron) {
+      // window.electron: paper-tag IPC not yet implemented
+      return;
+    }
     try {
       await fetch(`/api/papers/${paperId}/tags/${tagId}`, {
         method: 'DELETE',
@@ -339,6 +376,12 @@ function ManualPaperEntry({ tags, onSave }) {
     
     const tagIds = Object.keys(selectedTags).filter(id => selectedTags[id]).map(id => parseInt(id));
     
+    if (isElectron) {
+      // window.electron: paper-save IPC not yet implemented
+      alert('Saving papers is not yet available in the offline app.');
+      return;
+    }
+
     try {
       const response = await fetch('/api/papers', {
         method: 'POST',

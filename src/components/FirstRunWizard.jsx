@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+// Packaged Electron app: /api/config endpoint does not exist. Config is persisted
+// via window.electron.db.updateProfile IPC instead. The fetch below is skipped.
+const isElectron = typeof window !== 'undefined' && !!window.electron;
 import {
   Dialog,
   DialogTitle,
@@ -53,8 +56,8 @@ export default function FirstRunWizard({ open, onComplete }) {
     
     setLoading(true);
     
-    // Try to save config with timeout (HTTP endpoint may not exist in IPC mode)
-    try {
+    // Try to save config with timeout; skip entirely in window.electron (IPC) mode
+    if (!isElectron) try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
       

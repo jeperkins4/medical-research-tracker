@@ -24,6 +24,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:ipc": "playwright test --project=ipc-modules",
+    "test:ipc-coverage": "playwright test --project=ipc-coverage",
     "test:api": "playwright test --project=api-tests"
   },
   "dependencies": {

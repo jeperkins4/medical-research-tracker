@@ -6,6 +6,9 @@
 import { useState, useEffect } from 'react';
 import './DataStatus.css';
 
+// Packaged Electron app has no HTTP server — use IPC instead
+const isElectron = typeof window !== 'undefined' && !!window.electron;
+
 export default function DataStatus({ apiFetch }) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -24,7 +27,23 @@ export default function DataStatus({ apiFetch }) {
     setError(null);
     
     try {
-      // Check multiple endpoints quickly
+      let conditionCount = 0;
+      let medCount = 0;
+
+      if (isElectron) {
+        // Packaged app: use IPC — no HTTP server available
+        const [conditions, meds] = await Promise.all([
+          window.electron.db.getConditions(),
+          window.electron.db.getMedications(),
+        ]);
+        conditionCount = Array.isArray(conditions) ? conditions.length : 0;
+        medCount = Array.isArray(meds) ? meds.length : 0;
+        setStatus({ healthy: true, conditionCount, medCount, endpoints: { health: true, conditions: true, medications: true } });
+        setLastCheck(new Date());
+        return;
+      }
+
+      // Dev server path: check HTTP endpoints
       const [healthRes, conditionsRes, medsRes] = await Promise.allSettled([
         apiFetch('/api/health'),
         apiFetch('/api/conditions'),
@@ -34,10 +53,6 @@ export default function DataStatus({ apiFetch }) {
       const healthOk = healthRes.status === 'fulfilled' && healthRes.value.ok;
       const conditionsOk = conditionsRes.status === 'fulfilled' && conditionsRes.value.ok;
       const medsOk = medsRes.status === 'fulfilled' && medsRes.value.ok;
-      
-      // Get condition count if successful
-      let conditionCount = 0;
-      let medCount = 0;
       
       if (conditionsOk) {
         const conditionsData = await conditionsRes.value.json();

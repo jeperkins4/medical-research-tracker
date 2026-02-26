@@ -38,6 +38,12 @@ export default defineConfig({
       testMatch: '**/ipc-modules.spec.js',
       use: { baseURL: API_BASE },
     },
+    // IPC coverage static analysis — scans JSX for unguarded /api/ calls
+    {
+      name: 'ipc-coverage',
+      testMatch: '**/ipc-coverage.spec.js',
+      use: { baseURL: API_BASE },
+    },
     {
       name: 'chromium',
       testMatch: '**/ui.spec.js',

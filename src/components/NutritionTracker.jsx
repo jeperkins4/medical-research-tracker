@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+// Packaged Electron app has no HTTP nutrition server — IPC handlers not yet implemented.
+// Guard all /api/nutrition/* calls so the component degrades gracefully.
+const isElectron = typeof window !== 'undefined' && !!window.electron;
 import {
   Box,
   Card,
@@ -71,6 +74,11 @@ export default function NutritionTracker() {
   }, []);
   
   const fetchDashboard = async () => {
+    if (isElectron) {
+      // window.electron: no nutrition IPC implemented yet — degrade gracefully
+      setLoading(false);
+      return;
+    }
     try {
       const response = await fetch('/api/nutrition/dashboard');
       const data = await response.json();
@@ -88,6 +96,10 @@ export default function NutritionTracker() {
   };
   
   const fetchFoods = async () => {
+    if (isElectron) {
+      // window.electron: no nutrition IPC implemented yet — degrade gracefully
+      return;
+    }
     try {
       const response = await fetch('/api/nutrition/foods');
       const data = await response.json();
@@ -104,6 +116,12 @@ export default function NutritionTracker() {
       return;
     }
     
+    if (isElectron) {
+      // window.electron: no nutrition IPC implemented yet — log is a no-op in packaged app
+      alert('Nutrition logging is not yet available in the offline app.');
+      return;
+    }
+
     try {
       console.log('Submitting meal:', mealForm);
       
@@ -171,6 +189,12 @@ export default function NutritionTracker() {
       return;
     }
     
+    if (isElectron) {
+      // window.electron: no nutrition IPC implemented yet
+      alert('Meal deletion is not yet available in the offline app.');
+      return;
+    }
+
     try {
       const response = await fetch(`/api/nutrition/meals/${mealId}`, {
         method: 'DELETE'
