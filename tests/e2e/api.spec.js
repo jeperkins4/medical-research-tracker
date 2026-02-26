@@ -233,3 +233,104 @@ test.describe('POST /api/genomics/import-mutations', () => {
     expect(typeof body.imported).toBe('number');
   });
 });
+
+// ── Organ Health HTTP endpoints [REGRESSION: 404 in packaged app] ─────────────
+
+const ORGAN_ENDPOINTS = [
+  { path: '/api/kidney-health', label: 'kidney' },
+  { path: '/api/liver-health',  label: 'liver'  },
+  { path: '/api/lung-health',   label: 'lung'   },
+  { path: '/api/bone-health',   label: 'bone'   },
+];
+
+for (const { path, label } of ORGAN_ENDPOINTS) {
+  test.describe(`GET ${path} [REGRESSION: was 404 in packaged Electron app]`, () => {
+    test(`${label}: returns 200, not 404 or 500`, async ({ request }) => {
+      const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
+      const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+      const res = await request.get(`${API}${path}`, {
+        headers: { Cookie: cookie },
+      });
+
+      expect(res.status()).not.toBe(404);
+      expect(res.status()).not.toBe(500);
+      expect(res.status()).toBe(200);
+    });
+
+    test(`${label}: response has enabled field (never crashes)`, async ({ request }) => {
+      const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
+      const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+      const res = await request.get(`${API}${path}`, {
+        headers: { Cookie: cookie },
+      });
+
+      const body = await res.json();
+      expect(typeof body.enabled).toBe('boolean');
+      expect(body).not.toHaveProperty('error');
+    });
+
+    test(`${label}: requires auth — returns 401 without cookie`, async ({ request }) => {
+      const res = await request.get(`${API}${path}`);
+      expect([401, 403]).toContain(res.status());
+    });
+  });
+}
+
+// ── Analytics dashboard [REGRESSION: 404 in packaged Electron app] ────────────
+
+test.describe('GET /api/analytics/dashboard [REGRESSION: was 404 in packaged Electron app]', () => {
+  test('returns 200, not 404 or 500', async ({ request }) => {
+    const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
+    const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+    const res = await request.get(`${API}/api/analytics/dashboard`, {
+      headers: { Cookie: cookie },
+    });
+
+    expect(res.status()).not.toBe(404);
+    expect(res.status()).not.toBe(500);
+  });
+
+  test('response has enabled field', async ({ request }) => {
+    const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
+    const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+    const res = await request.get(`${API}/api/analytics/dashboard`, {
+      headers: { Cookie: cookie },
+    });
+
+    const body = await res.json();
+    expect(typeof body.enabled).toBe('boolean');
+  });
+
+  test('requires auth — returns 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/analytics/dashboard`);
+    expect([401, 403]).toContain(res.status());
+  });
+});
+
+// ── AI endpoints [REGRESSION: 401 in packaged Electron app] ──────────────────
+
+test.describe('POST /api/ai/healthcare-summary [REGRESSION: 401 in packaged app]', () => {
+  test('returns 200 or graceful error — never 401 when authenticated', async ({ request }) => {
+    const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
+    const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+    const res = await request.post(`${API}/api/ai/healthcare-summary`, {
+      headers: { Cookie: cookie },
+    });
+
+    // May return 500 if no API key in test env — that's fine
+    // Must NOT return 401 (auth failure when logged in)
+    expect(res.status()).not.toBe(401);
+    expect(res.status()).not.toBe(403);
+    expect(res.status()).not.toBe(404);
+  });
+
+  test('requires auth — returns 401 without cookie', async ({ request }) => {
+    const res = await request.post(`${API}/api/ai/healthcare-summary`);
+    expect([401, 403]).toContain(res.status());
+  });
+});

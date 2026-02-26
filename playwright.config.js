@@ -32,6 +32,12 @@ export default defineConfig({
       testMatch: '**/api.spec.js',
       use: { baseURL: API_BASE },
     },
+    // IPC module smoke tests — no HTTP server or browser needed
+    {
+      name: 'ipc-modules',
+      testMatch: '**/ipc-modules.spec.js',
+      use: { baseURL: API_BASE },
+    },
     {
       name: 'chromium',
       testMatch: '**/ui.spec.js',
