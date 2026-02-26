@@ -43,10 +43,29 @@ export async function createUser(username, password) {
 
 /**
  * Login user
+ * In Electron: verify via IPC (fast, direct SQLite), then also hit the HTTP
+ * server to set a session cookie so AI/analysis endpoints (which still use HTTP)
+ * don't return 401.
  */
 export async function loginUser(username, password) {
   if (isElectron) {
-    return window.electron.db.verifyUser(username, password);
+    const ipcResult = await window.electron.db.verifyUser(username, password);
+    if (ipcResult && ipcResult.success) {
+      // Dual login: also authenticate against the Express server so HTTP-based
+      // endpoints (AI analysis, nutrition analysis, etc.) get a valid auth cookie.
+      try {
+        await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+          credentials: 'include',
+        });
+      } catch (err) {
+        // Non-fatal — IPC features still work; HTTP features may 401 if server isn't up.
+        console.warn('[api] HTTP dual-login failed (server may not be running):', err.message);
+      }
+    }
+    return ipcResult;
   }
   
   const res = await fetch('/api/auth/login', {

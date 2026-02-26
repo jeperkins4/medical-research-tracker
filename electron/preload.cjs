@@ -82,6 +82,12 @@ contextBridge.exposeInMainWorld('electron', {
     openFile:       (opts)                => ipcRenderer.invoke('dialog:open-file', opts),
   },
 
+  // AI Analysis (healthcare summary + meal analysis) — works in packaged app without HTTP server
+  ai: {
+    generateHealthcareSummary: ()                              => ipcRenderer.invoke('ai:healthcare-summary'),
+    analyzeMeal:               (description, mealData)         => ipcRenderer.invoke('ai:analyze-meal', description, mealData),
+  },
+
 });
 
 

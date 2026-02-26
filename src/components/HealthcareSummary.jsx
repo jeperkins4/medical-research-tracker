@@ -1,15 +1,18 @@
 import { useState } from 'react';
 
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
+// Use Electron IPC when available (packaged app), fall back to HTTP (web/dev)
+const isElectronAI = typeof window !== 'undefined' && window.electron?.ai?.generateHealthcareSummary;
+
+async function fetchHealthcareSummary() {
+  if (isElectronAI) {
+    return window.electron.ai.generateHealthcareSummary();
+  }
+  const res = await fetch('/api/ai/healthcare-summary', {
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
+    headers: { 'Content-Type': 'application/json' },
   });
-};
+  return res.json();
+}
 
 export default function HealthcareSummary() {
   const [summary, setSummary] = useState(null);
@@ -21,8 +24,7 @@ export default function HealthcareSummary() {
     setError(null);
     
     try {
-      const response = await apiFetch('/api/ai/healthcare-summary');
-      const data = await response.json();
+      const data = await fetchHealthcareSummary();
       
       if (data.error) {
         setError(data.message || data.error);
@@ -30,7 +32,7 @@ export default function HealthcareSummary() {
         setSummary(data);
       }
     } catch (err) {
-      setError('Failed to generate summary. Check server logs.');
+      setError('Failed to generate summary: ' + err.message);
     } finally {
       setLoading(false);
     }

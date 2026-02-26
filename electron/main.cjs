@@ -343,6 +343,37 @@ ipcMain.handle('genomics:import-mutations', (event, mutations, replaceExisting) 
   return db.importFoundationOneMutations(mutations, replaceExisting || false);
 });
 
+// ── AI Analysis (healthcare summary + meal analysis) ──────────────────────
+// Lazy-loaded so startup never fails if the module has an issue.
+
+ipcMain.handle('ai:healthcare-summary', async (_event) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { error: 'ANTHROPIC_API_KEY not configured', message: 'Add ANTHROPIC_API_KEY to your .env file.' };
+    }
+    const { generateHealthcareSummary } = require('./ai-analysis-ipc.cjs');
+    return await generateHealthcareSummary(apiKey);
+  } catch (err) {
+    console.error('[Main] ai:healthcare-summary failed:', err.message);
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('ai:analyze-meal', async (_event, mealDescription, mealData = {}) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { error: 'ANTHROPIC_API_KEY not configured', message: 'Add ANTHROPIC_API_KEY to your .env file.' };
+    }
+    const { analyzeMeal } = require('./ai-analysis-ipc.cjs');
+    return await analyzeMeal(apiKey, mealDescription, mealData);
+  } catch (err) {
+    console.error('[Main] ai:analyze-meal failed:', err.message);
+    return { error: err.message };
+  }
+});
+
 // File dialog for report upload
 ipcMain.handle('dialog:open-file', async (event, options) => {
   const { dialog } = require('electron');

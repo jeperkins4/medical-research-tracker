@@ -19,118 +19,251 @@ const FINDING_COLORS = {
 };
 
 // ── Anatomical region definitions ────────────────────────────────────────────
-// Each has: id, label, cx, cy (marker center), shape info for hit area
+// Coordinates calibrated to the updated high-fidelity body SVG (viewBox 0 0 320 590)
 const REGIONS = {
-  'head':                  { label: 'Head / Brain',           cx: 160, cy: 52  },
-  'neck':                  { label: 'Neck',                   cx: 160, cy: 108 },
-  'left-lung':             { label: 'Left Lung',              cx: 118, cy: 188 },
-  'right-lung':            { label: 'Right Lung',             cx: 202, cy: 188 },
-  'heart':                 { label: 'Heart',                  cx: 152, cy: 188 },
-  'liver':                 { label: 'Liver',                  cx: 198, cy: 250 },
-  'spleen':                { label: 'Spleen',                 cx: 117, cy: 248 },
-  'stomach':               { label: 'Stomach',                cx: 152, cy: 258 },
-  'left-kidney':           { label: 'Left Kidney',            cx: 116, cy: 288 },
-  'right-kidney':          { label: 'Right Kidney',           cx: 198, cy: 288 },
-  'left-adrenal':          { label: 'Left Adrenal',           cx: 122, cy: 268 },
-  'right-adrenal':         { label: 'Right Adrenal',          cx: 192, cy: 268 },
-  'abdominal-lymph-nodes': { label: 'Abdominal Lymph Nodes',  cx: 152, cy: 310 },
-  'bladder':               { label: 'Bladder',                cx: 152, cy: 350 },
-  'pelvis':                { label: 'Pelvis',                  cx: 152, cy: 368 },
-  'left-hip':              { label: 'Left Hip',               cx: 108, cy: 390 },
-  'right-hip':             { label: 'Right Hip',              cx: 196, cy: 390 },
-  'spine':                 { label: 'Spine',                  cx: 152, cy: 270 },
-  'left-shoulder':         { label: 'Left Shoulder',          cx: 98,  cy: 140 },
-  'right-shoulder':        { label: 'Right Shoulder',         cx: 222, cy: 140 },
-  'left-arm':              { label: 'Left Arm',               cx: 80,  cy: 238 },
-  'right-arm':             { label: 'Right Arm',              cx: 240, cy: 238 },
-  'left-leg':              { label: 'Left Leg',               cx: 124, cy: 480 },
-  'right-leg':             { label: 'Right Leg',              cx: 188, cy: 480 },
-  'peritoneum':            { label: 'Peritoneum',             cx: 152, cy: 300 },
-  'soft-tissue':           { label: 'Soft Tissue',            cx: 152, cy: 220 },
-  'left-lymph-node':       { label: 'Left Lymph Node',        cx: 100, cy: 170 },
-  'right-lymph-node':      { label: 'Right Lymph Node',       cx: 210, cy: 170 },
+  'head':                  { label: 'Head / Brain',           cx: 160, cy: 48  },
+  'neck':                  { label: 'Neck',                   cx: 160, cy: 112 },
+  'left-lung':             { label: 'Left Lung',              cx: 112, cy: 200 },
+  'right-lung':            { label: 'Right Lung',             cx: 208, cy: 200 },
+  'heart':                 { label: 'Heart',                  cx: 160, cy: 176 },
+  'liver':                 { label: 'Liver',                  cx: 196, cy: 244 },
+  'spleen':                { label: 'Spleen',                 cx: 102, cy: 264 },
+  'stomach':               { label: 'Stomach',                cx: 146, cy: 256 },
+  'left-kidney':           { label: 'Left Kidney',            cx: 104, cy: 304 },
+  'right-kidney':          { label: 'Right Kidney',           cx: 216, cy: 304 },
+  'left-adrenal':          { label: 'Left Adrenal',           cx: 104, cy: 280 },
+  'right-adrenal':         { label: 'Right Adrenal',          cx: 216, cy: 280 },
+  'abdominal-lymph-nodes': { label: 'Abdominal Lymph Nodes',  cx: 160, cy: 318 },
+  'bladder':               { label: 'Bladder',                cx: 160, cy: 348 },
+  'pelvis':                { label: 'Pelvis',                 cx: 160, cy: 378 },
+  'left-hip':              { label: 'Left Hip',               cx: 104, cy: 398 },
+  'right-hip':             { label: 'Right Hip',              cx: 216, cy: 398 },
+  'spine':                 { label: 'Spine',                  cx: 160, cy: 240 },
+  'left-shoulder':         { label: 'Left Shoulder',          cx: 94,  cy: 138 },
+  'right-shoulder':        { label: 'Right Shoulder',         cx: 226, cy: 138 },
+  'left-arm':              { label: 'Left Arm',               cx: 68,  cy: 260 },
+  'right-arm':             { label: 'Right Arm',              cx: 252, cy: 260 },
+  'left-leg':              { label: 'Left Leg',               cx: 114, cy: 528 },
+  'right-leg':             { label: 'Right Leg',              cx: 206, cy: 528 },
+  'peritoneum':            { label: 'Peritoneum',             cx: 160, cy: 302 },
+  'soft-tissue':           { label: 'Soft Tissue',            cx: 160, cy: 222 },
+  'left-lymph-node':       { label: 'Left Lymph Node',        cx: 98,  cy: 166 },
+  'right-lymph-node':      { label: 'Right Lymph Node',       cx: 222, cy: 166 },
 };
 
 // ── SVG Body outline paths ──────────────────────────────────────────────────
 function BodyOutlineSVG() {
   return (
     <g>
-      {/* Body outline */}
       <defs>
-        <filter id="body-shadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#0f172a" floodOpacity="0.08" />
+        <filter id="body-shadow" x="-15%" y="-5%" width="130%" height="115%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="#0f172a" floodOpacity="0.10" />
         </filter>
+        <filter id="organ-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        <linearGradient id="skin-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#e8d5c4" />
+          <stop offset="50%" stopColor="#f5e6d8" />
+          <stop offset="100%" stopColor="#e8d5c4" />
+        </linearGradient>
+        <linearGradient id="skin-grad-v" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f5e6d8" />
+          <stop offset="100%" stopColor="#e2c9b5" />
+        </linearGradient>
       </defs>
 
-      {/* Head */}
-      <ellipse cx="160" cy="52" rx="36" ry="42" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" filter="url(#body-shadow)" />
-      {/* Facial features (subtle) */}
-      <ellipse cx="149" cy="56" rx="4" ry="4.5" fill="#e2e8f0" /> {/* left eye */}
-      <ellipse cx="171" cy="56" rx="4" ry="4.5" fill="#e2e8f0" /> {/* right eye */}
-      <path d="M 152 68 Q 160 74 168 68" stroke="#cbd5e1" strokeWidth="1" fill="none" /> {/* mouth */}
+      {/* ── HEAD ─────────────────────────────────────────────────── */}
+      {/* Skull / cranium */}
+      <ellipse cx="160" cy="50" rx="38" ry="44" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.5" filter="url(#body-shadow)" />
+      {/* Jaw / lower face narrowing */}
+      <path d="M 130 68 Q 125 82 132 92 Q 145 100 160 101 Q 175 100 188 92 Q 195 82 190 68"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.5" />
+      {/* Ear left */}
+      <path d="M 122 48 Q 116 52 116 60 Q 116 68 122 72 Q 126 70 126 60 Q 126 50 122 48 Z"
+            fill="#e8d5c4" stroke="#c4a882" strokeWidth="1" />
+      {/* Ear right */}
+      <path d="M 198 48 Q 204 52 204 60 Q 204 68 198 72 Q 194 70 194 60 Q 194 50 198 48 Z"
+            fill="#e8d5c4" stroke="#c4a882" strokeWidth="1" />
+      {/* Eye sockets */}
+      <ellipse cx="148" cy="54" rx="7" ry="5.5" fill="#c8b09a" fillOpacity="0.35" />
+      <ellipse cx="172" cy="54" rx="7" ry="5.5" fill="#c8b09a" fillOpacity="0.35" />
+      {/* Pupils */}
+      <ellipse cx="148" cy="54" rx="3.5" ry="3.5" fill="#6b4c3b" fillOpacity="0.6" />
+      <ellipse cx="172" cy="54" rx="3.5" ry="3.5" fill="#6b4c3b" fillOpacity="0.6" />
+      {/* Nose */}
+      <path d="M 157 62 Q 155 74 152 78 Q 156 80 160 80 Q 164 80 168 78 Q 165 74 163 62 Z"
+            fill="#c4a882" fillOpacity="0.3" stroke="none" />
+      {/* Mouth */}
+      <path d="M 151 87 Q 156 91 160 91 Q 164 91 169 87" stroke="#a07850" strokeWidth="1.2" fill="none" strokeLinecap="round" />
 
-      {/* Neck */}
-      <rect x="147" y="90" width="26" height="22" rx="4" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* ── NECK ─────────────────────────────────────────────────── */}
+      <path d="M 148 98 Q 145 100 144 108 L 144 122 Q 152 125 160 125 Q 168 125 176 122 L 176 108 Q 175 100 172 98 Z"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.5" />
+      {/* Clavicle hints */}
+      <path d="M 100 130 Q 128 122 144 124" stroke="#c4a882" strokeWidth="1" fill="none" strokeOpacity="0.6" />
+      <path d="M 220 130 Q 192 122 176 124" stroke="#c4a882" strokeWidth="1" fill="none" strokeOpacity="0.6" />
 
-      {/* Torso */}
-      <path d="M 100 110 Q 90 120 88 145 L 88 320 Q 88 335 100 338 L 220 338 Q 232 335 232 320 L 232 145 Q 230 120 220 110 Z"
-            fill="#f8fafc" stroke="#cbd5e1" strokeWidth="1.5" filter="url(#body-shadow)" />
+      {/* ── TORSO ────────────────────────────────────────────────── */}
+      {/* Main torso — chest wider, waist narrower, hips flare */}
+      <path d="
+        M 108 124
+        Q  92 128  88 148
+        L  86 210
+        Q  84 230  88 248
+        Q  90 262  96 272
+        L  96 330
+        Q  96 342 108 344
+        L 212 344
+        Q 224 342 224 330
+        L 224 272
+        Q 230 262 232 248
+        Q 236 230 234 210
+        L 232 148
+        Q 228 128 212 124
+        Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.5" filter="url(#body-shadow)" />
+      {/* Chest midline crease */}
+      <line x1="160" y1="126" x2="160" y2="210" stroke="#c4a882" strokeWidth="0.6" strokeOpacity="0.4" />
+      {/* Pectoral contour lines */}
+      <path d="M 108 148 Q 132 140 156 148" stroke="#c4a882" strokeWidth="0.8" fill="none" strokeOpacity="0.35" />
+      <path d="M 212 148 Q 188 140 164 148" stroke="#c4a882" strokeWidth="0.8" fill="none" strokeOpacity="0.35" />
+      {/* Rib cage hint */}
+      {[168, 182, 196, 210].map((y, i) => (
+        <path key={i}
+          d={`M 96 ${y} Q 128 ${y - 4} 156 ${y}`}
+          stroke="#c4a882" strokeWidth="0.6" fill="none" strokeOpacity="0.25" />
+      ))}
+      {[168, 182, 196, 210].map((y, i) => (
+        <path key={i + 10}
+          d={`M 224 ${y} Q 192 ${y - 4} 164 ${y}`}
+          stroke="#c4a882" strokeWidth="0.6" fill="none" strokeOpacity="0.25" />
+      ))}
+      {/* Navel */}
+      <ellipse cx="160" cy="254" rx="4" ry="3" fill="#c4a882" fillOpacity="0.4" />
+      {/* Waist taper crease */}
+      <path d="M 90 240 Q 100 244 108 243" stroke="#c4a882" strokeWidth="0.7" fill="none" strokeOpacity="0.3" />
+      <path d="M 230 240 Q 220 244 212 243" stroke="#c4a882" strokeWidth="0.7" fill="none" strokeOpacity="0.3" />
 
-      {/* Shoulders */}
-      <ellipse cx="100" cy="135" rx="22" ry="18" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
-      <ellipse cx="220" cy="135" rx="22" ry="18" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* ── SHOULDERS ────────────────────────────────────────────── */}
+      <ellipse cx="96"  cy="138" rx="26" ry="20" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
+      <ellipse cx="224" cy="138" rx="26" ry="20" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
 
-      {/* Left arm */}
-      <path d="M 84 142 Q 72 155 68 200 L 68 300 Q 68 312 76 312 L 90 312 Q 98 312 98 300 L 98 198 Q 97 155 110 142 Z"
-            fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* ── ARMS ─────────────────────────────────────────────────── */}
+      {/* Left arm — upper, elbow, forearm, hand */}
+      <path d="M 76 148 Q 64 160 60 192 Q 58 216 62 230 Q 66 242 72 244 L 76 244 Q 76 232 74 218 Q 72 200 78 182 Q 84 162 96 150 Z"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
+      <path d="M 62 230 Q 58 250 58 280 L 58 308 Q 58 318 66 320 L 78 320 Q 86 318 86 308 L 86 276 Q 87 256 76 244 Z"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
+      {/* Left hand */}
+      <ellipse cx="72" cy="324" rx="10" ry="7" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1" />
 
       {/* Right arm */}
-      <path d="M 236 142 Q 248 155 252 200 L 252 300 Q 252 312 244 312 L 230 312 Q 222 312 222 300 L 222 198 Q 223 155 210 142 Z"
-            fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      <path d="M 244 148 Q 256 160 260 192 Q 262 216 258 230 Q 254 242 248 244 L 244 244 Q 244 232 246 218 Q 248 200 242 182 Q 236 162 224 150 Z"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
+      <path d="M 258 230 Q 262 250 262 280 L 262 308 Q 262 318 254 320 L 242 320 Q 234 318 234 308 L 234 276 Q 233 256 244 244 Z"
+            fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.3" />
+      {/* Right hand */}
+      <ellipse cx="248" cy="324" rx="10" ry="7" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1" />
 
-      {/* Pelvis */}
-      <path d="M 100 335 Q 88 345 86 365 L 90 385 Q 100 398 160 398 Q 220 398 230 385 L 234 365 Q 232 345 220 335 Z"
-            fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* ── PELVIS / HIPS ─────────────────────────────────────────── */}
+      <path d="M 96 338 Q 82 348 80 368 Q 80 386 94 396 Q 114 404 160 404 Q 206 404 226 396 Q 240 386 240 368 Q 240 348 224 338 Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.5" />
+      {/* Hip crease lines */}
+      <path d="M 98 356 Q 116 362 132 360" stroke="#c4a882" strokeWidth="0.7" fill="none" strokeOpacity="0.35" />
+      <path d="M 222 356 Q 204 362 188 360" stroke="#c4a882" strokeWidth="0.7" fill="none" strokeOpacity="0.35" />
 
-      {/* Left leg */}
-      <path d="M 106 392 Q 96 405 94 430 L 94 540 Q 94 552 106 552 L 138 552 Q 150 552 150 540 L 150 428 Q 150 405 142 392 Z"
-            fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* ── LEGS ─────────────────────────────────────────────────── */}
+      {/* Left thigh */}
+      <path d="M 98 396 Q 88 408 86 432 Q 84 455 88 472 L 92 482 Q 100 488 118 488 Q 132 488 138 480 L 140 470 Q 142 452 140 430 Q 138 408 130 396 Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.4" />
+      {/* Left knee */}
+      <ellipse cx="114" cy="488" rx="22" ry="12" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.2" />
+      {/* Left calf */}
+      <path d="M 94 496 Q 90 516 91 540 Q 92 556 100 562 L 126 562 Q 136 556 136 540 Q 136 516 132 496 Q 126 490 114 488 Q 102 490 94 496 Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.3" />
+      {/* Left foot */}
+      <ellipse cx="113" cy="564" rx="20" ry="8" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1" />
+      <path d="M 96 566 Q 96 572 94 574 M 104 568 Q 104 574 102 576 M 113 569 Q 113 575 111 577 M 122 568 Q 122 574 120 576 M 130 566 Q 130 572 128 574"
+            stroke="#c4a882" strokeWidth="1" strokeLinecap="round" fill="none" strokeOpacity="0.5" />
 
-      {/* Right leg */}
-      <path d="M 170 392 Q 170 405 170 428 L 170 540 Q 170 552 182 552 L 214 552 Q 226 552 226 540 L 226 428 Q 224 405 214 392 Z"
-            fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="1.5" />
+      {/* Right thigh */}
+      <path d="M 222 396 Q 232 408 234 432 Q 236 455 232 472 L 228 482 Q 220 488 202 488 Q 188 488 182 480 L 180 470 Q 178 452 180 430 Q 182 408 190 396 Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.4" />
+      {/* Right knee */}
+      <ellipse cx="206" cy="488" rx="22" ry="12" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1.2" />
+      {/* Right calf */}
+      <path d="M 226 496 Q 230 516 229 540 Q 228 556 220 562 L 194 562 Q 184 556 184 540 Q 184 516 188 496 Q 194 490 206 488 Q 218 490 226 496 Z"
+            fill="url(#skin-grad-v)" stroke="#c4a882" strokeWidth="1.3" />
+      {/* Right foot */}
+      <ellipse cx="207" cy="564" rx="20" ry="8" fill="url(#skin-grad)" stroke="#c4a882" strokeWidth="1" />
+      <path d="M 190 566 Q 190 572 188 574 M 198 568 Q 198 574 196 576 M 207 569 Q 207 575 205 577 M 216 568 Q 216 574 214 576 M 224 566 Q 224 572 222 574"
+            stroke="#c4a882" strokeWidth="1" strokeLinecap="round" fill="none" strokeOpacity="0.5" />
 
-      {/* Internal organ outlines (subtle) */}
-      {/* Lungs */}
-      <path d="M 110 148 Q 100 165 100 195 Q 100 228 115 240 Q 130 248 138 232 L 140 148 Z"
-            fill="#dbeafe" fillOpacity="0.5" stroke="#93c5fd" strokeWidth="1" />
-      <path d="M 210 148 Q 220 165 220 195 Q 220 228 205 240 Q 190 248 182 232 L 180 148 Z"
-            fill="#dbeafe" fillOpacity="0.5" stroke="#93c5fd" strokeWidth="1" />
+      {/* ── INTERNAL ORGANS ──────────────────────────────────────── */}
 
-      {/* Heart */}
-      <path d="M 145 172 Q 140 165 148 162 Q 156 159 162 168 Q 168 159 174 162 Q 182 165 175 172 L 160 194 Z"
-            fill="#fecaca" fillOpacity="0.6" stroke="#fca5a5" strokeWidth="1" />
+      {/* Left Lung */}
+      <path d="M 100 150 Q 92 168 90 196 Q 88 222 96 240 Q 106 254 122 256 Q 134 254 138 242 Q 142 228 140 196 L 140 150 Z"
+            fill="#93c5fd" fillOpacity="0.28" stroke="#3b82f6" strokeWidth="1.2" strokeOpacity="0.55" />
+      {/* Right Lung */}
+      <path d="M 220 150 Q 228 168 230 196 Q 232 222 224 240 Q 214 254 198 256 Q 186 254 182 242 Q 178 228 180 196 L 180 150 Z"
+            fill="#93c5fd" fillOpacity="0.28" stroke="#3b82f6" strokeWidth="1.2" strokeOpacity="0.55" />
+      {/* Bronchi / airway */}
+      <path d="M 160 134 L 160 158 M 160 158 Q 150 162 140 162 M 160 158 Q 170 162 180 162"
+            stroke="#60a5fa" strokeWidth="1.2" fill="none" strokeOpacity="0.5" />
 
-      {/* Liver */}
-      <path d="M 162 228 Q 205 224 214 248 Q 210 268 190 268 Q 168 268 158 255 Q 154 245 162 228 Z"
-            fill="#fed7aa" fillOpacity="0.5" stroke="#fdba74" strokeWidth="1" />
+      {/* Heart — more realistic double-lobe shape */}
+      <path d="M 152 174 Q 144 164 148 158 Q 154 154 160 160 Q 166 154 172 158 Q 176 164 168 174 Q 164 184 160 196 Q 156 184 152 174 Z"
+            fill="#f87171" fillOpacity="0.55" stroke="#dc2626" strokeWidth="1.2" strokeOpacity="0.7" />
+      {/* Aorta stub */}
+      <path d="M 160 158 Q 158 150 162 144 Q 166 140 168 136"
+            stroke="#dc2626" strokeWidth="1.2" fill="none" strokeOpacity="0.45" />
+
+      {/* Liver — right lobe larger */}
+      <path d="M 160 228 Q 164 220 200 220 Q 218 222 218 244 Q 216 264 196 270 Q 176 274 162 264 Q 154 256 156 242 Q 156 234 160 228 Z"
+            fill="#fb923c" fillOpacity="0.35" stroke="#ea580c" strokeWidth="1.2" strokeOpacity="0.6" />
+      {/* Gallbladder */}
+      <ellipse cx="182" cy="272" rx="9" ry="6" fill="#fde68a" fillOpacity="0.55" stroke="#d97706" strokeWidth="0.8" />
+
+      {/* Stomach */}
+      <path d="M 140 232 Q 134 240 134 258 Q 134 272 142 278 Q 154 282 162 274 Q 168 266 166 250 Q 164 234 156 228 Q 148 226 140 232 Z"
+            fill="#a3e635" fillOpacity="0.30" stroke="#65a30d" strokeWidth="1" strokeOpacity="0.55" />
 
       {/* Spleen */}
-      <ellipse cx="116" cy="248" rx="18" ry="22" fill="#e9d5ff" fillOpacity="0.5" stroke="#c4b5fd" strokeWidth="1" />
+      <path d="M 96 246 Q 88 250 88 262 Q 88 276 96 280 Q 106 284 114 278 Q 120 272 118 260 Q 116 248 106 244 Q 100 242 96 246 Z"
+            fill="#c084fc" fillOpacity="0.35" stroke="#9333ea" strokeWidth="1.1" strokeOpacity="0.55" />
 
-      {/* Kidneys */}
-      <ellipse cx="116" cy="286" rx="14" ry="20" fill="#fde68a" fillOpacity="0.5" stroke="#fcd34d" strokeWidth="1" />
-      <ellipse cx="200" cy="286" rx="14" ry="20" fill="#fde68a" fillOpacity="0.5" stroke="#fcd34d" strokeWidth="1" />
+      {/* Pancreas */}
+      <path d="M 138 278 Q 150 274 170 276 Q 182 278 188 282 Q 178 288 162 288 Q 148 288 138 284 Z"
+            fill="#fdba74" fillOpacity="0.40" stroke="#f97316" strokeWidth="0.9" strokeOpacity="0.5" />
+
+      {/* Left Kidney */}
+      <path d="M 96 282 Q 88 288 88 302 Q 88 318 96 324 Q 106 330 114 326 Q 122 320 122 306 Q 122 290 114 284 Q 106 280 96 282 Z"
+            fill="#fde68a" fillOpacity="0.45" stroke="#ca8a04" strokeWidth="1.1" strokeOpacity="0.6" />
+      {/* Right Kidney */}
+      <path d="M 224 282 Q 232 288 232 302 Q 232 318 224 324 Q 214 330 206 326 Q 198 320 198 306 Q 198 290 206 284 Q 214 280 224 282 Z"
+            fill="#fde68a" fillOpacity="0.45" stroke="#ca8a04" strokeWidth="1.1" strokeOpacity="0.6" />
+      {/* Adrenal glands */}
+      <ellipse cx="104" cy="280" rx="7" ry="5" fill="#fbbf24" fillOpacity="0.5" stroke="#d97706" strokeWidth="0.8" />
+      <ellipse cx="216" cy="280" rx="7" ry="5" fill="#fbbf24" fillOpacity="0.5" stroke="#d97706" strokeWidth="0.8" />
+
+      {/* Large intestine (colon frame) */}
+      <path d="M 106 294 Q 102 310 104 332 Q 106 342 120 344 L 200 344 Q 214 342 216 332 Q 218 310 214 294 Q 210 282 200 282 Q 196 294 192 306 Q 182 318 160 318 Q 138 318 128 306 Q 124 294 120 282 Q 110 282 106 294 Z"
+            fill="#86efac" fillOpacity="0.22" stroke="#22c55e" strokeWidth="0.9" strokeOpacity="0.45" />
 
       {/* Bladder */}
-      <ellipse cx="160" cy="318" rx="22" ry="18" fill="#d1fae5" fillOpacity="0.5" stroke="#6ee7b7" strokeWidth="1" />
+      <path d="M 142 328 Q 136 334 136 346 Q 136 360 144 366 Q 152 372 168 372 Q 184 372 190 366 Q 198 360 198 346 Q 198 334 190 328 Q 180 322 160 322 Q 150 322 142 328 Z"
+            fill="#6ee7b7" fillOpacity="0.40" stroke="#10b981" strokeWidth="1.2" strokeOpacity="0.65" />
 
-      {/* Spine */}
-      <rect x="154" y="148" width="12" height="180" rx="4" fill="#e2e8f0" fillOpacity="0.6" stroke="#cbd5e1" strokeWidth="0.5" />
+      {/* Uterus / Prostate placeholder (subtle) */}
+      <ellipse cx="160" cy="378" rx="14" ry="9" fill="#c4b5fd" fillOpacity="0.25" stroke="#8b5cf6" strokeWidth="0.8" strokeOpacity="0.4" />
 
-      {/* Spine vertebrae dots */}
-      {[158, 175, 192, 209, 226, 243, 260, 277, 294, 308].map((y, i) => (
-        <rect key={i} x="155" y={y} width="10" height="8" rx="2" fill="#f1f5f9" stroke="#94a3b8" strokeWidth="0.5" />
+      {/* ── SPINE ────────────────────────────────────────────────── */}
+      <rect x="155" y="138" width="10" height="194" rx="4" fill="#cbd5e1" fillOpacity="0.5" stroke="#94a3b8" strokeWidth="0.7" />
+      {/* Vertebrae */}
+      {[142, 157, 172, 187, 202, 217, 232, 247, 262, 277, 292, 306, 318].map((y, i) => (
+        <rect key={i} x="155.5" y={y} width="9" height="7" rx="2" fill="#f0f4f8" stroke="#94a3b8" strokeWidth="0.5" />
       ))}
     </g>
   );
@@ -277,9 +410,9 @@ export default function BodyDiagram({ findings = [], markers = [], onMarkersChan
         )}
 
         <svg
-          viewBox="0 0 320 570"
-          width={260}
-          height={464}
+          viewBox="0 0 320 590"
+          width={272}
+          height={500}
           style={{
             background: '#ffffff',
             borderRadius: 16,

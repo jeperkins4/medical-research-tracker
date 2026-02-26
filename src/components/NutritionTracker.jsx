@@ -197,20 +197,33 @@ export default function NutritionTracker() {
     }
     
     try {
-      const response = await fetch('/api/nutrition/analyze-meal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mealId: meal.id,
-          description: meal.description,
+      let data;
+      const isElectronAI = typeof window !== 'undefined' && window.electron?.ai?.analyzeMeal;
+
+      if (isElectronAI) {
+        // Packaged Electron app: use IPC (no HTTP server)
+        data = await window.electron.ai.analyzeMeal(meal.description, {
           treatment_phase: meal.treatment_phase,
-          energy_level: meal.energy_level,
-          nausea_level: meal.nausea_level,
-          forceReanalyze
-        })
-      });
-      
-      const data = await response.json();
+          energy_level:    meal.energy_level,
+          nausea_level:    meal.nausea_level,
+        });
+      } else {
+        // Web / dev mode: use HTTP
+        const response = await fetch('/api/nutrition/analyze-meal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            mealId:          meal.id,
+            description:     meal.description,
+            treatment_phase: meal.treatment_phase,
+            energy_level:    meal.energy_level,
+            nausea_level:    meal.nausea_level,
+            forceReanalyze,
+          }),
+        });
+        data = await response.json();
+      }
       
       if (data.success) {
         setCurrentAnalysis({

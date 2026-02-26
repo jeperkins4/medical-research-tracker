@@ -1301,9 +1301,13 @@ function deleteMedicalDocument(id) {
 
 // ── Subscription Tracker ─────────────────────────────────────────────────────
 
+/** Expose the raw better-sqlite3 instance for modules that need ad-hoc queries. */
+function _rawDb() { return db; }
+
 module.exports = {
   initDatabase,
   needsSetup,
+  _rawDb,
   createUser,
   verifyUser,
   getProfile,
