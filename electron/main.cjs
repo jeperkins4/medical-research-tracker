@@ -3,6 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
+// ── Playwright browser path ────────────────────────────────────────────────
+// Must be set BEFORE playwright is required anywhere.
+// Points browsers to user data dir (writable, outside the app bundle).
+// This avoids bundling Chromium in the DMG and codesign failures on locale.pak files.
+{
+  const userDataPath = app.getPath('userData');
+  const browsersPath = path.join(userDataPath, 'browsers');
+  if (!fs.existsSync(browsersPath)) fs.mkdirSync(browsersPath, { recursive: true });
+  process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
+}
+
 // Load .env — works in dev mode and from extraResources in packaged app
 try {
   const dotenv = require('dotenv');
@@ -295,8 +306,33 @@ ipcMain.handle('vault:delete-credential', (event, id) => {
 // Portal sync IPC handlers
 const portalSync = require('./portal-sync-ipc.cjs');
 
+// Ensure Playwright Chromium is installed before syncing
+async function ensurePlaywrightBrowser() {
+  const { execFile } = require('child_process');
+  const { promisify } = require('util');
+  const execFileAsync = promisify(execFile);
+  try {
+    const { chromium } = require('playwright');
+    chromium.executablePath(); // throws if not installed
+    console.log('[Playwright] Browser already installed');
+  } catch {
+    console.log('[Playwright] Installing Chromium browser...');
+    try {
+      await execFileAsync(process.execPath, [
+        path.join(__dirname, '../node_modules/playwright/cli.js'),
+        'install', 'chromium'
+      ], { env: { ...process.env }, timeout: 120000 });
+      console.log('[Playwright] Chromium installed successfully');
+    } catch (e) {
+      console.error('[Playwright] Install failed:', e.message);
+      throw new Error('Chromium browser could not be installed. Check your internet connection.');
+    }
+  }
+}
+
 ipcMain.handle('portal:sync', async (event, credentialId) => {
   try {
+    await ensurePlaywrightBrowser();
     const userDataPath = app.getPath('userData');
     const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
     const result = await portalSync.syncPortal(credentialId, dbPath);

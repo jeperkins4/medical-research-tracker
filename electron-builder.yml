@@ -3,7 +3,7 @@ productName: MyTreatmentPath
 copyright: Copyright © 2026 John Perkins
 npmRebuild: true
 nodeGypRebuild: false
-buildDependenciesFromSource: false
+buildDependenciesFromSource: true
 asarUnpack:
   - node_modules/better-sqlite3/**/*
   - node_modules/bindings/**/*
@@ -37,6 +37,9 @@ files:
   - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
   - "!**/{appveyor.yml,.travis.yml,circle.yml}"
   - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+  - "!**/playwright-core/.local-browsers/**/*"
+  - "!**/playwright/.local-browsers/**/*"
+  - "!**/playwright-core/browsers/**/*"
 
 extraResources:
   - from: data
@@ -58,6 +61,7 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   identity: "DA7B788C70B5FD6A1507950B3F31B7ACC32EDA1B"
   notarize: true
+  timestamp: "http://timestamp.apple.com/ts01"
 
 dmg:
   sign: true

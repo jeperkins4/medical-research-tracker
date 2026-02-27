@@ -6,7 +6,7 @@
 const { chromium } = require('playwright');
 const { tmpdir } = require('os');
 const { join } = require('path');
-const { existsSync, readFileSync, writeFileSync, unlinkSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, unlinkSync, readdirSync } = require('fs');
 const Database = require('better-sqlite3');
 const { getVault } = require('./vault-ipc.cjs');
 
@@ -152,15 +152,42 @@ async function syncPortal(credentialId, dbPath) {
  * CareSpace Portal scraper
  */
 async function syncCareSpace(credential, database) {
-  // In a packaged Electron app the ASAR virtual FS can't resolve Playwright's
-  // internal browser registry — pass the executable path explicitly.
+  // Resolve Chromium executable — check multiple locations in priority order:
+  // 1. Playwright's resolved path (respects PLAYWRIGHT_BROWSERS_PATH env var)
+  // 2. userData/browsers (our managed install location)
+  // 3. ms-playwright system cache (~/Library/Caches/ms-playwright)
+  // 4. Let Playwright auto-detect (fallback)
   let executablePath;
+  const { homedir } = require('os');
+  const { execSync } = require('child_process');
+
+  const candidatePaths = [];
+
+  // 1. Playwright resolves via PLAYWRIGHT_BROWSERS_PATH env
+  try { candidatePaths.push(chromium.executablePath()); } catch (_) {}
+
+  // 2. ms-playwright system cache (macOS)
   try {
-    executablePath = chromium.executablePath();
-    console.log('  → Chromium path:', executablePath);
-  } catch (e) {
-    console.warn('  → chromium.executablePath() failed, falling back to auto-detect');
+    const msCache = join(homedir(), 'Library', 'Caches', 'ms-playwright');
+    if (existsSync(msCache)) {
+      const dirs = readdirSync(msCache).filter(d => d.startsWith('chromium-')).sort().reverse();
+      for (const d of dirs) {
+        const p = join(msCache, d, 'chrome-mac-arm64', 'Google Chrome for Testing.app',
+                       'Contents', 'MacOS', 'Google Chrome for Testing');
+        candidatePaths.push(p);
+        // Intel fallback
+        const pIntel = join(msCache, d, 'chrome-mac', 'Chromium.app', 'Contents', 'MacOS', 'Chromium');
+        candidatePaths.push(pIntel);
+      }
+    }
+  } catch (_) {}
+
+  for (const p of candidatePaths) {
+    if (p && existsSync(p)) { executablePath = p; break; }
   }
+
+  console.log('  → Chromium path:', executablePath || '(auto-detect)');
+
 
   const browser = await chromium.launch({
     headless: true,

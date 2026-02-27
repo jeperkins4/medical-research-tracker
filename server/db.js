@@ -277,6 +277,25 @@ const initDb = () => {
       created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- ── Appointments ──────────────────────────────────────────────────────
+    CREATE TABLE IF NOT EXISTS appointments (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      portal_type      TEXT,
+      credential_id    INTEGER,
+      appointment_date TEXT    NOT NULL,
+      appointment_time TEXT,
+      provider         TEXT,
+      department       TEXT,
+      location         TEXT,
+      visit_type       TEXT,
+      status           TEXT    DEFAULT 'upcoming'
+                         CHECK (status IN ('upcoming','completed','cancelled','unknown')),
+      notes            TEXT,
+      source_id        TEXT    UNIQUE,
+      created_at       TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at       TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- ── Exercise Tracker ──────────────────────────────────────────────────
     CREATE TABLE IF NOT EXISTS exercise_logs (
       id             INTEGER PRIMARY KEY AUTOINCREMENT,
