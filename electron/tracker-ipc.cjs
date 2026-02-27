@@ -16,7 +16,45 @@ function getDb(app) {
   const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
   _db = new Database(dbPath);
   _db.pragma('journal_mode = WAL');
+  _ensureTables(_db);
   return _db;
+}
+
+function _ensureTables(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS exercise_logs (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      date           TEXT    NOT NULL,
+      time           TEXT,
+      type           TEXT    NOT NULL,
+      duration_min   INTEGER,
+      intensity      TEXT    CHECK (intensity IN ('low','moderate','high')),
+      distance_miles REAL,
+      calories       INTEGER,
+      heart_rate_avg INTEGER,
+      heart_rate_max INTEGER,
+      steps          INTEGER,
+      sets           INTEGER,
+      reps           INTEGER,
+      weight_lbs     REAL,
+      notes          TEXT,
+      created_at     TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pain_logs (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      date         TEXT    NOT NULL,
+      time         TEXT,
+      pain_level   INTEGER NOT NULL CHECK (pain_level BETWEEN 0 AND 10),
+      location     TEXT,
+      type         TEXT    CHECK (type IN ('aching','burning','sharp','throbbing','pressure','tingling','other')),
+      triggers     TEXT,
+      relieved_by  TEXT,
+      duration_min INTEGER,
+      notes        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 }
 
 // ─── Exercise ─────────────────────────────────────────────────────────────────

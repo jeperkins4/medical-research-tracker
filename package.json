@@ -1,6 +1,6 @@
 {
   "name": "medical-research-tracker",
-  "version": "0.1.64",
+  "version": "0.1.65",
   "private": true,
   "description": "Personal health records and medical research discovery tool",
   "author": "John Perkins <john@mytreatmentpath.com>",
