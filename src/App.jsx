@@ -12,6 +12,8 @@ import NutritionTracker from './components/NutritionTracker';
 import KidneyHealthTracker from './components/KidneyHealthTracker';
 import LiverHealthTracker from './components/LiverHealthTracker';
 import LungHealthTracker from './components/LungHealthTracker';
+import ExerciseTracker from './components/ExerciseTracker';
+import PainTracker from './components/PainTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import MedicationManager from './components/MedicationManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
@@ -1483,6 +1485,18 @@ function TreatmentView() {
         >
           🫁 Lung Health
         </button>
+        <button
+          className={subTab === 'exercise' ? 'active' : ''}
+          onClick={() => setSubTab('exercise')}
+        >
+          🏋️ Exercise
+        </button>
+        <button
+          className={subTab === 'pain' ? 'active' : ''}
+          onClick={() => setSubTab('pain')}
+        >
+          🩹 Pain
+        </button>
       </div>
       
       {subTab === 'medications' && <MedicationManager apiFetch={apiFetch} />}
@@ -1491,6 +1505,8 @@ function TreatmentView() {
       {subTab === 'kidney' && <KidneyHealthTracker apiFetch={apiFetch} />}
       {subTab === 'liver' && <LiverHealthTracker apiFetch={apiFetch} />}
       {subTab === 'lung' && <LungHealthTracker apiFetch={apiFetch} />}
+      {subTab === 'exercise' && <ExerciseTracker />}
+      {subTab === 'pain' && <PainTracker />}
     </div>
   );
 }

@@ -648,6 +648,20 @@ ipcMain.handle('genomics:search-trials', async (event, mutations) => {
   }
 });
 
+// ─── Exercise & Pain Tracker IPC ──────────────────────────────────────────────
+const trackerIpc = require('./tracker-ipc.cjs');
+
+ipcMain.handle('tracker:exercise:get',        (_e, opts)    => trackerIpc.getExerciseLogs(app, opts));
+ipcMain.handle('tracker:exercise:add',        (_e, data)    => trackerIpc.addExerciseLog(app, data));
+ipcMain.handle('tracker:exercise:update',     (_e, id, d)   => trackerIpc.updateExerciseLog(app, id, d));
+ipcMain.handle('tracker:exercise:delete',     (_e, id)      => trackerIpc.deleteExerciseLog(app, id));
+ipcMain.handle('tracker:exercise:stats',      (_e)          => trackerIpc.getExerciseStats(app));
+ipcMain.handle('tracker:pain:get',            (_e, opts)    => trackerIpc.getPainLogs(app, opts));
+ipcMain.handle('tracker:pain:add',            (_e, data)    => trackerIpc.addPainLog(app, data));
+ipcMain.handle('tracker:pain:update',         (_e, id, d)   => trackerIpc.updatePainLog(app, id, d));
+ipcMain.handle('tracker:pain:delete',         (_e, id)      => trackerIpc.deletePainLog(app, id));
+ipcMain.handle('tracker:pain:stats',          (_e)          => trackerIpc.getPainStats(app));
+
 // Error handling
 process.on('uncaughtException', (error) => {
   console.error('[Electron] Uncaught exception:', error);

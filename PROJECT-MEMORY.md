@@ -3,7 +3,7 @@
 Last updated: 2026-02-24
 
 ## Current Version
-**v0.1.41** — latest stable, notarized, on GitHub
+**v0.1.64** — Exercise Tracker + Pain Tracker added (v0.1.42–v0.1.63 were prior patches)
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**

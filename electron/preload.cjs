@@ -87,6 +87,24 @@ contextBridge.exposeInMainWorld('electron', {
     getDashboard: () => ipcRenderer.invoke('analytics:dashboard'),
   },
 
+  // Exercise & Pain trackers
+  trackers: {
+    exercise: {
+      get:    (opts)    => ipcRenderer.invoke('tracker:exercise:get', opts),
+      add:    (data)    => ipcRenderer.invoke('tracker:exercise:add', data),
+      update: (id, d)   => ipcRenderer.invoke('tracker:exercise:update', id, d),
+      delete: (id)      => ipcRenderer.invoke('tracker:exercise:delete', id),
+      stats:  ()        => ipcRenderer.invoke('tracker:exercise:stats'),
+    },
+    pain: {
+      get:    (opts)    => ipcRenderer.invoke('tracker:pain:get', opts),
+      add:    (data)    => ipcRenderer.invoke('tracker:pain:add', data),
+      update: (id, d)   => ipcRenderer.invoke('tracker:pain:update', id, d),
+      delete: (id)      => ipcRenderer.invoke('tracker:pain:delete', id),
+      stats:  ()        => ipcRenderer.invoke('tracker:pain:stats'),
+    },
+  },
+
   // Organ health trackers — bypass HTTP in packaged app
   organHealth: {
     getKidney: () => ipcRenderer.invoke('organ-health:kidney'),
