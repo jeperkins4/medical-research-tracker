@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend, BarChart, Bar
+} from 'recharts';
 import './AnalyticsDashboard.css';
 
 export default function AnalyticsDashboard({ apiFetch }) {
@@ -6,147 +10,182 @@ export default function AnalyticsDashboard({ apiFetch }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  useEffect(() => { fetchAnalytics(); }, []);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-
-      // Use IPC in packaged Electron app, HTTP in web/dev mode
+      setError(null);
       let analyticsData;
       if (typeof window !== 'undefined' && window.electron?.analytics?.getDashboard) {
         analyticsData = await window.electron.analytics.getDashboard();
       } else {
         const res = await apiFetch('/api/analytics/dashboard');
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('Analytics API error:', res.status, errorData);
-          throw new Error(errorData.error || errorData.message || `HTTP ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         analyticsData = await res.json();
       }
-      console.log('Analytics data received:', analyticsData);
-      
-      // Check if analytics is disabled
       if (analyticsData.enabled === false) {
         setError(analyticsData.message || 'Analytics not available');
-        setLoading(false);
-        return;
+      } else if (analyticsData.error) {
+        setError(analyticsData.error);
+      } else {
+        setData(analyticsData);
       }
-      
-      setData(analyticsData);
-      setError(null);
-      setLoading(false);
     } catch (err) {
-      console.error('Analytics error:', err);
       setError(err.message || 'Failed to load analytics');
+    } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="analytics-dashboard">
-        <div className="loading">Loading analytics...</div>
-      </div>
-    );
-  }
+  if (loading) return <div className="analytics-dashboard"><div className="loading">Loading analytics…</div></div>;
 
-  if (error) {
-    return (
-      <div className="analytics-dashboard">
-        <div className="error">
-          <h3>Error Loading Analytics</h3>
-          <p>{error}</p>
-          <button onClick={fetchAnalytics} className="retry-button">
-            Retry
-          </button>
-          <details style={{ marginTop: '20px', fontSize: '12px', opacity: 0.7 }}>
-            <summary>Troubleshooting</summary>
-            <ul style={{ textAlign: 'left', marginTop: '10px' }}>
-              <li>Check that the server is running</li>
-              <li>Check browser console for detailed errors (F12)</li>
-              <li>Verify you're logged in</li>
-              <li>Analytics tables may need to be created: run <code>node check-analytics-tables.js</code></li>
-            </ul>
-          </details>
-        </div>
+  if (error) return (
+    <div className="analytics-dashboard">
+      <div className="error">
+        <h3>Error Loading Analytics</h3>
+        <p>{error}</p>
+        <button className="retry-btn" onClick={fetchAnalytics}>Retry</button>
+        <details><summary>▸ Troubleshooting</summary>
+          <ul>
+            <li>Make sure the app is running (not loading localhost:5173)</li>
+            <li>Check browser console for detailed errors (F12)</li>
+          </ul>
+        </details>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!data) {
-    return (
-      <div className="analytics-dashboard">
-        <div className="empty">No analytics data available</div>
-      </div>
-    );
-  }
+  if (!data) return <div className="analytics-dashboard"><div className="empty">No analytics data available</div></div>;
 
-  // Group demographics by type
-  const demographicsByType = {};
-  (data.demographics || []).forEach(demo => {
-    if (!demographicsByType[demo.demographic_type]) {
-      demographicsByType[demo.demographic_type] = [];
-    }
-    demographicsByType[demo.demographic_type].push(demo);
-  });
+  const m = data.userMetrics || {};
 
   return (
     <div className="analytics-dashboard">
-      {/* HIPAA Compliance Notice */}
-      <div className="hipaa-notice">
-        <div className="hipaa-icon">🔒</div>
-        <div className="hipaa-text">
-          <strong>HIPAA-Compliant Analytics</strong>
-          <p>All data is de-identified and aggregated. No individual patient information is exposed.</p>
-          <p className="small">Minimum cell size: {data.minCellSize} patients (groups smaller than this are suppressed)</p>
-        </div>
-      </div>
 
-      {/* User Metrics */}
+      {/* Summary Metrics */}
       <section className="metrics-section">
-        <h2>👥 User Statistics</h2>
+        <h2>📊 Health Record Summary</h2>
         <div className="metrics-grid">
-          <div className="metric-card">
-            <div className="metric-value">{data.userMetrics?.total_users || 0}</div>
-            <div className="metric-label">Total Users</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-value">{data.userMetrics?.new_users_today || 0}</div>
-            <div className="metric-label">New Today</div>
-          </div>
-          {data.userMetrics?.active_users_30d !== null && (
-            <div className="metric-card">
-              <div className="metric-value">{data.userMetrics.active_users_30d}</div>
-              <div className="metric-label">Active (30 days)</div>
+          {[
+            { label: 'Conditions', value: m.total_conditions ?? 0, icon: '🩺' },
+            { label: 'Medications', value: m.total_medications ?? 0, icon: '💊' },
+            { label: 'Lab Results', value: m.total_lab_results ?? 0, icon: '🧪' },
+            { label: 'Vitals Entries', value: m.total_vitals ?? 0, icon: '❤️' },
+            { label: 'Mutations', value: m.total_mutations ?? 0, icon: '🧬' },
+            { label: 'Research Papers', value: m.total_papers ?? 0, icon: '📄' },
+          ].map(({ label, value, icon }) => (
+            <div key={label} className="metric-card">
+              <div className="metric-icon">{icon}</div>
+              <div className="metric-value">{value}</div>
+              <div className="metric-label">{label}</div>
             </div>
-          )}
+          ))}
         </div>
+        {(m.last_lab_date || m.last_vital_date) && (
+          <div className="last-updated-row">
+            {m.last_lab_date && <span>🧪 Last lab: <strong>{m.last_lab_date}</strong></span>}
+            {m.last_vital_date && <span>❤️ Last vital: <strong>{m.last_vital_date}</strong></span>}
+          </div>
+        )}
       </section>
 
-      {/* Diagnoses */}
-      {data.diagnoses && data.diagnoses.length > 0 && (
+      {/* Lab Trends */}
+      {data.labTrends && Object.keys(data.labTrends).length > 0 && (
         <section className="data-section">
-          <h2>🩺 Diagnoses</h2>
-          <p className="section-note">Aggregated counts by cancer type and stage</p>
+          <h2>🧪 Lab Trends</h2>
+          {Object.entries(data.labTrends).map(([key, rows]) => {
+            const chartData = rows.map(r => ({
+              date: r.date?.slice(0, 10),
+              value: parseFloat(r.result) || null,
+            })).filter(r => r.value !== null);
+            if (chartData.length < 2) return null;
+            const labels = {
+              psa: 'PSA', alkPhos: 'Alk Phos', creatinine: 'Creatinine',
+              wbc: 'WBC', hemoglobin: 'Hemoglobin'
+            };
+            return (
+              <div key={key} className="trend-chart">
+                <h3>{labels[key] || key}</h3>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="value" stroke="#2196f3" strokeWidth={2} dot={{ r: 3 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {/* Vitals Trends */}
+      {data.vitalsTrend?.length > 1 && (
+        <section className="data-section">
+          <h2>❤️ Vitals Trends</h2>
+          {data.vitalsTrend.some(v => v.weight_lbs) && (
+            <div className="trend-chart">
+              <h3>Weight (lbs)</h3>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={data.vitalsTrend.filter(v => v.weight_lbs)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="weight_lbs" name="Weight" stroke="#4caf50" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {data.vitalsTrend.some(v => v.pain_level != null) && (
+            <div className="trend-chart">
+              <h3>Pain Level (0–10)</h3>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={data.vitalsTrend.filter(v => v.pain_level != null)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 10]} tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="pain_level" name="Pain" stroke="#f44336" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {data.vitalsTrend.some(v => v.systolic) && (
+            <div className="trend-chart">
+              <h3>Blood Pressure</h3>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={data.vitalsTrend.filter(v => v.systolic)}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="systolic" name="Systolic" stroke="#e53935" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="diastolic" name="Diastolic" stroke="#1e88e5" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Conditions */}
+      {data.diagnoses?.length > 0 && (
+        <section className="data-section">
+          <h2>🩺 Conditions</h2>
           <div className="data-table">
             <table>
-              <thead>
-                <tr>
-                  <th>Cancer Type</th>
-                  <th>Stage</th>
-                  <th>Patient Count</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Condition</th><th>Status</th><th>Diagnosed</th></tr></thead>
               <tbody>
-                {data.diagnoses.map((diag, idx) => (
-                  <tr key={idx}>
-                    <td>{diag.cancer_type || 'N/A'}</td>
-                    <td>{diag.stage || 'N/A'}</td>
-                    <td className="count">{diag.patient_count}</td>
+                {data.diagnoses.map((d, i) => (
+                  <tr key={i}>
+                    <td>{d.diagnosis_name}</td>
+                    <td><span className={`status-pill status-${d.status?.toLowerCase()}`}>{d.status || '—'}</span></td>
+                    <td>{d.diagnosed_date || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -156,25 +195,19 @@ export default function AnalyticsDashboard({ apiFetch }) {
       )}
 
       {/* Mutations */}
-      {data.mutations && data.mutations.length > 0 && (
+      {data.mutations?.length > 0 && (
         <section className="data-section">
           <h2>🧬 Genomic Mutations</h2>
-          <p className="section-note">Aggregated counts by gene and mutation type</p>
           <div className="data-table">
             <table>
-              <thead>
-                <tr>
-                  <th>Gene</th>
-                  <th>Mutation Type</th>
-                  <th>Patient Count</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Gene</th><th>Variant Type</th><th>Pathogenicity</th><th>Protein Change</th></tr></thead>
               <tbody>
-                {data.mutations.map((mut, idx) => (
-                  <tr key={idx}>
-                    <td className="gene-name">{mut.gene_name}</td>
-                    <td>{mut.mutation_type || 'N/A'}</td>
-                    <td className="count">{mut.patient_count}</td>
+                {data.mutations.map((m, i) => (
+                  <tr key={i}>
+                    <td className="gene-name">{m.gene_name}</td>
+                    <td>{m.variant_type || '—'}</td>
+                    <td><span className={`path-pill path-${(m.pathogenicity || '').toLowerCase().replace(/\s+/g, '-')}`}>{m.pathogenicity || '—'}</span></td>
+                    <td className="mono">{m.protein_change || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -183,30 +216,21 @@ export default function AnalyticsDashboard({ apiFetch }) {
         </section>
       )}
 
-      {/* Treatments */}
-      {data.treatments && data.treatments.length > 0 && (
+      {/* Medications */}
+      {data.treatments?.length > 0 && (
         <section className="data-section">
-          <h2>💊 Treatments</h2>
-          <p className="section-note">Aggregated counts by treatment name and type</p>
+          <h2>💊 Medications & Treatments</h2>
           <div className="data-table">
             <table>
-              <thead>
-                <tr>
-                  <th>Treatment</th>
-                  <th>Type</th>
-                  <th>Patient Count</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Name</th><th>Dosage</th><th>Frequency</th><th>Status</th><th>Started</th></tr></thead>
               <tbody>
-                {data.treatments.map((treat, idx) => (
-                  <tr key={idx}>
-                    <td>{treat.treatment_name}</td>
-                    <td>
-                      <span className={`type-badge ${treat.treatment_type?.toLowerCase()}`}>
-                        {treat.treatment_type || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="count">{treat.patient_count}</td>
+                {data.treatments.map((t, i) => (
+                  <tr key={i}>
+                    <td>{t.treatment_name}</td>
+                    <td>{t.dosage || '—'}</td>
+                    <td>{t.frequency || '—'}</td>
+                    <td><span className={`status-pill status-${t.status}`}>{t.status}</span></td>
+                    <td>{t.started_date || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -215,103 +239,8 @@ export default function AnalyticsDashboard({ apiFetch }) {
         </section>
       )}
 
-      {/* Demographics */}
-      {data.demographics && data.demographics.length > 0 && (
-        <section className="data-section">
-          <h2>📊 Demographics</h2>
-          <p className="section-note">HIPAA-compliant ranges (age ranges, state-level only)</p>
-          
-          {/* Age Ranges */}
-          {demographicsByType.age_range && (
-            <div className="demographic-group">
-              <h3>Age Ranges</h3>
-              <div className="bar-chart">
-                {demographicsByType.age_range.map((demo, idx) => (
-                  <div key={idx} className="bar-item">
-                    <div className="bar-label">{demo.demographic_value}</div>
-                    <div className="bar-container">
-                      <div 
-                        className="bar-fill" 
-                        style={{ 
-                          width: `${(demo.patient_count / Math.max(...demographicsByType.age_range.map(d => d.patient_count))) * 100}%` 
-                        }}
-                      />
-                    </div>
-                    <div className="bar-count">{demo.patient_count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Gender */}
-          {demographicsByType.gender && (
-            <div className="demographic-group">
-              <h3>Gender</h3>
-              <div className="bar-chart">
-                {demographicsByType.gender.map((demo, idx) => (
-                  <div key={idx} className="bar-item">
-                    <div className="bar-label">{demo.demographic_value}</div>
-                    <div className="bar-container">
-                      <div 
-                        className="bar-fill" 
-                        style={{ 
-                          width: `${(demo.patient_count / Math.max(...demographicsByType.gender.map(d => d.patient_count))) * 100}%` 
-                        }}
-                      />
-                    </div>
-                    <div className="bar-count">{demo.patient_count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* State */}
-          {demographicsByType.state && (
-            <div className="demographic-group">
-              <h3>State (Geographic Distribution)</h3>
-              <div className="bar-chart">
-                {demographicsByType.state.map((demo, idx) => (
-                  <div key={idx} className="bar-item">
-                    <div className="bar-label">{demo.demographic_value}</div>
-                    <div className="bar-container">
-                      <div 
-                        className="bar-fill" 
-                        style={{ 
-                          width: `${(demo.patient_count / Math.max(...demographicsByType.state.map(d => d.patient_count))) * 100}%` 
-                        }}
-                      />
-                    </div>
-                    <div className="bar-count">{demo.patient_count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Empty State */}
-      {(!data.diagnoses || data.diagnoses.length === 0) &&
-       (!data.mutations || data.mutations.length === 0) &&
-       (!data.treatments || data.treatments.length === 0) &&
-       (!data.demographics || data.demographics.length === 0) && (
-        <div className="empty-analytics">
-          <h3>No Analytics Data Yet</h3>
-          <p>Analytics are generated when you have at least {data.minCellSize} users in each category.</p>
-          <p className="small">This ensures HIPAA compliance by preventing re-identification of individuals.</p>
-        </div>
-      )}
-
-      {/* Refresh Button */}
       <div className="analytics-footer">
-        <button onClick={fetchAnalytics} className="refresh-btn">
-          🔄 Refresh Analytics
-        </button>
-        <p className="last-updated">
-          Last updated: {data.userMetrics?.metric_date || 'Never'}
-        </p>
+        Last updated: {data.lastUpdated?.slice(0, 16).replace('T', ' ')} UTC
       </div>
     </div>
   );

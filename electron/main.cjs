@@ -387,32 +387,101 @@ ipcMain.handle('analytics:dashboard', (_event) => {
     if (!db_) return { enabled: false, message: 'Database not ready' };
 
     const run = (sql, params = []) => {
-      try { return db_.prepare(sql).all(...params); } catch { return []; }
+      try { return db_.prepare(sql).all(...(params || [])); } catch { return []; }
+    };
+    const get1 = (sql, params = []) => {
+      try { return db_.prepare(sql).get(...(params || [])); } catch { return null; }
     };
 
-    // Check if analytics tables exist
-    const tableCheck = run(`SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'analytics_%'`);
-    if (tableCheck.length === 0) {
-      return {
-        enabled: false,
-        message: 'Analytics tables not created yet.',
-        userMetrics: {}, diagnoses: [], mutations: [], treatments: [], demographics: {}
-      };
+    // ── User Metrics (derived from real tables) ───────────────────────────
+    const condCount    = get1(`SELECT COUNT(*) as c FROM conditions`)?.c || 0;
+    const medCount     = get1(`SELECT COUNT(*) as c FROM medications`)?.c || 0;
+    const labCount     = get1(`SELECT COUNT(*) as c FROM test_results`)?.c || 0;
+    const vitalsCount  = get1(`SELECT COUNT(*) as c FROM vitals`)?.c || 0;
+    const mutCount     = get1(`SELECT COUNT(*) as c FROM genomic_mutations`)?.c || 0;
+    const paperCount   = get1(`SELECT COUNT(*) as c FROM papers`)?.c || 0;
+    const latestVital  = get1(`SELECT date FROM vitals ORDER BY date DESC LIMIT 1`);
+    const latestLab    = get1(`SELECT date FROM test_results ORDER BY date DESC LIMIT 1`);
+
+    const userMetrics = {
+      total_conditions:  condCount,
+      total_medications: medCount,
+      total_lab_results: labCount,
+      total_vitals:      vitalsCount,
+      total_mutations:   mutCount,
+      total_papers:      paperCount,
+      last_lab_date:     latestLab?.date || null,
+      last_vital_date:   latestVital?.date || null,
+      metric_date:       new Date().toISOString().slice(0, 10),
+    };
+
+    // ── Diagnoses (from conditions) ───────────────────────────────────────
+    const diagnoses = run(`
+      SELECT name as diagnosis_name, status, diagnosed_date,
+             1 as patient_count
+      FROM conditions
+      ORDER BY diagnosed_date DESC
+    `);
+
+    // ── Mutations (from genomic_mutations) ────────────────────────────────
+    const mutations = run(`
+      SELECT gene as gene_name,
+             variant_type,
+             pathogenicity,
+             protein_change,
+             1 as patient_count
+      FROM genomic_mutations
+      ORDER BY gene_name ASC
+    `);
+
+    // ── Treatments (from medications) ─────────────────────────────────────
+    const treatments = run(`
+      SELECT name as treatment_name,
+             dosage,
+             frequency,
+             started_date,
+             stopped_date,
+             CASE WHEN stopped_date IS NULL THEN 'active' ELSE 'stopped' END as status,
+             1 as patient_count
+      FROM medications
+      ORDER BY CASE WHEN stopped_date IS NULL THEN 0 ELSE 1 END, started_date DESC
+    `);
+
+    // ── Lab Trends (last 12 readings of key markers) ──────────────────────
+    const labTrends = {};
+    const keyMarkers = [
+      { key: 'psa',      patterns: ['PSA', '%Prostate%'] },
+      { key: 'alkPhos',  patterns: ['%Alk%Phos%', '%Alkaline%Phosphatase%'] },
+      { key: 'creatinine', patterns: ['Creatinine'] },
+      { key: 'wbc',      patterns: ['WBC', '%White Blood%'] },
+      { key: 'hemoglobin', patterns: ['Hemoglobin', 'Hgb'] },
+    ];
+    for (const { key, patterns } of keyMarkers) {
+      const whereClauses = patterns.map(() => `test_name LIKE ?`).join(' OR ');
+      const rows = run(
+        `SELECT date, result FROM test_results WHERE (${whereClauses})
+         AND result IS NOT NULL ORDER BY date ASC LIMIT 24`,
+        patterns
+      );
+      if (rows.length > 0) labTrends[key] = rows;
     }
 
-    const userMetricsRows = run(`SELECT * FROM analytics_user_metrics ORDER BY metric_date DESC LIMIT 1`);
-    const userMetrics     = userMetricsRows[0] || {};
-    const MIN_CELL        = 1; // single-user app — no k-anonymity needed
-    const diagnoses       = run(`SELECT * FROM analytics_diagnosis_aggregates WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
-    const mutations       = run(`SELECT * FROM analytics_mutation_aggregates  WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
-    const treatments      = run(`SELECT * FROM analytics_treatment_aggregates WHERE patient_count >= ? ORDER BY patient_count DESC`, [MIN_CELL]);
-    const demogRows       = run(`SELECT * FROM analytics_demographics ORDER BY snapshot_date DESC LIMIT 1`);
-    const demographics    = demogRows[0] || {};
+    // ── Vitals Trends ─────────────────────────────────────────────────────
+    const vitalsTrend = run(`
+      SELECT date, weight_lbs, systolic, diastolic, heart_rate, pain_level
+      FROM vitals ORDER BY date ASC LIMIT 30
+    `);
 
     return {
       enabled: true,
-      userMetrics, diagnoses, mutations, treatments, demographics,
-      lastUpdated: userMetrics.metric_date || new Date().toISOString(),
+      userMetrics,
+      diagnoses,
+      mutations,
+      treatments,
+      demographics: [],   // single-user app
+      labTrends,
+      vitalsTrend,
+      lastUpdated: new Date().toISOString(),
     };
   } catch (err) {
     console.error('[Main] analytics:dashboard failed:', err.message);
