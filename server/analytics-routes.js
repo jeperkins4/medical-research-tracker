@@ -16,77 +16,97 @@ export function setupAnalyticsRoutes(app, requireAuth) {
    */
   app.get('/api/analytics/dashboard', requireAuth, (req, res) => {
     try {
-      // Log access
       logAnalyticsAccess(req.user?.username || 'unknown', 'view_dashboard', req.ip);
-      
-      // Check if analytics tables exist
-      const tableCheck = query(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' AND name LIKE 'analytics_%'
+
+      const safeQuery = (sql, params = []) => {
+        try { return query(sql, params); } catch { return []; }
+      };
+      const safeGet = (sql, params = []) => {
+        try { const r = query(sql, params); return r.length > 0 ? r[0] : null; } catch { return null; }
+      };
+
+      // ── User Metrics (derived from real tables, no analytics_ tables needed) ──
+      const condCount    = safeGet(`SELECT COUNT(*) as c FROM conditions`)?.c || 0;
+      const medCount     = safeGet(`SELECT COUNT(*) as c FROM medications`)?.c || 0;
+      const labCount     = safeGet(`SELECT COUNT(*) as c FROM test_results`)?.c || 0;
+      const vitalsCount  = safeGet(`SELECT COUNT(*) as c FROM vitals`)?.c || 0;
+      const mutCount     = safeGet(`SELECT COUNT(*) as c FROM genomic_mutations`)?.c || 0;
+      const paperCount   = safeGet(`SELECT COUNT(*) as c FROM papers`)?.c || 0;
+      const latestVital  = safeGet(`SELECT date FROM vitals ORDER BY date DESC LIMIT 1`);
+      const latestLab    = safeGet(`SELECT date FROM test_results ORDER BY date DESC LIMIT 1`);
+
+      const userMetrics = {
+        total_conditions:  condCount,
+        total_medications: medCount,
+        total_lab_results: labCount,
+        total_vitals:      vitalsCount,
+        total_mutations:   mutCount,
+        total_papers:      paperCount,
+        last_lab_date:     latestLab?.date || null,
+        last_vital_date:   latestVital?.date || null,
+        metric_date:       new Date().toISOString().slice(0, 10),
+      };
+
+      // ── Diagnoses ──────────────────────────────────────────────────────────
+      const diagnoses = safeQuery(`
+        SELECT name as diagnosis_name, status, diagnosed_date, 1 as patient_count
+        FROM conditions ORDER BY diagnosed_date DESC
       `);
-      
-      if (tableCheck.length === 0) {
-        return res.json({
-          enabled: false,
-          message: 'Analytics tables not created yet. Run analytics migration first.',
-          userMetrics: {},
-          diagnoses: [],
-          mutations: [],
-          treatments: [],
-          demographics: {}
-        });
+
+      // ── Mutations ──────────────────────────────────────────────────────────
+      const mutations = safeQuery(`
+        SELECT gene as gene_name, variant_type, pathogenicity, protein_change, 1 as patient_count
+        FROM genomic_mutations ORDER BY gene_name ASC
+      `);
+
+      // ── Treatments ─────────────────────────────────────────────────────────
+      const treatments = safeQuery(`
+        SELECT name as treatment_name, dosage, frequency, started_date, stopped_date,
+               CASE WHEN stopped_date IS NULL THEN 'active' ELSE 'stopped' END as status,
+               1 as patient_count
+        FROM medications
+        ORDER BY CASE WHEN stopped_date IS NULL THEN 0 ELSE 1 END, started_date DESC
+      `);
+
+      // ── Lab Trends ─────────────────────────────────────────────────────────
+      const labTrends = {};
+      const keyMarkers = [
+        { key: 'psa',        patterns: ['PSA', '%Prostate%'] },
+        { key: 'alkPhos',    patterns: ['%Alk%Phos%', '%Alkaline%Phosphatase%'] },
+        { key: 'creatinine', patterns: ['Creatinine'] },
+        { key: 'wbc',        patterns: ['WBC', '%White Blood%'] },
+        { key: 'hemoglobin', patterns: ['Hemoglobin', 'Hgb'] },
+      ];
+      for (const { key, patterns } of keyMarkers) {
+        const whereClauses = patterns.map(() => `test_name LIKE ?`).join(' OR ');
+        const rows = safeQuery(
+          `SELECT date, result FROM test_results WHERE (${whereClauses})
+           AND result IS NOT NULL ORDER BY date ASC LIMIT 24`,
+          patterns
+        );
+        if (rows.length > 0) labTrends[key] = rows;
       }
-      
-      // Get user metrics
-      const userMetricsRows = query(`
-        SELECT * FROM analytics_user_metrics 
-        ORDER BY metric_date DESC LIMIT 1
+
+      // ── Vitals Trend ───────────────────────────────────────────────────────
+      const vitalsTrend = safeQuery(`
+        SELECT date, weight_lbs, systolic, diastolic, heart_rate, pain_level
+        FROM vitals ORDER BY date ASC LIMIT 30
       `);
-      const userMetrics = userMetricsRows.length > 0 ? userMetricsRows[0] : {};
-      
-      // Get diagnosis aggregates
-      const diagnoses = query(`
-        SELECT * FROM analytics_diagnosis_aggregates 
-        WHERE patient_count >= ?
-        ORDER BY patient_count DESC
-      `, [MIN_CELL_SIZE]);
-      
-      // Get mutation aggregates
-      const mutations = query(`
-        SELECT * FROM analytics_mutation_aggregates 
-        WHERE patient_count >= ?
-        ORDER BY patient_count DESC
-      `, [MIN_CELL_SIZE]);
-      
-      // Get treatment aggregates
-      const treatments = query(`
-        SELECT * FROM analytics_treatment_aggregates 
-        WHERE patient_count >= ?
-        ORDER BY patient_count DESC
-      `, [MIN_CELL_SIZE]);
-      
-      // Get demographics
-      const demographicsRows = query(`
-        SELECT * FROM analytics_demographics 
-        ORDER BY snapshot_date DESC LIMIT 1
-      `);
-      const demographics = demographicsRows.length > 0 ? demographicsRows[0] : {};
-      
+
       res.json({
         enabled: true,
         userMetrics,
         diagnoses,
         mutations,
         treatments,
-        demographics,
-        lastUpdated: userMetrics.metric_date || new Date().toISOString()
+        demographics: [],
+        labTrends,
+        vitalsTrend,
+        lastUpdated: new Date().toISOString(),
       });
     } catch (error) {
       console.error('[Analytics API] Error fetching dashboard:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch analytics',
-        message: error.message 
-      });
+      res.status(500).json({ error: 'Failed to fetch analytics', message: error.message });
     }
   });
   
