@@ -352,8 +352,8 @@ app.get('/api/config', (req, res) => {
   }
 });
 
-// Update configuration
-app.post('/api/config', (req, res) => {
+// Update configuration (auth required — contains API key slots)
+app.post('/api/config', requireAuth, (req, res) => {
   try {
     const updates = req.body;
     const newConfig = updateConfig(updates);

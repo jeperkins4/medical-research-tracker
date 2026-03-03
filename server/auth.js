@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken';
 
 // Use environment variable or fallback (in production, always use env var)
 const JWT_SECRET = process.env.JWT_SECRET || 'medical-tracker-secret-change-in-production';
+if (!process.env.JWT_SECRET) {
+  console.warn('[AUTH] ⚠️  JWT_SECRET is not set — using insecure default. Set JWT_SECRET in .env before production use.');
+}
 const TOKEN_EXPIRY = '7d'; // 7 days
 
 export const hashPassword = async (password) => {
