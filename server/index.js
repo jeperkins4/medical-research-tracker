@@ -42,6 +42,7 @@ import { setupSubscriptionRoutes } from './subscription-routes.js';
 import { setupTransferRoutes } from './phi-transfer.js';
 import testEncryptionRoute from './test-encryption-route.js';
 import { initConfig, getConfig, updateConfig, isFirstRunComplete, getConfigAsEnv } from './config-manager.js';
+import { registerFHIRRoutes } from './fhir-routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -124,6 +125,14 @@ try {
 }
 
 setupSubscriptionRoutes(app, requireAuth);
+
+// Setup SMART on FHIR routes (Epic MyChart OAuth + status/revoke)
+try {
+  registerFHIRRoutes(app, requireAuth);
+  console.log('✅ FHIR routes initialized');
+} catch (err) {
+  console.warn('⚠️  FHIR routes failed to initialize:', err.message);
+}
 
 // Setup PHI data transfer routes (encrypted export/import)
 const dbPath = join(__dirname, '..', 'data', 'health-secure.db');

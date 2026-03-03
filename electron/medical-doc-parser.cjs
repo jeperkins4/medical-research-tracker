@@ -9,7 +9,7 @@ const https = require('https');
 
 // ── Claude API ────────────────────────────────────────────────────────────
 
-function callClaude(apiKey, messages, model = 'claude-opus-4-5', usePdfBeta = false) {
+function callClaude(apiKey, messages, model = 'claude-sonnet-4-5', usePdfBeta = false) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({ model, max_tokens: 4096, messages });
     const headers = {
@@ -170,7 +170,7 @@ async function parseMedicalDocumentWithAI(filePath, docType, apiKey) {
     throw new Error(`Unsupported file type: .${ext}. Supported: PDF, JPG, PNG, TXT`);
   }
 
-  const response = await callClaudeWithRetry(apiKey, [{ role: 'user', content }], 'claude-opus-4-5', usePdfBeta);
+  const response = await callClaudeWithRetry(apiKey, [{ role: 'user', content }], 'claude-sonnet-4-5', usePdfBeta);
   const rawText = response.content?.[0]?.text || '';
 
   // Extract JSON from response

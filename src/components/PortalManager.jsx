@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as api from '../api';
 
 export default function PortalManager() {
@@ -30,6 +30,12 @@ export default function PortalManager() {
   
   const [syncing, setSyncing] = useState({});
 
+  // FHIR state: { [credentialId]: { loading, authorized, valid, patientId, expiresAt, message, error } }
+  const [fhirStatus, setFhirStatus] = useState({});
+  const [fhirConfig, setFhirConfig] = useState(null); // { configured, hasClientId, hasAppBaseUrl, callbackUrl }
+  const [fhirSyncing, setFhirSyncing] = useState({}); // { [credentialId]: bool }
+  const [fhirSyncResult, setFhirSyncResult] = useState({}); // { [credentialId]: { recordsImported, summary } }
+
   useEffect(() => {
     loadVaultStatus();
   }, []);
@@ -37,8 +43,86 @@ export default function PortalManager() {
   useEffect(() => {
     if (vaultStatus.unlocked) {
       loadCredentials();
+      loadFhirConfig();
     }
   }, [vaultStatus.unlocked]);
+
+  const loadFhirConfig = async () => {
+    try {
+      const cfg = await api.getFhirConfigCheck();
+      setFhirConfig(cfg);
+    } catch (_err) {
+      // non-fatal — just means FHIR config endpoint unavailable
+    }
+  };
+
+  const loadFhirStatusForCred = useCallback(async (credentialId) => {
+    setFhirStatus(prev => ({ ...prev, [credentialId]: { ...prev[credentialId], loading: true } }));
+    try {
+      const status = await api.getFhirStatus(credentialId);
+      setFhirStatus(prev => ({ ...prev, [credentialId]: { ...status, loading: false, error: null } }));
+    } catch (err) {
+      setFhirStatus(prev => ({
+        ...prev,
+        [credentialId]: { loading: false, authorized: false, error: err.message }
+      }));
+    }
+  }, []);
+
+  // Load FHIR status for all Epic credentials when credentials change
+  useEffect(() => {
+    const epicCreds = credentials.filter(c => c.portal_type === 'epic');
+    epicCreds.forEach(c => loadFhirStatusForCred(c.id));
+  }, [credentials, loadFhirStatusForCred]);
+
+  const handleFhirConnect = async (credentialId) => {
+    setError(null);
+    try {
+      const { authUrl } = await api.getFhirAuthorizeUrl(credentialId);
+      // Open in browser: works in both Electron (shell.openExternal) and web
+      if (window.electron?.shell?.openExternal) {
+        window.electron.shell.openExternal(authUrl);
+      } else {
+        window.open(authUrl, '_blank', 'noopener,noreferrer');
+      }
+      // After user returns, re-check status (they'll need to reload or we poll once)
+      setTimeout(() => loadFhirStatusForCred(credentialId), 5000);
+    } catch (err) {
+      setError('FHIR connect failed: ' + err.message);
+    }
+  };
+
+  const handleFhirRevoke = async (credentialId) => {
+    if (!confirm('Disconnect Epic MyChart (FHIR)? You will need to re-authorize to sync via FHIR.')) return;
+    try {
+      await api.revokeFhirAuth(credentialId);
+      loadFhirStatusForCred(credentialId);
+    } catch (err) {
+      setError('Revoke failed: ' + err.message);
+    }
+  };
+
+  const handleFhirRefreshStatus = (credentialId) => {
+    loadFhirStatusForCred(credentialId);
+  };
+
+  const handleFhirSync = async (credentialId) => {
+    setFhirSyncing(prev => ({ ...prev, [credentialId]: true }));
+    setFhirSyncResult(prev => ({ ...prev, [credentialId]: null }));
+    try {
+      const result = await api.syncFhir(credentialId);
+      setFhirSyncResult(prev => ({ ...prev, [credentialId]: result }));
+      // Refresh FHIR status after sync
+      loadFhirStatusForCred(credentialId);
+    } catch (err) {
+      setFhirSyncResult(prev => ({
+        ...prev,
+        [credentialId]: { success: false, error: err.message },
+      }));
+    } finally {
+      setFhirSyncing(prev => ({ ...prev, [credentialId]: false }));
+    }
+  };
 
   const loadVaultStatus = async () => {
     try {
@@ -597,6 +681,127 @@ export default function PortalManager() {
                   </div>
                 </div>
               </div>
+
+              {/* FHIR connection panel — Epic credentials only */}
+              {cred.portal_type === 'epic' && (() => {
+                const fs = fhirStatus[cred.id];
+                const fhirConfigured = fhirConfig?.configured;
+
+                // Token expiry display
+                const expiryLabel = fs?.expiresAt
+                  ? (() => {
+                      const exp = new Date(fs.expiresAt);
+                      const now = new Date();
+                      const diffMin = Math.round((exp - now) / 60000);
+                      if (diffMin < 0) return '⚠️ Expired';
+                      if (diffMin < 60) return `Expires in ${diffMin}m`;
+                      return `Expires ${exp.toLocaleString()}`;
+                    })()
+                  : null;
+
+                return (
+                  <div style={{
+                    marginTop: '1rem',
+                    padding: '0.75rem 1rem',
+                    backgroundColor: '#f0f4ff',
+                    border: '1px solid #c7d2fe',
+                    borderRadius: '6px',
+                    fontSize: '0.85em',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                      <strong style={{ color: '#3730a3' }}>⚡ Epic MyChart (FHIR)</strong>
+                      <button
+                        onClick={() => handleFhirRefreshStatus(cred.id)}
+                        style={{ fontSize: '0.8em', padding: '2px 8px', cursor: 'pointer' }}
+                        title="Refresh FHIR connection status"
+                      >↻ Refresh</button>
+                    </div>
+
+                    {!fhirConfigured && (
+                      <div style={{ color: '#92400e', backgroundColor: '#fef3c7', padding: '0.4rem 0.6rem', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                        ⚠️ EPIC_CLIENT_ID not configured — set it in <code>.env</code> to enable FHIR sync.
+                        {fhirConfig?.callbackUrl && <div style={{ marginTop: '0.2rem', color: '#555' }}>Callback URL: <code>{fhirConfig.callbackUrl}</code></div>}
+                      </div>
+                    )}
+
+                    {fs?.loading && <div style={{ color: '#666' }}>Checking authorization…</div>}
+
+                    {!fs?.loading && fs?.authorized && (
+                      <div style={{ color: '#166534' }}>
+                        {fs.valid ? '✅ Authorized' : '⚠️ Token expired — reconnect required'}
+                        {fs.patientId && <span style={{ marginLeft: '0.5rem', color: '#555' }}>Patient: {fs.patientId}</span>}
+                        {expiryLabel && <span style={{ marginLeft: '0.5rem', color: '#888' }}>· {expiryLabel}</span>}
+                        {fs.scope && <div style={{ marginTop: '0.2rem', color: '#555', wordBreak: 'break-all' }}>Scopes: {fs.scope}</div>}
+                      </div>
+                    )}
+
+                    {!fs?.loading && !fs?.authorized && !fs?.error && (
+                      <div style={{ color: '#6b7280' }}>Not connected — click "Connect" to authorize via Epic</div>
+                    )}
+
+                    {fs?.error && (
+                      <div style={{ color: '#b91c1c' }}>Error: {fs.error}</div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                      {(!fs?.authorized || !fs?.valid) && fhirConfigured && (
+                        <button
+                          onClick={() => handleFhirConnect(cred.id)}
+                          style={{ fontSize: '0.85em', backgroundColor: '#3730a3', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}
+                        >
+                          🔗 {fs?.authorized && !fs?.valid ? 'Reconnect Epic' : 'Connect Epic MyChart'}
+                        </button>
+                      )}
+                      {fs?.authorized && fs?.valid && (
+                        <button
+                          onClick={() => handleFhirSync(cred.id)}
+                          disabled={fhirSyncing[cred.id]}
+                          style={{ fontSize: '0.85em', backgroundColor: '#166534', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: fhirSyncing[cred.id] ? 'wait' : 'pointer', opacity: fhirSyncing[cred.id] ? 0.7 : 1 }}
+                        >
+                          {fhirSyncing[cred.id] ? '⏳ Syncing FHIR…' : '⬇️ Sync via FHIR'}
+                        </button>
+                      )}
+                      {fs?.authorized && (
+                        <button
+                          onClick={() => handleFhirRevoke(cred.id)}
+                          style={{ fontSize: '0.85em', color: '#b91c1c', background: 'transparent', border: '1px solid #fca5a5', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                    </div>
+
+                    {/* FHIR sync result */}
+                    {fhirSyncResult[cred.id] && (
+                      <div style={{
+                        marginTop: '0.6rem',
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '4px',
+                        fontSize: '0.82em',
+                        backgroundColor: fhirSyncResult[cred.id].success ? '#dcfce7' : '#fee2e2',
+                        color: fhirSyncResult[cred.id].success ? '#166534' : '#b91c1c',
+                        border: `1px solid ${fhirSyncResult[cred.id].success ? '#86efac' : '#fca5a5'}`,
+                      }}>
+                        {fhirSyncResult[cred.id].success ? (
+                          <>
+                            ✅ Synced {fhirSyncResult[cred.id].recordsImported} records
+                            {fhirSyncResult[cred.id].summary?.details && (
+                              <span style={{ marginLeft: '0.5rem', color: '#555' }}>
+                                ({Object.entries(fhirSyncResult[cred.id].summary.details)
+                                  .filter(([, v]) => v > 0)
+                                  .map(([k, v]) => `${v} ${k}`)
+                                  .join(', ')})
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <>❌ Sync failed: {fhirSyncResult[cred.id].error || fhirSyncResult[cred.id].summary?.message}</>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>

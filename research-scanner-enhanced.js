@@ -93,6 +93,16 @@ const SEARCH_TERMS = {
     'site:guoncologynow.com clinical trial bladder',
     'site:guoncologynow.com FGFR inhibitor',
   ],
+
+  // Whole-health support and recovery capacity
+  lifestyle: [
+    'mitochondrial health cancer exercise sleep recovery',
+    'zone 2 exercise cancer survivorship urothelial',
+    'resistance training cancer fatigue muscle mass trial',
+    'sleep quality circadian rhythm cancer outcomes',
+    'red light therapy photobiomodulation cancer fatigue trial',
+    'whole body cryotherapy inflammation recovery clinical study',
+  ],
 };
 
 // Tag mapping (category → Library tag IDs)
@@ -104,6 +114,7 @@ const TAG_MAP = {
   genomics: ['genomics', 'biomarkers', 'ARID1A', 'FGFR3'],
   research: ['mechanisms', 'pathways', 'basic-science'],
   guoncology: ['GU-oncology', 'expert-source', 'urology'],
+  lifestyle: ['exercise', 'sleep', 'mitochondria', 'red-light', 'cryo', 'recovery'],
 };
 
 /**
@@ -178,10 +189,77 @@ function getOrCreateTag(tagName) {
   return tag.id;
 }
 
+function getMedicationKeywordMap() {
+  try {
+    const rows = db.prepare(`
+      SELECT id, name, COALESCE(type, 'supplement') AS type
+      FROM medications
+      WHERE active = 1 OR active IS NULL
+    `).all();
+
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      type: r.type,
+      keywords: String(r.name || '')
+        .toLowerCase()
+        .split(/[^a-z0-9+.-]+/)
+        .filter((w) => w.length >= 4),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function inferArticleType(category, relevance) {
+  if (category === 'trials' || category === 'pipeline') return 'clinical_trial';
+  if (relevance >= 8) return 'supporting';
+  return 'review';
+}
+
+function linkArticleToMedications(article, category, relevance) {
+  try {
+    const text = `${article.title} ${article.snippet}`.toLowerCase();
+    const meds = getMedicationKeywordMap();
+    if (!meds.length) return 0;
+
+    let links = 0;
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO medication_research
+        (medication_id, title, url, publication_year, key_findings, article_type, evidence_quality)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const med of meds) {
+      const matches = med.keywords.some((kw) => text.includes(kw));
+      if (!matches) continue;
+
+      const yearMatch = String(article.published_date || '').match(/(20\d{2})/);
+      const publicationYear = yearMatch ? Number(yearMatch[1]) : null;
+
+      const evidence = relevance >= 10 ? 'high' : relevance >= 6 ? 'moderate' : 'low';
+      const result = insert.run(
+        med.id,
+        article.title,
+        article.url,
+        publicationYear,
+        article.snippet,
+        inferArticleType(category, relevance),
+        evidence,
+      );
+      if (result.changes > 0) links += 1;
+    }
+
+    return links;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Insert article into papers table (for Library)
  */
-function insertPaper(article, category) {
+function insertPaper(article, category, relevance) {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO papers (title, url, authors, abstract, type, saved_at)
     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -206,13 +284,14 @@ function insertPaper(article, category) {
         db.prepare('INSERT OR IGNORE INTO paper_tags (paper_id, tag_id) VALUES (?, ?)').run(paperId, tagId);
       });
       
-      return true;
+      const medicationLinks = linkArticleToMedications(article, category, relevance);
+      return { inserted: true, medicationLinks };
     }
     
-    return false;
+    return { inserted: false, medicationLinks: 0 };
   } catch (err) {
     console.error(`Error inserting paper: ${err.message}`);
-    return false;
+    return { inserted: false, medicationLinks: 0 };
   }
 }
 
@@ -242,6 +321,7 @@ async function runScanner() {
   let totalNew = 0;
   let totalPapers = 0;
   let totalSearches = 0;
+  let totalMedicationLinks = 0;
   
   for (const [category, terms] of Object.entries(SEARCH_TERMS)) {
     console.log(`\n📂 Category: ${category.toUpperCase()}`);
@@ -274,10 +354,12 @@ async function runScanner() {
           
           // Save to papers (Library) if relevance >= 3
           if (relevance >= 3) {
-            const insertedPaper = insertPaper(article, category);
-            if (insertedPaper) {
+            const paperResult = insertPaper(article, category, relevance);
+            if (paperResult.inserted) {
               totalPapers++;
-              console.log(`    ✓ Library: ${article.title.substring(0, 60)}... (score: ${relevance})`);
+              totalMedicationLinks += paperResult.medicationLinks;
+              const linkNote = paperResult.medicationLinks ? ` | links: ${paperResult.medicationLinks}` : '';
+              console.log(`    ✓ Library: ${article.title.substring(0, 60)}... (score: ${relevance}${linkNote})`);
             }
           }
         }
@@ -289,6 +371,7 @@ async function runScanner() {
   console.log(`   Total searches: ${totalSearches}`);
   console.log(`   New in feed: ${totalNew}`);
   console.log(`   Added to Library: ${totalPapers}`);
+  console.log(`   Auto-linked to meds/supplements: ${totalMedicationLinks}`);
   
   // Get stats
   const newsStats = db.prepare(`

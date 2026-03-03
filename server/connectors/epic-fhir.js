@@ -10,11 +10,13 @@ import { run, query } from '../db-secure.js';
 import crypto from 'crypto';
 
 // Epic FHIR endpoints (configurable via environment variables)
-const EPIC_CLIENT_ID = process.env.EPIC_CLIENT_ID;
-const EPIC_FHIR_BASE = process.env.EPIC_FHIR_BASE_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4';
-const EPIC_AUTH_URL = process.env.EPIC_AUTHORIZATION_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize';
-const EPIC_TOKEN_URL = process.env.EPIC_TOKEN_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token';
-const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000';
+const getEpicConfig = () => ({
+  EPIC_CLIENT_ID: process.env.EPIC_CLIENT_ID,
+  EPIC_FHIR_BASE: process.env.EPIC_FHIR_BASE_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4',
+  EPIC_AUTH_URL: process.env.EPIC_AUTHORIZATION_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize',
+  EPIC_TOKEN_URL: process.env.EPIC_TOKEN_URL || 'https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token',
+  APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:3000',
+});
 
 /**
  * Step 1: Generate authorization URL for patient to login
@@ -23,6 +25,7 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000';
  * @returns {string} Authorization URL to redirect patient to
  */
 export function getAuthorizationUrl(credentialId) {
+  const { EPIC_CLIENT_ID, EPIC_FHIR_BASE, EPIC_AUTH_URL, APP_BASE_URL } = getEpicConfig();
   if (!EPIC_CLIENT_ID) {
     throw new Error('EPIC_CLIENT_ID not configured. See FHIR-SETUP-GUIDE.md');
   }
@@ -67,6 +70,8 @@ export function getAuthorizationUrl(credentialId) {
  * @returns {Promise<Object>} Token response with access_token, patient ID, etc.
  */
 export async function exchangeCodeForToken(code, state) {
+  const { EPIC_CLIENT_ID, EPIC_TOKEN_URL, APP_BASE_URL } = getEpicConfig();
+  if (!EPIC_CLIENT_ID) throw new Error('EPIC_CLIENT_ID not configured');
   // Validate state parameter (CSRF protection)
   const stateRecord = query(`
     SELECT credential_id, expires_at 
@@ -141,6 +146,9 @@ export async function exchangeCodeForToken(code, state) {
  * @returns {Promise<string>} New access token
  */
 async function refreshAccessToken(credentialId) {
+  const { EPIC_CLIENT_ID, EPIC_TOKEN_URL } = getEpicConfig();
+  if (!EPIC_CLIENT_ID) throw new Error('EPIC_CLIENT_ID not configured');
+
   const tokenRecord = query(`
     SELECT refresh_token 
     FROM fhir_tokens 
@@ -232,6 +240,7 @@ async function getValidAccessToken(credentialId) {
  * @returns {Promise<Object>} FHIR Bundle response
  */
 async function fhirRequest(accessToken, resourcePath) {
+  const { EPIC_FHIR_BASE } = getEpicConfig();
   const url = `${EPIC_FHIR_BASE}/${resourcePath}`;
   
   const response = await fetch(url, {
@@ -269,6 +278,7 @@ async function fetchAllPages(accessToken, resourcePath) {
     
     // Check for next page link
     const nextLink = bundle.link?.find(l => l.relation === 'next');
+    const { EPIC_FHIR_BASE } = getEpicConfig();
     nextUrl = nextLink ? nextLink.url.replace(EPIC_FHIR_BASE + '/', '') : null;
   }
   

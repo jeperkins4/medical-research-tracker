@@ -468,6 +468,69 @@ export async function importFoundationOneMutations(mutations, replaceExisting = 
   return res.json();
 }
 
+// ─── FHIR / Epic MyChart API ──────────────────────────────────────────────────
+
+/**
+ * Check FHIR configuration status (client ID, callback URL, etc.)
+ */
+export async function getFhirConfigCheck() {
+  const res = await fetch('/api/fhir/config-check', { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to check FHIR config');
+  return res.json();
+}
+
+/**
+ * Get FHIR authorization status for a credential
+ * Returns { authorized, valid, patientId, expiresAt, scope, message }
+ */
+export async function getFhirStatus(credentialId) {
+  const res = await fetch(`/api/fhir/status/${credentialId}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to check FHIR status');
+  return res.json();
+}
+
+/**
+ * Get the authorization URL to redirect the user to Epic login.
+ * Returns { authUrl, credentialId }
+ */
+export async function getFhirAuthorizeUrl(credentialId) {
+  const res = await fetch(`/api/fhir/authorize/${credentialId}?mode=json`, { credentials: 'include' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.hint || body.error || 'Failed to get authorization URL');
+  }
+  return res.json();
+}
+
+/**
+ * Revoke FHIR authorization for a credential (deletes stored tokens)
+ */
+export async function revokeFhirAuth(credentialId) {
+  const res = await fetch(`/api/fhir/revoke/${credentialId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to revoke FHIR authorization');
+  return res.json();
+}
+
+/**
+ * Trigger a full FHIR sync for an Epic credential
+ */
+export async function syncFhir(credentialId) {
+  const res = await fetch(`/api/fhir/sync/${credentialId}`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'FHIR sync failed');
+  }
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Get clinical trials linked to current mutations
  */

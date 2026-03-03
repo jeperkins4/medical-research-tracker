@@ -54,6 +54,7 @@ export default function NutritionTracker() {
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const [currentAnalysis, setCurrentAnalysis] = useState(null);
   const [analyzingMeal, setAnalyzingMeal] = useState(false);
+  const [statusMessage, setStatusMessage] = useState(null);
   
   // Meal logging form state
   const [mealForm, setMealForm] = useState({
@@ -112,13 +113,13 @@ export default function NutritionTracker() {
   const handleLogMeal = async () => {
     // Validate required fields
     if (!mealForm.description || mealForm.description.trim() === '') {
-      alert('Please describe what you ate');
+      setStatusMessage({ severity: 'warning', text: 'Please describe what you ate.' });
       return;
     }
     
     if (isElectron) {
       // window.electron: no nutrition IPC implemented yet — log is a no-op in packaged app
-      alert('Nutrition logging is not yet available in the offline app.');
+      setStatusMessage({ severity: 'info', text: 'Nutrition logging is not yet available in desktop mode.' });
       return;
     }
 
@@ -158,13 +159,13 @@ export default function NutritionTracker() {
           foods: []
         });
         
-        alert(editingMealId ? '✅ Meal updated successfully!' : '✅ Meal logged successfully!');
+        setStatusMessage({ severity: 'success', text: editingMealId ? 'Meal updated successfully.' : 'Meal logged successfully.' });
       } else {
-        alert(`❌ Failed to save meal: ${data.error || data.message || 'Unknown error'}`);
+        setStatusMessage({ severity: 'error', text: `Failed to save meal: ${data.error || data.message || 'Unknown error'}` });
       }
     } catch (error) {
       console.error('Error logging meal:', error);
-      alert(`❌ Error: ${error.message}`);
+      setStatusMessage({ severity: 'error', text: `Error: ${error.message}` });
     }
   };
   
@@ -191,7 +192,7 @@ export default function NutritionTracker() {
     
     if (isElectron) {
       // window.electron: no nutrition IPC implemented yet
-      alert('Meal deletion is not yet available in the offline app.');
+      setStatusMessage({ severity: 'info', text: 'Meal deletion is not yet available in desktop mode.' });
       return;
     }
 
@@ -201,15 +202,15 @@ export default function NutritionTracker() {
       });
       
       if (response.ok) {
-        alert('✅ Meal deleted successfully!');
+        setStatusMessage({ severity: 'success', text: 'Meal deleted successfully.' });
         fetchDashboard(); // Refresh
       } else {
         const data = await response.json();
-        alert(`❌ Failed to delete meal: ${data.error || 'Unknown error'}`);
+        setStatusMessage({ severity: 'error', text: `Failed to delete meal: ${data.error || 'Unknown error'}` });
       }
     } catch (error) {
       console.error('Error deleting meal:', error);
-      alert(`❌ Error: ${error.message}`);
+      setStatusMessage({ severity: 'error', text: `Error: ${error.message}` });
     }
   };
   
@@ -281,6 +282,18 @@ export default function NutritionTracker() {
       <Typography variant="subtitle1" color="text.secondary" gutterBottom>
         Genomics-Driven Meal Planning & Anti-Cancer Nutrition
       </Typography>
+
+      {isElectron && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Nutrition logging APIs are not fully wired in the desktop build yet. You can still review guidance here; full log/edit/delete will be enabled in a follow-up update.
+        </Alert>
+      )}
+
+      {statusMessage && (
+        <Alert severity={statusMessage.severity || 'info'} sx={{ mb: 2 }} onClose={() => setStatusMessage(null)}>
+          {statusMessage.text}
+        </Alert>
+      )}
       
       {/* Today's Genomic Plate Summary */}
       <Card sx={{ mb: 3, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>

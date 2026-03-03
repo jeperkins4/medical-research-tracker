@@ -12,6 +12,7 @@ export default function ResearchSearch() {
   const [newTagName, setNewTagName] = useState('');
   const [savedPapers, setSavedPapers] = useState([]);
   const [activeTab, setActiveTab] = useState('search'); // search, saved
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     loadTags();
@@ -56,7 +57,7 @@ export default function ResearchSearch() {
 
     if (isElectron) {
       // window.electron: research search IPC not yet implemented
-      alert('Online research search is not available in the offline app. Use PubMed directly.');
+      setNotice({ type: 'info', text: 'Online search is not available in desktop mode yet. Use PubMed/ClinicalTrials.gov links below and save key papers manually.' });
       return;
     }
 
@@ -71,7 +72,7 @@ export default function ResearchSearch() {
       const data = await response.json();
       
       // For demo, show message about manual search
-      alert('Research search endpoint ready. For now, manually search PubMed/ClinicalTrials.gov and use "Add Paper" to save results with tags.');
+      setNotice({ type: 'info', text: 'Search endpoint is scaffolded. For now, manually search PubMed/ClinicalTrials.gov and use Add Paper Manually.' });
       setResults([]);
     } catch (error) {
       console.error('Search failed:', error);
@@ -85,7 +86,7 @@ export default function ResearchSearch() {
 
     if (isElectron) {
       // window.electron: tags IPC not yet implemented
-      alert('Tag management is not yet available in the offline app.');
+      setNotice({ type: 'info', text: 'Tag management is not available in desktop mode yet.' });
       return;
     }
 
@@ -111,7 +112,7 @@ export default function ResearchSearch() {
     
     if (isElectron) {
       // window.electron: papers IPC not yet implemented
-      alert('Saving papers is not yet available in the offline app.');
+      setNotice({ type: 'info', text: 'Saving papers from this tab is not available in desktop mode yet.' });
       return;
     }
 
@@ -127,7 +128,7 @@ export default function ResearchSearch() {
       });
       
       if (response.ok) {
-        alert('Paper saved to library!');
+        setNotice({ type: 'success', text: 'Paper saved to library.' });
         setSelectedTags(prev => {
           const updated = { ...prev };
           delete updated[paper.url];
@@ -186,6 +187,11 @@ export default function ResearchSearch() {
 
   return (
     <div className="research-search">
+      {notice && (
+        <div className={`alert ${notice.type === 'success' ? 'success' : notice.type === 'error' ? 'error' : 'info'}`} style={{ marginBottom: 12 }}>
+          {notice.text}
+        </div>
+      )}
       <div className="tabs">
         <button
           className={activeTab === 'search' ? 'active' : ''}
@@ -350,6 +356,7 @@ export default function ResearchSearch() {
 
 function ManualPaperEntry({ tags, onSave }) {
   const [showForm, setShowForm] = useState(false);
+  const [message, setMessage] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     authors: '',
@@ -378,7 +385,7 @@ function ManualPaperEntry({ tags, onSave }) {
     
     if (isElectron) {
       // window.electron: paper-save IPC not yet implemented
-      alert('Saving papers is not yet available in the offline app.');
+      setMessage({ type: 'info', text: 'Saving papers manually is not available in desktop mode yet.' });
       return;
     }
 
@@ -394,7 +401,7 @@ function ManualPaperEntry({ tags, onSave }) {
       });
       
       if (response.ok) {
-        alert('Paper saved!');
+        setMessage({ type: 'success', text: 'Paper saved.' });
         setFormData({
           title: '',
           authors: '',
@@ -426,6 +433,11 @@ function ManualPaperEntry({ tags, onSave }) {
   return (
     <div className="manual-entry-form">
       <h3>Add Paper Manually</h3>
+      {message && (
+        <div className={`alert ${message.type === 'success' ? 'success' : message.type === 'error' ? 'error' : 'info'}`} style={{ marginBottom: 12 }}>
+          {message.text}
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label>Title *</label>

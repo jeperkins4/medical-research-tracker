@@ -19,7 +19,7 @@ body {
 
 header {
   background: white;
-  padding: 30px;
+  padding: 16px 20px;
   border-radius: 8px;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -73,6 +73,7 @@ nav {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
 nav button {
@@ -105,6 +106,7 @@ nav button.active {
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 2px solid #e5e7eb;
+  flex-wrap: wrap;
 }
 
 .sub-nav button {
@@ -199,6 +201,11 @@ button:hover {
   background: #1d4ed8;
 }
 
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
 input[type="search"] {
   width: 100%;
   padding: 12px;
@@ -252,7 +259,7 @@ input[type="search"] {
   background: #dbeafe;
   color: #1e40af;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 13px;
   text-transform: capitalize;
 }
 
@@ -630,7 +637,7 @@ fieldset legend {
 }
 
 .test-provider {
-  font-size: 12px;
+  font-size: 13px;
   color: #9ca3af;
 }
 
@@ -681,7 +688,7 @@ fieldset legend {
 }
 
 .trend-date {
-  font-size: 12px;
+  font-size: 13px;
   color: #6b7280;
   margin-bottom: 6px;
   font-weight: 600;

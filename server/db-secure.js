@@ -412,6 +412,35 @@ const initDb = () => {
     `);
   } catch (e) { /* already exists */ }
 
+  // Ensure FHIR OAuth tables exist (SMART on FHIR)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS fhir_oauth_state (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        credential_id INTEGER NOT NULL,
+        state TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS fhir_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        credential_id INTEGER NOT NULL UNIQUE,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        patient_id TEXT,
+        expires_at TEXT NOT NULL,
+        scope TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_fhir_tokens_expires ON fhir_tokens(expires_at);
+    `);
+  } catch (e) {
+    console.warn('⚠️  FHIR table migration skipped:', e.message);
+  }
+
   // Medications extended fields
   const medCols = [
     ['type',                "TEXT DEFAULT 'supplement'"],

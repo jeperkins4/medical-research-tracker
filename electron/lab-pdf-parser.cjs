@@ -58,7 +58,7 @@ function parseFlag(flagStr, value, low, high) {
 
 // ── Claude API call ────────────────────────────────────────────────────────
 
-function callClaude(apiKey, messages, model = 'claude-opus-4-5') {
+function callClaude(apiKey, messages, model = 'claude-sonnet-4-5') {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model,

@@ -4,7 +4,9 @@
  * Handles SMART on FHIR authorization flow and callbacks
  */
 
-import { getAuthorizationUrl, exchangeCodeForToken } from './connectors/epic-fhir.js';
+import { getAuthorizationUrl, exchangeCodeForToken, syncEpicFHIR } from './connectors/epic-fhir.js';
+import { getCredential } from './portal-credentials.js';
+import { query, run } from './db-secure.js';
 
 /**
  * Register FHIR routes with Express app
@@ -13,6 +15,19 @@ import { getAuthorizationUrl, exchangeCodeForToken } from './connectors/epic-fhi
  * @param {Function} requireAuth - Authentication middleware
  */
 export function registerFHIRRoutes(app, requireAuth) {
+  // Basic configuration/status check for UI troubleshooting
+  app.get('/api/fhir/config-check', requireAuth, (_req, res) => {
+    const hasClientId = Boolean(process.env.EPIC_CLIENT_ID);
+    const hasAppBaseUrl = Boolean(process.env.APP_BASE_URL);
+    const callbackUrl = `${process.env.APP_BASE_URL || 'http://localhost:3000'}/api/fhir/callback`;
+
+    return res.json({
+      configured: hasClientId && hasAppBaseUrl,
+      hasClientId,
+      hasAppBaseUrl,
+      callbackUrl,
+    });
+  });
   
   /**
    * GET /api/fhir/authorize/:credentialId
@@ -21,21 +36,25 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.get('/api/fhir/authorize/:credentialId', requireAuth, (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId);
-      
-      // Generate authorization URL
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: 'Invalid credential id' });
+      }
+
       const authUrl = getAuthorizationUrl(credentialId);
-      
+
+      // Electron / API clients can request URL only and open externally.
+      if (req.query.mode === 'json') {
+        return res.json({ authUrl, credentialId });
+      }
+
       console.log(`[FHIR] Redirecting to authorization URL for credential ${credentialId}`);
-      
-      // Redirect patient to Epic login
-      res.redirect(authUrl);
-      
+      return res.redirect(authUrl);
     } catch (error) {
       console.error('[FHIR] Authorization URL generation failed:', error);
-      res.status(500).json({ 
+      return res.status(500).json({
         error: error.message,
-        hint: 'Make sure EPIC_CLIENT_ID is configured in .env'
+        hint: 'Make sure EPIC_CLIENT_ID and APP_BASE_URL are configured in .env'
       });
     }
   });
@@ -86,10 +105,12 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.get('/api/fhir/status/:credentialId', requireAuth, (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId);
-      
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: 'Invalid credential id' });
+      }
+
       // Query token status
-      const { query } = require('./db-secure.js');
       const tokenRecord = query(`
         SELECT 
           patient_id,
@@ -136,9 +157,11 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.delete('/api/fhir/revoke/:credentialId', requireAuth, (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId);
-      
-      const { run } = require('./db-secure.js');
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: 'Invalid credential id' });
+      }
+
       run('DELETE FROM fhir_tokens WHERE credential_id = ?', [credentialId]);
       
       console.log(`[FHIR] Revoked authorization for credential ${credentialId}`);
@@ -150,6 +173,52 @@ export function registerFHIRRoutes(app, requireAuth) {
       
     } catch (error) {
       console.error('[FHIR] Revoke error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * POST /api/fhir/sync/:credentialId
+   *
+   * Trigger a full FHIR data sync for an authorized Epic credential.
+   * Returns a summary of records imported.
+   */
+  app.post('/api/fhir/sync/:credentialId', requireAuth, async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: 'Invalid credential id' });
+      }
+
+      // Verify credential exists
+      const credential = getCredential(credentialId);
+      if (!credential) {
+        return res.status(404).json({ error: 'Credential not found' });
+      }
+
+      if (credential.portal_type !== 'epic') {
+        return res.status(400).json({ error: 'FHIR sync only supported for Epic MyChart credentials' });
+      }
+
+      console.log(`[FHIR] Starting sync for credential ${credentialId} (${credential.service_name})`);
+
+      const result = await syncEpicFHIR(credential);
+
+      // Record last sync timestamp
+      run(
+        `UPDATE portal_credentials SET last_sync = datetime('now'), last_sync_status = ? WHERE id = ?`,
+        [result.summary.status, credentialId]
+      );
+
+      console.log(`[FHIR] Sync complete for credential ${credentialId}: ${result.recordsImported} records`);
+
+      return res.json({
+        success: result.summary.status === 'Success',
+        recordsImported: result.recordsImported,
+        summary: result.summary,
+      });
+    } catch (error) {
+      console.error('[FHIR] Sync error:', error);
       res.status(500).json({ error: error.message });
     }
   });
