@@ -5,10 +5,13 @@
  */
 
 import { useState } from 'react';
+import { normalizeGenomicReport } from '../services/genomicReportNormalizer';
+import { useCancerProfile } from '../contexts/CancerProfileContext';
 
 const isElectron = typeof window !== 'undefined' && window.electron && window.electron.genomics;
 
 export default function FoundationOneUploader({ onImported }) {
+  const { profileId } = useCancerProfile();
   const [step, setStep]               = useState('idle'); // idle | parsing | preview | importing | done | error
   const [parsed, setParsed]           = useState(null);
   const [error, setError]             = useState(null);
@@ -55,6 +58,12 @@ export default function FoundationOneUploader({ onImported }) {
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
+      // Attach normalized metadata using the active cancer profile
+      data._normalized = normalizeGenomicReport({
+        rawText: data.rawText || '',
+        patient: { cancerProfileId: profileId, diagnosis: data.diagnosis || null },
+        metadata: { source: 'foundationone', reportDate: data.reportDate || null },
+      });
       setParsed(data);
       setStep('preview');
     } catch (err) {
@@ -68,6 +77,12 @@ export default function FoundationOneUploader({ onImported }) {
     try {
       const data = await window.electron.genomics.parseFoundationOne(filePath);
       if (data.error) throw new Error(data.error);
+      // Attach normalized metadata using the active cancer profile
+      data._normalized = normalizeGenomicReport({
+        rawText: data.rawText || '',
+        patient: { cancerProfileId: profileId, diagnosis: data.diagnosis || null },
+        metadata: { source: 'foundationone', reportDate: data.reportDate || null },
+      });
       setParsed(data);
       setStep('preview');
     } catch (err) {
@@ -283,6 +298,18 @@ export default function FoundationOneUploader({ onImported }) {
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Normalizer summary */}
+          {parsed._normalized && (
+            <div style={{ padding: '10px 20px', background: '#f0fdf4', borderTop: '1px solid #bbf7d0', fontSize: 12, color: '#166534' }}>
+              <strong>🧬 Normalizer ({parsed._normalized.source}):</strong>{' '}
+              {parsed._normalized.alterations.length > 0
+                ? `${parsed._normalized.alterations.length} gene(s) detected: ${parsed._normalized.alterations.map(a => a.gene).join(', ')}`
+                : 'No known genes matched in raw text.'}
+              {' · Profile: '}
+              {parsed._normalized.patient?.cancerProfileId || '—'}
             </div>
           )}
 

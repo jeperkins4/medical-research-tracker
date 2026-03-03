@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import Login from './Login';
+import { CancerProfileProvider, useCancerProfile } from './contexts/CancerProfileContext';
+import CancerProfileSelector from './components/CancerProfileSelector';
 import Onboarding from './components/Onboarding';
 import FirstRunWizard from './components/FirstRunWizard';
 import PrecisionMedicineDashboard from './components/PrecisionMedicineDashboard';
@@ -167,6 +169,7 @@ function App() {
   }
 
   return (
+    <CancerProfileProvider>
     <div className="app">
       <header>
         <div>
@@ -174,6 +177,7 @@ function App() {
           <p>Personal health records + research discovery</p>
         </div>
         <div className="header-actions">
+          <ProfileBadge />
           {health && <span className="status">● Connected</span>}
           <span className="username">Logged in as {username}</span>
           <button onClick={handleLogout} className="logout-button">Logout</button>
@@ -237,6 +241,25 @@ function App() {
 
       <AppFooter />
     </div>
+    </CancerProfileProvider>
+  );
+}
+
+function ProfileBadge() {
+  const { profile } = useCancerProfile();
+  if (!profile) return null;
+  return (
+    <span style={{
+      fontSize: 12,
+      padding: '3px 10px',
+      background: '#e0f2fe',
+      color: '#0369a1',
+      borderRadius: 12,
+      fontWeight: 600,
+      border: '1px solid #bae6fd',
+    }}>
+      🔬 {profile.label}
+    </span>
   );
 }
 
@@ -418,7 +441,7 @@ function TestResultsView() {
                       {test.unit && <span style={{ fontSize: '0.85em', color: '#64748b' }}>{test.unit}</span>}
                     </div>
                     {(test.normal_low || test.normal_high) && (
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
                         Ref: {test.normal_low && test.normal_high ? `${test.normal_low}–${test.normal_high}` : test.normal_low || test.normal_high} {test.unit || ''}
                       </div>
                     )}
@@ -1433,6 +1456,7 @@ function OverviewView() {
       {subTab === 'settings' && (
         <>
           <h2>Settings</h2>
+          <CancerProfileSelector />
           <CloudSync />
           <div style={{ marginTop: '2rem' }}>
             <PHITransfer />
