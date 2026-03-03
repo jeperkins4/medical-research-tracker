@@ -473,23 +473,23 @@ function importObservations(observations, category) {
             // Handle blood pressure specially (systolic/diastolic)
             const [systolic, diastolic] = resultString.split('/').map(v => parseFloat(v.trim()));
             run(`
-              INSERT INTO vitals (systolic_bp, diastolic_bp, recorded_date, source)
-              VALUES (?, ?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (systolic, diastolic, date, notes)
+              VALUES (?, ?, ?, 'Source: Epic MyChart (FHIR)')
             `, [systolic || null, diastolic || null, formattedDate]);
           } else if (vitalType.includes('heart rate') || vitalType.includes('pulse')) {
             run(`
-              INSERT INTO vitals (heart_rate, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (heart_rate, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           } else if (vitalType.includes('temperature')) {
             run(`
-              INSERT INTO vitals (temperature, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (temperature_f, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           } else if (vitalType.includes('weight')) {
             run(`
-              INSERT INTO vitals (weight_lbs, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (weight_lbs, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           }
         } else {
