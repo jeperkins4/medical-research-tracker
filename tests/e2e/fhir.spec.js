@@ -438,3 +438,145 @@ test.describe('PortalManager FHIR UI state derivation (pure logic)', () => {
     expect(result.summary).toHaveProperty('message');
   });
 });
+
+// ─── 10. Clinical Notes routes ────────────────────────────────────────────────
+
+test.describe('GET /api/fhir/clinical-notes', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/clinical-notes`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 200 with notes array and total', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('notes');
+    expect(body).toHaveProperty('total');
+    expect(Array.isArray(body.notes)).toBe(true);
+    expect(typeof body.total).toBe('number');
+  });
+
+  test('respects cancer_only=1 filter — all results have cancer_relevant=1', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes?cancer_only=1`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const { notes } = await res.json();
+    for (const note of notes) {
+      expect(note.cancer_relevant).toBe(1);
+    }
+  });
+
+  test('respects type filter — all results match requested type', async ({ request }) => {
+    const cookie = await login(request);
+    for (const type of ['pathology', 'progress', 'imaging', 'discharge']) {
+      const res = await request.get(`${API}/api/fhir/clinical-notes?type=${type}`, {
+        headers: { Cookie: cookie },
+      });
+      expect(res.status()).toBe(200);
+      const { notes } = await res.json();
+      for (const note of notes) {
+        expect(note.note_type).toBe(type);
+      }
+    }
+  });
+
+  test('response does not expose content_text or content_html (list endpoint strips body)', async ({ request }) => {
+    // List endpoint omits full text for performance — only detail endpoint returns it
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const { notes } = await res.json();
+    // If any notes exist, verify no large content blobs in list response
+    for (const note of notes) {
+      // These columns are intentionally excluded from the list SELECT
+      expect(note).not.toHaveProperty('content_html');
+      expect(note).not.toHaveProperty('content_text');
+    }
+  });
+
+  test('limit and offset params are accepted — response has notes array', async ({ request }) => {
+    const cookie = await login(request);
+    const res1 = await request.get(`${API}/api/fhir/clinical-notes?limit=5&offset=0`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res1.status()).toBe(200);
+    const body1 = await res1.json();
+    expect(Array.isArray(body1.notes)).toBe(true);
+    // notes count bounded by limit (≤ requested limit or ≤ server default)
+    expect(body1.notes.length).toBeLessThanOrEqual(500);
+    expect(typeof body1.total).toBe('number');
+  });
+});
+
+test.describe('GET /api/fhir/clinical-notes/:id', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/clinical-notes/1`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 400 for non-numeric id', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes/not-a-number`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('returns 404 for unknown id', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes/999999`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(404);
+  });
+});
+
+// ─── 11. importDocumentReferences pure-logic (unit assertions) ────────────────
+
+test.describe('Clinical notes LOINC classification (pure logic)', () => {
+  function classifyNoteType(doc) {
+    const display = (doc.type?.coding?.[0]?.display || doc.type?.text || '').toLowerCase();
+    const loinc   = doc.type?.coding?.[0]?.code || '';
+    if (display.includes('pathol') || loinc === '60568-3') return 'pathology';
+    if (display.includes('discharg') || loinc === '18842-5') return 'discharge';
+    if (display.includes('operat') || display.includes('procedur') || loinc === '11504-8') return 'operative';
+    if (display.includes('radiol') || display.includes('imaging') || loinc === '18748-4') return 'imaging';
+    if (display.includes('progress') || loinc === '11506-3') return 'progress';
+    if (display.includes('consult') || loinc === '11488-4') return 'consult';
+    return 'other';
+  }
+
+  test('pathology LOINC code → "pathology"', () => {
+    expect(classifyNoteType({ type: { coding: [{ code: '60568-3', display: 'Pathology report' }] } })).toBe('pathology');
+  });
+
+  test('discharge LOINC code → "discharge"', () => {
+    expect(classifyNoteType({ type: { coding: [{ code: '18842-5', display: 'Discharge summary' }] } })).toBe('discharge');
+  });
+
+  test('imaging display text → "imaging"', () => {
+    expect(classifyNoteType({ type: { text: 'Radiology Report' } })).toBe('imaging');
+  });
+
+  test('progress note display → "progress"', () => {
+    expect(classifyNoteType({ type: { coding: [{ display: 'Progress Note' }] } })).toBe('progress');
+  });
+
+  test('unknown type → "other"', () => {
+    expect(classifyNoteType({ type: { coding: [{ display: 'Unknown document' }] } })).toBe('other');
+  });
+
+  test('empty doc → "other"', () => {
+    expect(classifyNoteType({})).toBe('other');
+  });
+});

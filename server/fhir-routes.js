@@ -222,4 +222,68 @@ export function registerFHIRRoutes(app, requireAuth) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ── GET /api/fhir/clinical-notes ──────────────────────────────────────────
+  // List clinical notes with optional filters: ?type=pathology&cancer_only=1&limit=50
+  app.get('/api/fhir/clinical-notes', requireAuth, (req, res) => {
+    try {
+      const limit  = Math.min(parseInt(req.query.limit  || '100', 10), 500);
+      const offset = parseInt(req.query.offset || '0', 10);
+      const type   = req.query.type        || null;
+      const cancerOnly = req.query.cancer_only === '1';
+
+      const conditions = [];
+      const params     = [];
+
+      if (type) {
+        conditions.push('note_type = ?');
+        params.push(type);
+      }
+      if (cancerOnly) {
+        conditions.push('cancer_relevant = 1');
+      }
+
+      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const notes = query(
+        `SELECT id, fhir_id, credential_id, note_type, title, date, author, department,
+                facility, loinc_code, loinc_display, status, cancer_relevant, created_at
+         FROM clinical_notes ${where}
+         ORDER BY date DESC NULLS LAST
+         LIMIT ? OFFSET ?`,
+        [...params, limit, offset]
+      );
+
+      const total = query(
+        `SELECT COUNT(*) as cnt FROM clinical_notes ${where}`,
+        params
+      )[0]?.cnt || 0;
+
+      res.json({ notes, total, limit, offset });
+    } catch (err) {
+      console.error('[FHIR] clinical-notes list error:', err);
+      // Table may not exist yet (no sync has run) — return empty gracefully
+      if (err.message?.includes('no such table')) {
+        return res.json({ notes: [], total: 0, limit: 100, offset: 0 });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/fhir/clinical-notes/:id ─────────────────────────────────────
+  // Get full text content of a single note
+  app.get('/api/fhir/clinical-notes/:id', requireAuth, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: 'Invalid note id' });
+
+    try {
+      const rows = query('SELECT * FROM clinical_notes WHERE id = ?', [id]);
+      if (!rows.length) return res.status(404).json({ error: 'Note not found' });
+      res.json(rows[0]);
+    } catch (err) {
+      if (err.message?.includes('no such table')) {
+        return res.status(404).json({ error: 'Note not found' });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
 }
