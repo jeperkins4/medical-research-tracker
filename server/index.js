@@ -737,7 +737,7 @@ app.post('/api/vitals', requireAuth, (req, res) => {
 });
 
 // Get vitals for a specific condition
-app.get('/api/conditions/:id/vitals', (req, res) => {
+app.get('/api/conditions/:id/vitals', requireAuth, (req, res) => {
   const vitals = query(`
     SELECT v.* FROM vitals v
     JOIN condition_vitals cv ON v.id = cv.vital_id
@@ -748,21 +748,21 @@ app.get('/api/conditions/:id/vitals', (req, res) => {
 });
 
 // Associate existing vital with condition
-app.post('/api/conditions/:conditionId/vitals/:vitalId', (req, res) => {
+app.post('/api/conditions/:conditionId/vitals/:vitalId', requireAuth, (req, res) => {
   run('INSERT OR IGNORE INTO condition_vitals (condition_id, vital_id) VALUES (?, ?)',
     [req.params.conditionId, req.params.vitalId]);
   res.json({ success: true });
 });
 
 // Associate existing symptom with condition
-app.post('/api/conditions/:conditionId/symptoms/:symptomId', (req, res) => {
+app.post('/api/conditions/:conditionId/symptoms/:symptomId', requireAuth, (req, res) => {
   run('INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)',
     [req.params.conditionId, req.params.symptomId]);
   res.json({ success: true });
 });
 
 // Associate existing test with condition
-app.post('/api/conditions/:conditionId/tests/:testId', (req, res) => {
+app.post('/api/conditions/:conditionId/tests/:testId', requireAuth, (req, res) => {
   run('INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)',
     [req.params.conditionId, req.params.testId]);
   res.json({ success: true });

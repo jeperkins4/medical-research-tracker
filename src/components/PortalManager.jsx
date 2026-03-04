@@ -85,8 +85,21 @@ export default function PortalManager() {
       } else {
         window.open(authUrl, '_blank', 'noopener,noreferrer');
       }
-      // After user returns, re-check status (they'll need to reload or we poll once)
-      setTimeout(() => loadFhirStatusForCred(credentialId), 5000);
+      // Poll for auth completion — check every 5s for up to 3 minutes
+      // (user is doing the OAuth flow in an external browser tab)
+      let attempts = 0;
+      const maxAttempts = 36; // 36 × 5s = 3 min
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const status = await api.getFhirStatus(credentialId);
+          if (status?.authorized && status?.valid) {
+            clearInterval(pollInterval);
+            setFhirStatus(prev => ({ ...prev, [credentialId]: { ...status, loading: false, error: null } }));
+          }
+        } catch (_e) { /* swallow — will retry */ }
+        if (attempts >= maxAttempts) clearInterval(pollInterval);
+      }, 5000);
     } catch (err) {
       setError('FHIR connect failed: ' + err.message);
     }

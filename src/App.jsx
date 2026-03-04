@@ -47,6 +47,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [showFirstRunWizard, setShowFirstRunWizard] = useState(false);
+  const [fhirCallbackBanner, setFhirCallbackBanner] = useState(null); // { type: 'success'|'error', message }
+
+  // Handle FHIR OAuth callback query params (?fhir_success=true or ?error=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('fhir_success') === 'true') {
+      const credId = params.get('credential_id');
+      setFhirCallbackBanner({ type: 'success', message: `✅ Epic MyChart connected successfully${credId ? ` (credential #${credId})` : ''}. FHIR sync is now available.` });
+      setActiveTab('portals');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setFhirCallbackBanner(null), 8000);
+    } else if (params.get('error')) {
+      const errMsg = decodeURIComponent(params.get('error'));
+      setFhirCallbackBanner({ type: 'error', message: `❌ Epic MyChart authorization failed: ${errMsg}` });
+      setActiveTab('portals');
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => setFhirCallbackBanner(null), 10000);
+    }
+  }, []);
 
   useEffect(() => {
     checkFirstRun();
@@ -228,6 +248,26 @@ function App() {
           📊 Analytics
         </button>
       </nav>
+
+      {fhirCallbackBanner && (
+        <div style={{
+          padding: '10px 20px',
+          background: fhirCallbackBanner.type === 'success' ? '#dcfce7' : '#fee2e2',
+          color: fhirCallbackBanner.type === 'success' ? '#166534' : '#991b1b',
+          borderBottom: `1px solid ${fhirCallbackBanner.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
+          fontSize: '14px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span>{fhirCallbackBanner.message}</span>
+          <button
+            onClick={() => setFhirCallbackBanner(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'inherit', marginLeft: '16px' }}
+            aria-label="Dismiss"
+          >×</button>
+        </div>
+      )}
 
       <main>
         {activeTab === 'profile' && <OverviewView />}
