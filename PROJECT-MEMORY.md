@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-04 08:40 EST -->
+<!-- Last updated: 2026-03-04 12:38 EST -->
 Last updated: 2026-03-04
 
 ## Current Version
-**v0.1.70** — vitest unit test suite (37 tests) + normalizer bug fixes (null guard, stop-codon pathogenicity, TMB/MSI/PD-L1 flags)
+**v0.1.71** — FHIR clinical notes import (DocumentReference) + 17 new tests (199 total)
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
