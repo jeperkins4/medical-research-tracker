@@ -7,7 +7,7 @@
  */
 
 import { spawn }                    from 'child_process';
-import { mkdtempSync, writeFileSync } from 'fs';
+import { mkdtempSync, writeFileSync, existsSync } from 'fs';
 import { tmpdir }                    from 'os';
 import { join }                      from 'path';
 import Database                      from 'better-sqlite3';
@@ -61,6 +61,25 @@ function createTestDatabase(dir) {
       notify_on_sync      INTEGER DEFAULT 1,
       created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS fhir_oauth_state (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      credential_id INTEGER NOT NULL,
+      state         TEXT UNIQUE NOT NULL,
+      expires_at    TEXT NOT NULL,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS fhir_tokens (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      credential_id  INTEGER UNIQUE NOT NULL,
+      access_token   TEXT NOT NULL,
+      refresh_token  TEXT,
+      patient_id     TEXT,
+      expires_at     TEXT NOT NULL,
+      scope          TEXT,
+      created_at     TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS genomic_mutations (
@@ -119,6 +138,45 @@ function createTestDatabase(dir) {
     VALUES (?, ?, ?, ?, ?)
   `).run('Test Healthcare Portal', 'generic', 'https://portal.example.com',
          new Date().toISOString(), 'success');
+
+  // ── Seed: Epic portal credential (for FHIR tests) ─────────────────────────
+  db.prepare(`
+    INSERT OR IGNORE INTO portal_credentials
+      (id, service_name, portal_type, base_url, last_sync, last_sync_status)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(99, 'Epic MyChart Test', 'epic', 'https://mychart.example.org',
+         new Date().toISOString(), 'success');
+
+  // ── Seed: valid FHIR token (credentialId=99) ───────────────────────────────
+  const validExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // +1h
+  db.prepare(`
+    INSERT OR IGNORE INTO fhir_tokens
+      (credential_id, access_token, refresh_token, patient_id, expires_at, scope)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(99, 'test-access-token-valid', 'test-refresh-token', 'patient-fhir-123',
+         validExpiry, 'patient/Observation.read patient/Condition.read');
+
+  // ── Seed: expired FHIR token (credentialId=98) ────────────────────────────
+  db.prepare(`
+    INSERT OR IGNORE INTO portal_credentials
+      (id, service_name, portal_type, base_url, last_sync_status)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(98, 'Epic MyChart Expired', 'epic', 'https://mychart2.example.org', 'never');
+
+  const expiredExpiry = new Date(Date.now() - 60 * 60 * 1000).toISOString(); // -1h
+  db.prepare(`
+    INSERT OR IGNORE INTO fhir_tokens
+      (credential_id, access_token, refresh_token, patient_id, expires_at, scope)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(98, 'test-access-token-expired', 'test-refresh-token-expired', 'patient-fhir-456',
+         expiredExpiry, 'patient/Observation.read');
+
+  // ── Seed: non-epic credential (for portal-type guard test) ─────────────────
+  db.prepare(`
+    INSERT OR IGNORE INTO portal_credentials
+      (id, service_name, portal_type, base_url, last_sync_status)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', 'never');
 
   // ── Seed: genomic mutation ─────────────────────────────────────────────────
   db.prepare(`
@@ -204,6 +262,71 @@ export default async function globalSetup() {
   });
 
   console.log(`✅ Test server ready on port ${TEST_PORT}`);
+
+  // ── Seed test user + FHIR data via the server's actual DB ─────────────────
+  // The server creates its own DB at {USER_DATA_PATH}/data/health-secure.db.
+  // We seed it directly after startup.
+  try {
+    const serverDbPath = join(testDir, 'data', 'health-secure.db');
+    if (existsSync(serverDbPath)) {
+      const serverDb = new Database(serverDbPath);
+
+      // Seed test user (matching login credentials used in tests)
+      const hash = bcrypt.hashSync('testpass123', 10);
+      serverDb.prepare(`INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)`)
+        .run('testuser', hash);
+
+      // Seed Epic portal credential (id=99)
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, last_sync, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(99, 'Epic MyChart Test', 'epic', 'https://mychart.example.org',
+             new Date().toISOString(), 'success');
+
+      // Seed valid FHIR token (credentialId=99)
+      const validExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        .replace('T', ' ').replace('Z', '').split('.')[0];
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO fhir_tokens
+          (credential_id, access_token, refresh_token, patient_id, expires_at, scope)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(99, 'test-access-token-valid', 'test-refresh-token',
+             'patient-fhir-123', validExpiry,
+             'patient/Observation.read patient/Condition.read');
+
+      // Seed Epic portal credential (id=98) + expired token
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, last_sync_status)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(98, 'Epic MyChart Expired', 'epic', 'https://mychart2.example.org', 'never');
+
+      // Use SQLite datetime format (no T/Z) so CASE WHEN expires_at > datetime('now') works correctly
+      const expiredExpiry = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+        .replace('T', ' ').replace('Z', '').split('.')[0];
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO fhir_tokens
+          (credential_id, access_token, refresh_token, patient_id, expires_at, scope)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(98, 'test-access-token-expired', 'test-refresh-token-expired',
+             'patient-fhir-456', expiredExpiry, 'patient/Observation.read');
+
+      // Seed non-epic credential (id=97)
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, last_sync_status)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', 'never');
+
+      serverDb.close();
+      console.log('✅ FHIR test data seeded into server DB');
+    } else {
+      console.warn('⚠️  Server DB not found at expected path — FHIR tests may fail');
+    }
+  } catch (seedErr) {
+    console.warn('⚠️  Could not seed server DB:', seedErr.message);
+  }
 
   // Store for tests
   process.env.TEST_SERVER_PORT = String(TEST_PORT);

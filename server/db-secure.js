@@ -321,6 +321,141 @@ const initDb = () => {
       created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- ── Genomic Mutations (Foundation One CDx) ───────────────────────────────
+    CREATE TABLE IF NOT EXISTS genomic_mutations (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      gene                  TEXT NOT NULL,
+      alteration            TEXT,
+      mutation_type         TEXT,
+      mutation_detail       TEXT,
+      transcript_id         TEXT,
+      coding_effect         TEXT,
+      vaf                   REAL,
+      variant_allele_frequency REAL,
+      clinical_significance TEXT,
+      report_date           TEXT,
+      report_source         TEXT,
+      notes                 TEXT,
+      created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pathways (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      name             TEXT NOT NULL UNIQUE,
+      description      TEXT,
+      biological_role  TEXT,
+      cancer_relevance TEXT,
+      created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathways (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER NOT NULL REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_id  INTEGER,
+      pathway_name TEXT,
+      impact_level TEXT,
+      mechanism   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_treatment_targets (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id         INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      target_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name           TEXT,
+      mechanism           TEXT,
+      evidence_level      TEXT,
+      clinical_trial_id   TEXT,
+      created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_biomarkers (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      related_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      biomarker_name       TEXT,
+      value                TEXT,
+      unit                 TEXT,
+      clinical_significance TEXT,
+      created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_treatment_history (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name   TEXT,
+      start_date  TEXT,
+      end_date    TEXT,
+      response    TEXT,
+      notes       TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathway_correlations (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_name TEXT,
+      impact_score REAL,
+      notes       TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS treatment_genomic_correlations (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      treatment   TEXT,
+      response    TEXT,
+      evidence    TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_therapies (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id    INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name      TEXT,
+      therapy_type   TEXT,
+      mechanism      TEXT,
+      evidence_level TEXT,
+      clinical_trial TEXT,
+      approval_status TEXT,
+      notes          TEXT,
+      created_at     TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_trials (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id       INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      trial_name        TEXT NOT NULL,
+      target_biomarker  TEXT,
+      therapy_agents    TEXT,
+      phase             TEXT,
+      locations         TEXT,
+      eligibility_notes TEXT,
+      nct_number        TEXT,
+      status            TEXT DEFAULT 'recruiting',
+      priority_score    INTEGER DEFAULT 0,
+      created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS biomarkers (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      biomarker_name       TEXT NOT NULL,
+      result               TEXT,
+      unit                 TEXT,
+      reference_range      TEXT,
+      clinical_significance TEXT,
+      report_date          TEXT,
+      report_source        TEXT,
+      notes                TEXT,
+      created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathway_map (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_id  INTEGER,
+      impact_level TEXT,
+      mechanism   TEXT
+    );
+
     -- HIPAA Audit Log (immutable)
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

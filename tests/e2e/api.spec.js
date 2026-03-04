@@ -27,9 +27,12 @@ test.describe('POST /api/auth/login', () => {
     const res = await request.post(`${API}/api/auth/login`, { data: CREDS });
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body).toHaveProperty('user');
+    // Server returns {success, username} (not {user: ...})
+    expect(body).toHaveProperty('success', true);
+    expect(body).toHaveProperty('username');
     const cookies = res.headers()['set-cookie'] || '';
-    expect(cookies).toMatch(/session|connect\.sid/i);
+    // Server sets auth_token cookie (JWT-based, not session)
+    expect(cookies).toMatch(/auth_token|session|connect\.sid/i);
   });
 
   test('returns 401 with wrong password', async ({ request }) => {
@@ -313,12 +316,13 @@ test.describe('GET /api/analytics/dashboard [REGRESSION: was 404 in packaged Ele
 
 // ── AI endpoints [REGRESSION: 401 in packaged Electron app] ──────────────────
 
-test.describe('POST /api/ai/healthcare-summary [REGRESSION: 401 in packaged app]', () => {
+// Route is GET /api/ai/healthcare-summary (not POST)
+test.describe('GET /api/ai/healthcare-summary [REGRESSION: 401 in packaged app]', () => {
   test('returns 200 or graceful error — never 401 when authenticated', async ({ request }) => {
     const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
     const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
 
-    const res = await request.post(`${API}/api/ai/healthcare-summary`, {
+    const res = await request.get(`${API}/api/ai/healthcare-summary`, {
       headers: { Cookie: cookie },
     });
 
@@ -330,7 +334,7 @@ test.describe('POST /api/ai/healthcare-summary [REGRESSION: 401 in packaged app]
   });
 
   test('requires auth — returns 401 without cookie', async ({ request }) => {
-    const res = await request.post(`${API}/api/ai/healthcare-summary`);
+    const res = await request.get(`${API}/api/ai/healthcare-summary`);
     expect([401, 403]).toContain(res.status());
   });
 });

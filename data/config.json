@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "firstRunComplete": false,
+  "apiKeys": {
+    "brave": null,
+    "anthropic": null
+  },
+  "cloudSync": {
+    "enabled": false,
+    "supabaseUrl": null,
+    "supabaseAnonKey": null
+  },
+  "researchScanner": {
+    "enabled": false,
+    "schedule": "2:00 AM",
+    "categories": [
+      "conventional",
+      "pipeline",
+      "integrative",
+      "trials"
+    ]
+  },
+  "preferences": {
+    "theme": "auto",
+    "notifications": true
+  }
+}

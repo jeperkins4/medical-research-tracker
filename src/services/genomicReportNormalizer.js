@@ -90,8 +90,9 @@ function extractAlterations(text = '', geneSet) {
   const seen = new Set();
 
   // Pattern: GENE followed by optional alteration description.
-  // Allow p.XXXNNY style but stop at sentence boundary (period+space or period+newline), comma, semicolon.
-  const RE = /\b([A-Z][A-Z0-9]{1,9})\b\s*((?:[^\s,;\n][\s]?){0,8})?/g;
+  // Allow p.XXXNNY / c.NNNdupX / HGVS-style but stop at sentence boundary, comma, semicolon.
+  // Capture up to 20 non-whitespace characters to handle HGVS coding notations like c.5266dupC.
+  const RE = /\b([A-Z][A-Z0-9]{1,9})\b\s*((?:[^\s,;\n][\s]?){0,20})?/g;
   let m;
   while ((m = RE.exec(text)) !== null) {
     const gene = m[1];
@@ -127,6 +128,11 @@ const HOTSPOT_PATHOGENIC = {
 function inferPathogenicity(gene, altInfo) {
   if (altInfo.type === 'amplification') return 'likely_pathogenic';
   if (altInfo.type === 'truncation' || altInfo.type === 'frameshift') return 'likely_pathogenic';
+  if (altInfo.type === 'deletion' || altInfo.type === 'insertion') return 'likely_pathogenic';
+  // Stop codon in proteinChange (p.X000*) → treat as truncation
+  if (altInfo.proteinChange && altInfo.proteinChange.endsWith('*')) return 'likely_pathogenic';
+  // HGVS coding notation with dup/del/ins suffix → frameshift-like
+  if (altInfo.raw && /c\.\d+dup|c\.\d+del|c\.\d+ins/i.test(altInfo.raw)) return 'likely_pathogenic';
   if (altInfo.proteinChange && HOTSPOT_PATHOGENIC[gene]) {
     const short = altInfo.proteinChange.replace('p.', '');
     if (HOTSPOT_PATHOGENIC[gene].includes(short)) return 'pathogenic';
@@ -190,7 +196,9 @@ function extractBiomarkers(text = '') {
  * @param {object} params.metadata - { source, reportDate }
  * @returns Normalized report object
  */
-export function normalizeGenomicReport({ rawText = '', patient = {}, metadata = {} }) {
+export function normalizeGenomicReport({ rawText = '', patient = {}, metadata = {} } = {}) {
+  // Guard: coerce null/undefined rawText to empty string
+  if (rawText == null) rawText = '';
   const source = metadata.source || detectSource(rawText);
   const geneSet = buildGeneAllowlist(patient.cancerProfileId || null);
 
@@ -204,6 +212,11 @@ export function normalizeGenomicReport({ rawText = '', patient = {}, metadata = 
         alterations.some((a) => a.gene === b.toUpperCase().replace(/-/g, ''))
       )
     : [];
+
+  // Always append universal biomarker flags when present in the report
+  if (biomarkers.tmb?.high) keyBiomarkersFound.push('TMB-H');
+  if (biomarkers.msi === 'MSI-H') keyBiomarkersFound.push('MSI-H');
+  if (biomarkers.pdl1) keyBiomarkersFound.push('PD-L1');
 
   return {
     schemaVersion: '2.0',

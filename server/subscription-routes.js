@@ -82,7 +82,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const { status, category } = req.query;
       let sql = 'SELECT * FROM subscriptions WHERE user_id = ?';
-      const params = [req.user.id];
+      const params = [req.user.userId];
 
       if (status)   { sql += ' AND status = ?';   params.push(status); }
       if (category) { sql += ' AND category = ?'; params.push(category); }
@@ -104,7 +104,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const subs = query(
         `SELECT * FROM subscriptions WHERE user_id = ? AND status IN ('active','trial')`,
-        [req.user.id]
+        [req.user.userId]
       );
 
       let monthlyTotal = 0;
@@ -156,7 +156,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const rows = query(
         'SELECT * FROM subscriptions WHERE id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!rows.length) return res.status(404).json({ error: 'Not found' });
       const sub = { ...rows[0], tags: JSON.parse(rows[0].tags || '[]') };
@@ -195,7 +195,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
           dashboard_url, support_url, notes, tags
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `, [
-        req.user.id, service_name, provider || null, category, status,
+        req.user.userId, service_name, provider || null, category, status,
         cost, currency, billing_cycle,
         billing_day || null, billing_month || null,
         nextBill || null, trial_ends_at || null,
@@ -217,7 +217,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const existing = query(
         'SELECT * FROM subscriptions WHERE id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!existing.length) return res.status(404).json({ error: 'Not found' });
 
@@ -258,7 +258,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
         updated.dashboard_url, updated.support_url, updated.notes,
         JSON.stringify(Array.isArray(updated.tags) ? updated.tags : JSON.parse(updated.tags || '[]')),
         updated.cancelled_at || null,
-        req.params.id, req.user.id,
+        req.params.id, req.user.userId,
       ]);
 
       res.json({ success: true });
@@ -273,7 +273,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const result = run(
         'DELETE FROM subscriptions WHERE id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!result.changes) return res.status(404).json({ error: 'Not found' });
       res.json({ success: true });
@@ -290,7 +290,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
       // Verify ownership
       const sub = query(
         'SELECT id FROM subscriptions WHERE id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!sub.length) return res.status(404).json({ error: 'Not found' });
 
@@ -309,7 +309,7 @@ export function setupSubscriptionRoutes(app, requireAuth) {
     try {
       const sub = query(
         'SELECT id FROM subscriptions WHERE id = ? AND user_id = ?',
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!sub.length) return res.status(404).json({ error: 'Not found' });
 

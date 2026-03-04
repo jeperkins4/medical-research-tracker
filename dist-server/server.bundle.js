@@ -19948,14 +19948,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto5.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto6.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22847,11 +22847,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto5.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto6.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -22860,7 +22860,7 @@ var require_cookie_signature = __commonJS({
       return sha1(mac) == sha1(val) ? str2 : false;
     };
     function sha1(str2) {
-      return crypto5.createHash("sha1").update(str2).digest("hex");
+      return crypto6.createHash("sha1").update(str2).digest("hex");
     }
   }
 });
@@ -24107,11 +24107,11 @@ var require_lib3 = __commonJS({
 // node_modules/cookie-parser/node_modules/cookie-signature/index.js
 var require_cookie_signature2 = __commonJS({
   "node_modules/cookie-parser/node_modules/cookie-signature/index.js"(exports) {
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if ("string" != typeof secret) throw new TypeError("Secret string must be provided.");
-      return val + "." + crypto5.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto6.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -24120,7 +24120,7 @@ var require_cookie_signature2 = __commonJS({
       return sha1(mac) == sha1(val) ? str2 : false;
     };
     function sha1(str2) {
-      return crypto5.createHash("sha1").update(str2).digest("hex");
+      return crypto6.createHash("sha1").update(str2).digest("hex");
     }
   }
 });
@@ -28000,7 +28000,7 @@ var require_utilities = __commonJS({
     "use strict";
     var fs2 = __require("fs");
     var path3 = __require("path");
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var { Readable } = __require("stream");
     var process2 = __require("process");
     var SAFE_FILE_NAME_REGEX = /[^\w-]/g;
@@ -28036,7 +28036,7 @@ var require_utilities = __commonJS({
         if (!options || typeof options !== "object") return;
         Object.keys(options).forEach((i2) => result[i2] = options[i2]);
       });
-      if (crypto5.getHashes().find((h2) => result.hashAlgorithm === h2) === void 0) {
+      if (crypto6.getHashes().find((h2) => result.hashAlgorithm === h2) === void 0) {
         throw Error(
           `Hashing algorithm '${result.hashAlgorithm}' is not supported by this system's OpenSSL version`
         );
@@ -28230,11 +28230,11 @@ var require_fileFactory = __commonJS({
 // node_modules/express-fileupload/lib/memHandler.js
 var require_memHandler = __commonJS({
   "node_modules/express-fileupload/lib/memHandler.js"(exports, module) {
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var { debugLog } = require_utilities();
     module.exports = (options, fieldname, filename) => {
       const buffers = [];
-      const hash2 = crypto5.createHash(options.hashAlgorithm);
+      const hash2 = crypto6.createHash(options.hashAlgorithm);
       let fileSize = 0;
       let completed = false;
       const getBuffer = () => Buffer.concat(buffers, fileSize);
@@ -28272,7 +28272,7 @@ var require_tempFileHandler = __commonJS({
   "node_modules/express-fileupload/lib/tempFileHandler.js"(exports, module) {
     var fs2 = __require("fs");
     var path3 = __require("path");
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var {
       debugLog,
       checkAndMakeDir,
@@ -28284,7 +28284,7 @@ var require_tempFileHandler = __commonJS({
       const tempFilePath = path3.join(dir, getTempFilename());
       checkAndMakeDir({ createParentPath: true }, tempFilePath);
       debugLog(options, `Temporary file path is ${tempFilePath}`);
-      const hash2 = crypto5.createHash(options.hashAlgorithm);
+      const hash2 = crypto6.createHash(options.hashAlgorithm);
       let fileSize = 0;
       let completed = false;
       debugLog(options, `Opening write stream for ${fieldname}->${filename}...`);
@@ -30243,6 +30243,141 @@ var init_db_secure = __esm({
       created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- \u2500\u2500 Genomic Mutations (Foundation One CDx) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    CREATE TABLE IF NOT EXISTS genomic_mutations (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      gene                  TEXT NOT NULL,
+      alteration            TEXT,
+      mutation_type         TEXT,
+      mutation_detail       TEXT,
+      transcript_id         TEXT,
+      coding_effect         TEXT,
+      vaf                   REAL,
+      variant_allele_frequency REAL,
+      clinical_significance TEXT,
+      report_date           TEXT,
+      report_source         TEXT,
+      notes                 TEXT,
+      created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS pathways (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      name             TEXT NOT NULL UNIQUE,
+      description      TEXT,
+      biological_role  TEXT,
+      cancer_relevance TEXT,
+      created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathways (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER NOT NULL REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_id  INTEGER,
+      pathway_name TEXT,
+      impact_level TEXT,
+      mechanism   TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_treatment_targets (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id         INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      target_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name           TEXT,
+      mechanism           TEXT,
+      evidence_level      TEXT,
+      clinical_trial_id   TEXT,
+      created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_biomarkers (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      related_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      biomarker_name       TEXT,
+      value                TEXT,
+      unit                 TEXT,
+      clinical_significance TEXT,
+      created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_treatment_history (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name   TEXT,
+      start_date  TEXT,
+      end_date    TEXT,
+      response    TEXT,
+      notes       TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathway_correlations (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_name TEXT,
+      impact_score REAL,
+      notes       TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS treatment_genomic_correlations (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      treatment   TEXT,
+      response    TEXT,
+      evidence    TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_therapies (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id    INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      drug_name      TEXT,
+      therapy_type   TEXT,
+      mechanism      TEXT,
+      evidence_level TEXT,
+      clinical_trial TEXT,
+      approval_status TEXT,
+      notes          TEXT,
+      created_at     TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_trials (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id       INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      trial_name        TEXT NOT NULL,
+      target_biomarker  TEXT,
+      therapy_agents    TEXT,
+      phase             TEXT,
+      locations         TEXT,
+      eligibility_notes TEXT,
+      nct_number        TEXT,
+      status            TEXT DEFAULT 'recruiting',
+      priority_score    INTEGER DEFAULT 0,
+      created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS biomarkers (
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      biomarker_name       TEXT NOT NULL,
+      result               TEXT,
+      unit                 TEXT,
+      reference_range      TEXT,
+      clinical_significance TEXT,
+      report_date          TEXT,
+      report_source        TEXT,
+      notes                TEXT,
+      created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathway_map (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      pathway_id  INTEGER,
+      impact_level TEXT,
+      mechanism   TEXT
+    );
+
     -- HIPAA Audit Log (immutable)
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30326,6 +30461,33 @@ var init_db_secure = __esm({
       )
     `);
       } catch (e2) {
+      }
+      try {
+        db2.exec(`
+      CREATE TABLE IF NOT EXISTS fhir_oauth_state (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        credential_id INTEGER NOT NULL,
+        state TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS fhir_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        credential_id INTEGER NOT NULL UNIQUE,
+        access_token TEXT NOT NULL,
+        refresh_token TEXT,
+        patient_id TEXT,
+        expires_at TEXT NOT NULL,
+        scope TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_fhir_tokens_expires ON fhir_tokens(expires_at);
+    `);
+      } catch (e2) {
+        console.warn("\u26A0\uFE0F  FHIR table migration skipped:", e2.message);
       }
       const medCols = [
         ["type", "TEXT DEFAULT 'supplement'"],
@@ -30610,14 +30772,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer4 = require_safe_buffer().Buffer;
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto5.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto6.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -30707,17 +30869,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto5.createHmac("sha" + bits, secret);
+        var hmac = crypto6.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto5 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto6 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto5.timingSafeEqual(a, b);
+      return crypto6.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -30734,7 +30896,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto5.createSign("RSA-SHA" + bits);
+        var signer = crypto6.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -30744,7 +30906,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto5.createVerify("RSA-SHA" + bits);
+        var verifier = crypto6.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -30753,11 +30915,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto5.createSign("RSA-SHA" + bits);
+        var signer = crypto6.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto5.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto5.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto6.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto6.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -30767,12 +30929,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto5.createVerify("RSA-SHA" + bits);
+        var verifier = crypto6.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto5.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto5.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto6.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto6.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -48886,12 +49048,12 @@ async function verifySlackSignature(signature, timestamp, body) {
     console.warn("[Slack] Signing secret not configured, skipping verification");
     return true;
   }
-  const crypto5 = await import("crypto");
-  const hmac = crypto5.createHmac("sha256", SLACK_SIGNING_SECRET);
+  const crypto6 = await import("crypto");
+  const hmac = crypto6.createHmac("sha256", SLACK_SIGNING_SECRET);
   const [version3, hash2] = signature.split("=");
   hmac.update(`${version3}:${timestamp}:${body}`);
   const computed = hmac.digest("hex");
-  return crypto5.timingSafeEqual(
+  return crypto6.timingSafeEqual(
     Buffer.from(hash2, "hex"),
     Buffer.from(computed, "hex")
   );
@@ -48981,7 +49143,7 @@ var require_main4 = __commonJS({
     var fs2 = __require("fs");
     var path3 = __require("path");
     var os = __require("os");
-    var crypto5 = __require("crypto");
+    var crypto6 = __require("crypto");
     var packageJson = require_package();
     var version3 = packageJson.version;
     var TIPS = [
@@ -49232,7 +49394,7 @@ var require_main4 = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto6.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error) {
@@ -51243,6 +51405,9 @@ var bcryptjs_default = {
 // server/auth.js
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
 var JWT_SECRET = process.env.JWT_SECRET || "medical-tracker-secret-change-in-production";
+if (!process.env.JWT_SECRET) {
+  console.warn("[AUTH] \u26A0\uFE0F  JWT_SECRET is not set \u2014 using insecure default. Set JWT_SECRET in .env before production use.");
+}
 var TOKEN_EXPIRY = "7d";
 var hashPassword = async (password) => {
   return await bcryptjs_default.hash(password, 10);
@@ -51363,13 +51528,13 @@ function __classPrivateFieldGet(receiver, state, kind, f3) {
 
 // node_modules/openai/internal/utils/uuid.mjs
 var uuid4 = function() {
-  const { crypto: crypto5 } = globalThis;
-  if (crypto5?.randomUUID) {
-    uuid4 = crypto5.randomUUID.bind(crypto5);
-    return crypto5.randomUUID();
+  const { crypto: crypto6 } = globalThis;
+  if (crypto6?.randomUUID) {
+    uuid4 = crypto6.randomUUID.bind(crypto6);
+    return crypto6.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto5 ? () => crypto5.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto6 ? () => crypto6.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
@@ -59477,12 +59642,106 @@ async function scrapeMedications(page, credential) {
 // server/connectors/epic-fhir.js
 init_src();
 init_db_secure();
-var EPIC_CLIENT_ID = process.env.EPIC_CLIENT_ID;
-var EPIC_FHIR_BASE = process.env.EPIC_FHIR_BASE_URL || "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4";
-var EPIC_AUTH_URL = process.env.EPIC_AUTHORIZATION_URL || "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize";
-var EPIC_TOKEN_URL = process.env.EPIC_TOKEN_URL || "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token";
-var APP_BASE_URL = process.env.APP_BASE_URL || "http://localhost:3000";
+import crypto5 from "crypto";
+var getEpicConfig = () => ({
+  EPIC_CLIENT_ID: process.env.EPIC_CLIENT_ID,
+  EPIC_FHIR_BASE: process.env.EPIC_FHIR_BASE_URL || "https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4",
+  EPIC_AUTH_URL: process.env.EPIC_AUTHORIZATION_URL || "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize",
+  EPIC_TOKEN_URL: process.env.EPIC_TOKEN_URL || "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token",
+  APP_BASE_URL: process.env.APP_BASE_URL || "http://localhost:3000"
+});
+function getAuthorizationUrl(credentialId) {
+  const { EPIC_CLIENT_ID, EPIC_FHIR_BASE, EPIC_AUTH_URL, APP_BASE_URL } = getEpicConfig();
+  if (!EPIC_CLIENT_ID) {
+    throw new Error("EPIC_CLIENT_ID not configured. See FHIR-SETUP-GUIDE.md");
+  }
+  const state = crypto5.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1e3).toISOString();
+  run(`
+    INSERT OR REPLACE INTO fhir_oauth_state (credential_id, state, expires_at)
+    VALUES (?, ?, ?)
+  `, [credentialId, state, expiresAt]);
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: EPIC_CLIENT_ID,
+    redirect_uri: `${APP_BASE_URL}/api/fhir/callback`,
+    scope: [
+      "patient/Observation.read",
+      "patient/DiagnosticReport.read",
+      "patient/DocumentReference.read",
+      "patient/MedicationRequest.read",
+      "patient/Condition.read",
+      "patient/Patient.read",
+      "launch/patient",
+      "offline_access"
+      // For refresh tokens
+    ].join(" "),
+    state,
+    aud: EPIC_FHIR_BASE
+    // Required by Epic
+  });
+  return `${EPIC_AUTH_URL}?${params.toString()}`;
+}
+async function exchangeCodeForToken(code, state) {
+  const { EPIC_CLIENT_ID, EPIC_TOKEN_URL, APP_BASE_URL } = getEpicConfig();
+  if (!EPIC_CLIENT_ID) throw new Error("EPIC_CLIENT_ID not configured");
+  const stateRecord = query(`
+    SELECT credential_id, expires_at 
+    FROM fhir_oauth_state 
+    WHERE state = ?
+  `, [state])[0];
+  if (!stateRecord) {
+    throw new Error("Invalid state parameter (possible CSRF attack)");
+  }
+  if (new Date(stateRecord.expires_at) < /* @__PURE__ */ new Date()) {
+    throw new Error("Authorization expired. Please try again.");
+  }
+  const tokenResponse = await fetch2(EPIC_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      redirect_uri: `${APP_BASE_URL}/api/fhir/callback`,
+      client_id: EPIC_CLIENT_ID
+    }).toString()
+  });
+  if (!tokenResponse.ok) {
+    const error = await tokenResponse.text();
+    throw new Error(`Token exchange failed: ${error}`);
+  }
+  const tokenData = await tokenResponse.json();
+  const expiresAt = new Date(Date.now() + tokenData.expires_in * 1e3).toISOString();
+  run(`
+    INSERT OR REPLACE INTO fhir_tokens (
+      credential_id, 
+      access_token, 
+      refresh_token, 
+      patient_id, 
+      expires_at,
+      scope
+    ) VALUES (?, ?, ?, ?, ?, ?)
+  `, [
+    stateRecord.credential_id,
+    tokenData.access_token,
+    tokenData.refresh_token || null,
+    tokenData.patient,
+    // Patient FHIR ID
+    expiresAt,
+    tokenData.scope
+  ]);
+  run("DELETE FROM fhir_oauth_state WHERE state = ?", [state]);
+  return {
+    credentialId: stateRecord.credential_id,
+    patientId: tokenData.patient,
+    expiresAt
+  };
+}
 async function refreshAccessToken(credentialId) {
+  const { EPIC_CLIENT_ID, EPIC_TOKEN_URL } = getEpicConfig();
+  if (!EPIC_CLIENT_ID) throw new Error("EPIC_CLIENT_ID not configured");
   const tokenRecord = query(`
     SELECT refresh_token 
     FROM fhir_tokens 
@@ -59545,6 +59804,7 @@ async function getValidAccessToken(credentialId) {
   };
 }
 async function fhirRequest(accessToken, resourcePath) {
+  const { EPIC_FHIR_BASE } = getEpicConfig();
   const url = `${EPIC_FHIR_BASE}/${resourcePath}`;
   const response = await fetch2(url, {
     headers: {
@@ -59567,6 +59827,7 @@ async function fetchAllPages(accessToken, resourcePath) {
       allResources.push(...bundle.entry.map((e2) => e2.resource));
     }
     const nextLink = bundle.link?.find((l) => l.relation === "next");
+    const { EPIC_FHIR_BASE } = getEpicConfig();
     nextUrl = nextLink ? nextLink.url.replace(EPIC_FHIR_BASE + "/", "") : null;
   }
   return allResources;
@@ -59694,23 +59955,23 @@ function importObservations(observations, category) {
           if (vitalType.includes("blood pressure")) {
             const [systolic, diastolic] = resultString.split("/").map((v) => parseFloat(v.trim()));
             run(`
-              INSERT INTO vitals (systolic_bp, diastolic_bp, recorded_date, source)
-              VALUES (?, ?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (systolic, diastolic, date, notes)
+              VALUES (?, ?, ?, 'Source: Epic MyChart (FHIR)')
             `, [systolic || null, diastolic || null, formattedDate]);
           } else if (vitalType.includes("heart rate") || vitalType.includes("pulse")) {
             run(`
-              INSERT INTO vitals (heart_rate, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (heart_rate, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           } else if (vitalType.includes("temperature")) {
             run(`
-              INSERT INTO vitals (temperature, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (temperature_f, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           } else if (vitalType.includes("weight")) {
             run(`
-              INSERT INTO vitals (weight_lbs, recorded_date, source)
-              VALUES (?, ?, 'Epic MyChart (FHIR)')
+              INSERT INTO vitals (weight_lbs, date, notes)
+              VALUES (?, ?, 'Source: Epic MyChart (FHIR)')
             `, [parseFloat(value), formattedDate]);
           }
         } else {
@@ -62019,13 +62280,13 @@ function __classPrivateFieldGet2(receiver, state, kind, f3) {
 
 // node_modules/@anthropic-ai/sdk/internal/utils/uuid.mjs
 var uuid42 = function() {
-  const { crypto: crypto5 } = globalThis;
-  if (crypto5?.randomUUID) {
-    uuid42 = crypto5.randomUUID.bind(crypto5);
-    return crypto5.randomUUID();
+  const { crypto: crypto6 } = globalThis;
+  if (crypto6?.randomUUID) {
+    uuid42 = crypto6.randomUUID.bind(crypto6);
+    return crypto6.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto5 ? () => crypto5.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto6 ? () => crypto6.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
@@ -72952,7 +73213,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const { status, category } = req.query;
       let sql = "SELECT * FROM subscriptions WHERE user_id = ?";
-      const params = [req.user.id];
+      const params = [req.user.userId];
       if (status) {
         sql += " AND status = ?";
         params.push(status);
@@ -72974,7 +73235,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const subs = query(
         `SELECT * FROM subscriptions WHERE user_id = ? AND status IN ('active','trial')`,
-        [req.user.id]
+        [req.user.userId]
       );
       let monthlyTotal = 0;
       let annualTotal = 0;
@@ -73045,7 +73306,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const rows = query(
         "SELECT * FROM subscriptions WHERE id = ? AND user_id = ?",
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!rows.length) return res.status(404).json({ error: "Not found" });
       const sub = { ...rows[0], tags: JSON.parse(rows[0].tags || "[]") };
@@ -73090,7 +73351,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
           dashboard_url, support_url, notes, tags
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `, [
-        req.user.id,
+        req.user.userId,
         service_name,
         provider || null,
         category,
@@ -73122,7 +73383,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const existing = query(
         "SELECT * FROM subscriptions WHERE id = ? AND user_id = ?",
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!existing.length) return res.status(404).json({ error: "Not found" });
       const current = existing[0];
@@ -73168,7 +73429,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
         JSON.stringify(Array.isArray(updated.tags) ? updated.tags : JSON.parse(updated.tags || "[]")),
         updated.cancelled_at || null,
         req.params.id,
-        req.user.id
+        req.user.userId
       ]);
       res.json({ success: true });
     } catch (err) {
@@ -73180,7 +73441,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const result = run(
         "DELETE FROM subscriptions WHERE id = ? AND user_id = ?",
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!result.changes) return res.status(404).json({ error: "Not found" });
       res.json({ success: true });
@@ -73192,7 +73453,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const sub = query(
         "SELECT id FROM subscriptions WHERE id = ? AND user_id = ?",
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!sub.length) return res.status(404).json({ error: "Not found" });
       const payments = query(
@@ -73208,7 +73469,7 @@ function setupSubscriptionRoutes(app2, requireAuth2) {
     try {
       const sub = query(
         "SELECT id FROM subscriptions WHERE id = ? AND user_id = ?",
-        [req.params.id, req.user.id]
+        [req.params.id, req.user.userId]
       );
       if (!sub.length) return res.status(404).json({ error: "Not found" });
       const {
@@ -73616,6 +73877,149 @@ function getConfigAsEnv() {
   return env;
 }
 
+// server/fhir-routes.js
+init_db_secure();
+function registerFHIRRoutes(app2, requireAuth2) {
+  app2.get("/api/fhir/config-check", requireAuth2, (_req, res) => {
+    const hasClientId = Boolean(process.env.EPIC_CLIENT_ID);
+    const hasAppBaseUrl = Boolean(process.env.APP_BASE_URL);
+    const callbackUrl = `${process.env.APP_BASE_URL || "http://localhost:3000"}/api/fhir/callback`;
+    return res.json({
+      configured: hasClientId && hasAppBaseUrl,
+      hasClientId,
+      hasAppBaseUrl,
+      callbackUrl
+    });
+  });
+  app2.get("/api/fhir/authorize/:credentialId", requireAuth2, (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: "Invalid credential id" });
+      }
+      const authUrl = getAuthorizationUrl(credentialId);
+      if (req.query.mode === "json") {
+        return res.json({ authUrl, credentialId });
+      }
+      console.log(`[FHIR] Redirecting to authorization URL for credential ${credentialId}`);
+      return res.redirect(authUrl);
+    } catch (error) {
+      console.error("[FHIR] Authorization URL generation failed:", error);
+      return res.status(500).json({
+        error: error.message,
+        hint: "Make sure EPIC_CLIENT_ID and APP_BASE_URL are configured in .env"
+      });
+    }
+  });
+  app2.get("/api/fhir/callback", async (req, res) => {
+    try {
+      const { code, state, error, error_description } = req.query;
+      if (error) {
+        console.error("[FHIR] OAuth error:", error, error_description);
+        return res.redirect(`/?error=${encodeURIComponent(error_description || error)}`);
+      }
+      if (!code || !state) {
+        return res.status(400).json({
+          error: "Missing required parameters (code or state)"
+        });
+      }
+      console.log("[FHIR] Received authorization code, exchanging for token...");
+      const tokenData = await exchangeCodeForToken(code, state);
+      console.log(`[FHIR] Token exchange successful for credential ${tokenData.credentialId}`);
+      console.log(`[FHIR] Patient FHIR ID: ${tokenData.patientId}`);
+      res.redirect(`/?fhir_success=true&credential_id=${tokenData.credentialId}`);
+    } catch (error) {
+      console.error("[FHIR] OAuth callback error:", error);
+      res.redirect(`/?error=${encodeURIComponent(error.message)}`);
+    }
+  });
+  app2.get("/api/fhir/status/:credentialId", requireAuth2, (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: "Invalid credential id" });
+      }
+      const tokenRecord = query(`
+        SELECT 
+          patient_id,
+          expires_at,
+          scope,
+          CASE 
+            WHEN expires_at > datetime('now') THEN 1 
+            ELSE 0 
+          END as is_valid
+        FROM fhir_tokens
+        WHERE credential_id = ?
+      `, [credentialId])[0];
+      if (!tokenRecord) {
+        return res.json({
+          authorized: false,
+          message: 'Not authorized. Click "Connect Epic MyChart" to authorize.'
+        });
+      }
+      const isValid = tokenRecord.is_valid === 1;
+      res.json({
+        authorized: true,
+        valid: isValid,
+        patientId: tokenRecord.patient_id,
+        expiresAt: tokenRecord.expires_at,
+        scope: tokenRecord.scope,
+        message: isValid ? "Authorized and ready to sync" : "Authorization expired. Please re-authorize."
+      });
+    } catch (error) {
+      console.error("[FHIR] Status check error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.delete("/api/fhir/revoke/:credentialId", requireAuth2, (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: "Invalid credential id" });
+      }
+      run("DELETE FROM fhir_tokens WHERE credential_id = ?", [credentialId]);
+      console.log(`[FHIR] Revoked authorization for credential ${credentialId}`);
+      res.json({
+        success: true,
+        message: "Authorization revoked successfully"
+      });
+    } catch (error) {
+      console.error("[FHIR] Revoke error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app2.post("/api/fhir/sync/:credentialId", requireAuth2, async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: "Invalid credential id" });
+      }
+      const credential = getCredential(credentialId);
+      if (!credential) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      if (credential.portal_type !== "epic") {
+        return res.status(400).json({ error: "FHIR sync only supported for Epic MyChart credentials" });
+      }
+      console.log(`[FHIR] Starting sync for credential ${credentialId} (${credential.service_name})`);
+      const result = await syncEpicFHIR(credential);
+      run(
+        `UPDATE portal_credentials SET last_sync = datetime('now'), last_sync_status = ? WHERE id = ?`,
+        [result.summary.status, credentialId]
+      );
+      console.log(`[FHIR] Sync complete for credential ${credentialId}: ${result.recordsImported} records`);
+      return res.json({
+        success: result.summary.status === "Success",
+        recordsImported: result.recordsImported,
+        summary: result.summary
+      });
+    } catch (error) {
+      console.error("[FHIR] Sync error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+}
+
 // server/index.js
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -73633,7 +74037,7 @@ var configEnv = getConfigAsEnv();
 Object.assign(process.env, configEnv);
 validateConfig();
 var app = (0, import_express3.default)();
-var PORT = 3e3;
+var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
 var ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(",") || [
   "http://localhost:5173",
   "http://localhost:3000",
@@ -73682,6 +74086,12 @@ try {
   console.warn("\u26A0\uFE0F  Slack routes failed to initialize:", err.message);
 }
 setupSubscriptionRoutes(app, requireAuth);
+try {
+  registerFHIRRoutes(app, requireAuth);
+  console.log("\u2705 FHIR routes initialized");
+} catch (err) {
+  console.warn("\u26A0\uFE0F  FHIR routes failed to initialize:", err.message);
+}
 var dbPath3 = join7(__dirname5, "..", "data", "health-secure.db");
 try {
   setupTransferRoutes(app, dbPath3);
@@ -73837,7 +74247,7 @@ app.get("/api/config", (req, res) => {
     res.status(500).json({ error: "Failed to load configuration" });
   }
 });
-app.post("/api/config", (req, res) => {
+app.post("/api/config", requireAuth, (req, res) => {
   try {
     const updates = req.body;
     const newConfig = updateConfig(updates);
@@ -74318,7 +74728,7 @@ app.post("/api/vitals", requireAuth, (req, res) => {
   }
   res.json({ id: vitalId });
 });
-app.get("/api/conditions/:id/vitals", (req, res) => {
+app.get("/api/conditions/:id/vitals", requireAuth, (req, res) => {
   const vitals = query(`
     SELECT v.* FROM vitals v
     JOIN condition_vitals cv ON v.id = cv.vital_id
@@ -74327,21 +74737,21 @@ app.get("/api/conditions/:id/vitals", (req, res) => {
   `, [req.params.id]);
   res.json(vitals);
 });
-app.post("/api/conditions/:conditionId/vitals/:vitalId", (req, res) => {
+app.post("/api/conditions/:conditionId/vitals/:vitalId", requireAuth, (req, res) => {
   run(
     "INSERT OR IGNORE INTO condition_vitals (condition_id, vital_id) VALUES (?, ?)",
     [req.params.conditionId, req.params.vitalId]
   );
   res.json({ success: true });
 });
-app.post("/api/conditions/:conditionId/symptoms/:symptomId", (req, res) => {
+app.post("/api/conditions/:conditionId/symptoms/:symptomId", requireAuth, (req, res) => {
   run(
     "INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)",
     [req.params.conditionId, req.params.symptomId]
   );
   res.json({ success: true });
 });
-app.post("/api/conditions/:conditionId/tests/:testId", (req, res) => {
+app.post("/api/conditions/:conditionId/tests/:testId", requireAuth, (req, res) => {
   run(
     "INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)",
     [req.params.conditionId, req.params.testId]
