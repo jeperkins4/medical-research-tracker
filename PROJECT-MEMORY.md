@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-02-24 18:00 EST -->
-Last updated: 2026-02-24
+<!-- Last updated: 2026-03-04 04:34 EST -->
+Last updated: 2026-03-04
 
 ## Current Version
-**v0.1.64** — Exercise Tracker + Pain Tracker added (v0.1.42–v0.1.63 were prior patches)
+**v0.1.69** — genomicReportNormalizer v2 + FHIR auth/UX hardening + portal sync ingestion tests
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
