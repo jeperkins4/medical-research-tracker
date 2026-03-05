@@ -35,6 +35,8 @@ export default function PortalManager() {
   const [fhirConfig, setFhirConfig] = useState(null); // { configured, hasClientId, hasAppBaseUrl, callbackUrl }
   const [fhirSyncing, setFhirSyncing] = useState({}); // { [credentialId]: bool }
   const [fhirSyncResult, setFhirSyncResult] = useState({}); // { [credentialId]: { recordsImported, summary } }
+  const [fhirRefreshing, setFhirRefreshing] = useState({}); // { [credentialId]: bool }
+  const [fhirRefreshResult, setFhirRefreshResult] = useState({}); // { [credentialId]: { success, error, requiresAuth } }
 
   useEffect(() => {
     loadVaultStatus();
@@ -134,6 +136,33 @@ export default function PortalManager() {
       }));
     } finally {
       setFhirSyncing(prev => ({ ...prev, [credentialId]: false }));
+    }
+  };
+
+  /**
+   * Attempt silent token refresh via POST /api/fhir/refresh/:credentialId.
+   * On success: re-polls FHIR status (token is now valid again).
+   * On requiresAuth: surfaces a "Re-authorization required" message.
+   */
+  const handleFhirTokenRefresh = async (credentialId) => {
+    setFhirRefreshing(prev => ({ ...prev, [credentialId]: true }));
+    setFhirRefreshResult(prev => ({ ...prev, [credentialId]: null }));
+    try {
+      await api.refreshFhirToken(credentialId);
+      setFhirRefreshResult(prev => ({ ...prev, [credentialId]: { success: true } }));
+      // Re-poll status — token should now be valid
+      loadFhirStatusForCred(credentialId);
+    } catch (err) {
+      setFhirRefreshResult(prev => ({
+        ...prev,
+        [credentialId]: {
+          success: false,
+          error: err.message,
+          requiresAuth: err.requiresAuth || false,
+        },
+      }));
+    } finally {
+      setFhirRefreshing(prev => ({ ...prev, [credentialId]: false }));
     }
   };
 
@@ -757,12 +786,29 @@ export default function PortalManager() {
                     )}
 
                     <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                      {(!fs?.authorized || !fs?.valid) && fhirConfigured && (
+                      {/* Expired token: try silent refresh first, fall back to full reconnect */}
+                      {fs?.authorized && !fs?.valid && fhirConfigured && (
+                        <button
+                          onClick={() => handleFhirTokenRefresh(cred.id)}
+                          disabled={fhirRefreshing[cred.id]}
+                          style={{
+                            fontSize: '0.85em',
+                            backgroundColor: fhirRefreshing[cred.id] ? '#d1d5db' : '#d97706',
+                            color: 'white', border: 'none', borderRadius: '4px',
+                            padding: '4px 12px',
+                            cursor: fhirRefreshing[cred.id] ? 'wait' : 'pointer',
+                          }}
+                          title="Attempt silent token refresh using stored refresh_token"
+                        >
+                          {fhirRefreshing[cred.id] ? '⏳ Refreshing…' : '🔄 Refresh Token'}
+                        </button>
+                      )}
+                      {(!fs?.authorized || (!fs?.valid && fhirRefreshResult[cred.id]?.requiresAuth)) && fhirConfigured && (
                         <button
                           onClick={() => handleFhirConnect(cred.id)}
                           style={{ fontSize: '0.85em', backgroundColor: '#3730a3', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}
                         >
-                          🔗 {fs?.authorized && !fs?.valid ? 'Reconnect Epic' : 'Connect Epic MyChart'}
+                          🔗 {fs?.authorized ? 'Reconnect Epic' : 'Connect Epic MyChart'}
                         </button>
                       )}
                       {fs?.authorized && fs?.valid && (
@@ -783,6 +829,36 @@ export default function PortalManager() {
                         </button>
                       )}
                     </div>
+
+                    {/* Token refresh result banner */}
+                    {fhirRefreshResult[cred.id] && !fhirRefreshResult[cred.id].success && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '4px',
+                        fontSize: '0.82em',
+                        backgroundColor: '#fee2e2',
+                        color: '#b91c1c',
+                        border: '1px solid #fca5a5',
+                      }}>
+                        {fhirRefreshResult[cred.id].requiresAuth
+                          ? '⚠️ Refresh token expired — click "Reconnect Epic" to re-authorize.'
+                          : `❌ Refresh failed: ${fhirRefreshResult[cred.id].error}`}
+                      </div>
+                    )}
+                    {fhirRefreshResult[cred.id]?.success && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '4px',
+                        fontSize: '0.82em',
+                        backgroundColor: '#dcfce7',
+                        color: '#166534',
+                        border: '1px solid #86efac',
+                      }}>
+                        ✅ Token refreshed successfully — connection restored.
+                      </div>
+                    )}
 
                     {/* FHIR sync result */}
                     {fhirSyncResult[cred.id] && (

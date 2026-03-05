@@ -529,6 +529,42 @@ export async function syncFhir(credentialId) {
   return res.json();
 }
 
+/**
+ * Explicitly refresh the FHIR access token using the stored refresh_token.
+ * Returns { success, patientId, expiresAt, valid } or throws with .requiresAuth flag.
+ */
+export async function refreshFhirToken(credentialId) {
+  const res = await fetch(`/api/fhir/refresh/${credentialId}`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  const body = await res.json();
+  if (!res.ok) {
+    const err = new Error(body.error || 'Token refresh failed');
+    err.requiresAuth = body.requiresAuth || false;
+    throw err;
+  }
+  return body;
+}
+
+/**
+ * List all supported cancer profiles.
+ */
+export async function getCancerProfiles() {
+  const res = await fetch('/api/cancer-profiles', { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to load cancer profiles');
+  return res.json(); // { profiles: [{id, label}, ...] }
+}
+
+/**
+ * Get full detail for a single cancer profile.
+ */
+export async function getCancerProfile(profileId) {
+  const res = await fetch(`/api/cancer-profiles/${profileId}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Cancer profile not found');
+  return res.json();
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

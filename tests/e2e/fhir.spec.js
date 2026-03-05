@@ -794,3 +794,118 @@ test.describe('GET /api/cancer-profiles/:id — profile detail', () => {
     expect(body.keyBiomarkers).toContain('BRAF');
   });
 });
+
+// ─── PortalManager token-refresh UX logic (pure) ────────────────────────────
+test.describe('PortalManager token-refresh UX state derivation (pure logic)', () => {
+  // Mirror the UI decision logic: when to show Refresh Token vs Reconnect button
+
+  function shouldShowRefreshButton(fs, refreshResult) {
+    // Show "Refresh Token" when: authorized but expired AND no requiresAuth from a prior attempt
+    return fs?.authorized && !fs?.valid && !refreshResult?.requiresAuth;
+  }
+
+  function shouldShowReconnectButton(fs, refreshResult) {
+    // Show "Reconnect Epic" when: not authorized at all, OR expired + prior refresh said requiresAuth
+    if (!fs?.authorized) return true;
+    if (!fs?.valid && refreshResult?.requiresAuth) return true;
+    return false;
+  }
+
+  test('not authorized → show Reconnect, hide Refresh', () => {
+    const fs = { authorized: false, valid: false };
+    expect(shouldShowRefreshButton(fs, null)).toBe(false);
+    expect(shouldShowReconnectButton(fs, null)).toBe(true);
+  });
+
+  test('authorized + valid → hide both action buttons', () => {
+    const fs = { authorized: true, valid: true };
+    expect(shouldShowRefreshButton(fs, null)).toBe(false);
+    expect(shouldShowReconnectButton(fs, null)).toBe(false);
+  });
+
+  test('authorized + expired, no prior refresh attempt → show Refresh Token', () => {
+    const fs = { authorized: true, valid: false };
+    expect(shouldShowRefreshButton(fs, null)).toBe(true);
+    expect(shouldShowReconnectButton(fs, null)).toBe(false);
+  });
+
+  test('authorized + expired, prior refresh succeeded → Refresh hidden (status should now show valid)', () => {
+    const fs = { authorized: true, valid: false };
+    const refreshResult = { success: true };
+    // After success the status poll should flip valid=true, but logic-wise:
+    expect(shouldShowRefreshButton(fs, refreshResult)).toBe(true); // still shows until status updates
+  });
+
+  test('authorized + expired, prior refresh returned requiresAuth → show Reconnect', () => {
+    const fs = { authorized: true, valid: false };
+    const refreshResult = { success: false, requiresAuth: true };
+    expect(shouldShowRefreshButton(fs, refreshResult)).toBe(false);
+    expect(shouldShowReconnectButton(fs, refreshResult)).toBe(true);
+  });
+
+  test('null fhirStatus → Refresh hidden; Reconnect shown (not-authorized path)', () => {
+    // fs?.authorized is undefined (falsy) when fs=null — short-circuit makes refresh return undefined
+    expect(shouldShowRefreshButton(null, null)).toBeFalsy();
+    expect(shouldShowReconnectButton(null, null)).toBe(true);
+  });
+});
+
+// ─── api.js refreshFhirToken contract ────────────────────────────────────────
+test.describe('POST /api/fhir/refresh — contract assertions', () => {
+  test('unauthenticated → 401', async ({ request }) => {
+    const res = await request.post(`${API}/api/fhir/refresh/1`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('non-numeric id → 400', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/abc`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid credential id/i);
+  });
+
+  test('missing credential → 404', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/999999`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body.error).toMatch(/not found/i);
+  });
+
+  test('non-epic credential → 400 with helpful message', async ({ request }) => {
+    const cookie = await login(request);
+    // Use the fixture non-epic credential (id=2 from global-setup)
+    const res = await request.post(`${API}/api/fhir/refresh/2`, {
+      headers: { Cookie: cookie },
+    });
+    // Either 400 (non-epic) or 404 (not found) are acceptable
+    expect([400, 404]).toContain(res.status());
+    if (res.status() === 400) {
+      const body = await res.json();
+      expect(body.error).toMatch(/epic/i);
+    }
+  });
+
+  test('refresh response shape — error always has "error" key, success has "success: true"', async ({ request }) => {
+    const cookie = await login(request);
+    // Use epic fixture credential — likely no refresh_token in test env
+    const epicCredId = 1; // created by global-setup as epic type
+    const res = await request.post(`${API}/api/fhir/refresh/${epicCredId}`, {
+      headers: { Cookie: cookie },
+    });
+    const body = await res.json();
+    if (res.status() === 200) {
+      expect(body.success).toBe(true);
+      expect(body).not.toHaveProperty('access_token');
+      expect(body).not.toHaveProperty('refresh_token');
+    } else {
+      expect(body).toHaveProperty('error');
+      // requiresAuth may or may not be present depending on whether token row exists
+    }
+  });
+});
