@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-04 20:45 EST -->
-Last updated: 2026-03-04
+<!-- Last updated: 2026-03-05 04:45 EST -->
+Last updated: 2026-03-05
 
 ## Current Version
-**v0.1.73** — PortalManager token-refresh UX + multi-cancer profiles + API helpers (207 total tests, 193 passing)
+**v0.1.74** — Genomics schema completion + BoneHealthTracker IPC normalization + 176/176 E2E tests passing
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
