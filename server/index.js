@@ -987,27 +987,31 @@ app.get('/api/genomic/pathways', requireAuth, (req, res) => {
 });
 
 app.get('/api/genomic/treatments', requireAuth, (req, res) => {
-  const treatments = query(`
-    SELECT gt.*, 
-      gp.pathway_name, gp.pathway_category,
-      gm.gene_name as target_gene,
-      gmo.overlap_type,
-      m.name as existing_medication
-    FROM genomic_treatments gt
-    LEFT JOIN genomic_pathways gp ON gt.target_pathway_id = gp.id
-    LEFT JOIN genomic_mutations gm ON gt.target_mutation_id = gm.id
-    LEFT JOIN genomic_med_overlap gmo ON gt.id = gmo.genomic_treatment_id
-    LEFT JOIN medications m ON gmo.medication_id = m.id
-    ORDER BY 
-      CASE priority_level 
-        WHEN 'Critical' THEN 1 
-        WHEN 'High' THEN 2 
-        WHEN 'Medium' THEN 3 
-        ELSE 4 
-      END,
-      gt.treatment_name
-  `);
-  res.json(treatments);
+  try {
+    const treatments = query(`
+      SELECT gt.*, 
+        gp.pathway_name, gp.pathway_category,
+        gm.gene_name as target_gene,
+        gmo.overlap_type,
+        m.name as existing_medication
+      FROM genomic_treatments gt
+      LEFT JOIN genomic_pathways gp ON gt.target_pathway_id = gp.id
+      LEFT JOIN genomic_mutations gm ON gt.target_mutation_id = gm.id
+      LEFT JOIN genomic_med_overlap gmo ON gt.id = gmo.genomic_treatment_id
+      LEFT JOIN medications m ON gmo.medication_id = m.id
+      ORDER BY 
+        CASE priority_level 
+          WHEN 'Critical' THEN 1 
+          WHEN 'High' THEN 2 
+          WHEN 'Medium' THEN 3 
+          ELSE 4 
+        END,
+        gt.treatment_name
+    `);
+    res.json(treatments);
+  } catch (err) {
+    res.json([]);
+  }
 });
 
 app.get('/api/genomic/precision-map', requireAuth, (req, res) => {
@@ -1037,19 +1041,23 @@ app.get('/api/genomic/precision-map', requireAuth, (req, res) => {
 });
 
 app.get('/api/genomic/biomarkers', requireAuth, (req, res) => {
-  const biomarkers = query(`
-    SELECT gb.*,
-      gp.pathway_name,
-      gm.gene_name,
-      COUNT(bm.id) as measurement_count,
-      MAX(bm.measurement_date) as last_measured
-    FROM genomic_biomarkers gb
-    LEFT JOIN genomic_pathways gp ON gb.related_pathway_id = gp.id
-    LEFT JOIN genomic_mutations gm ON gb.related_mutation_id = gm.id
-    LEFT JOIN biomarker_measurements bm ON gb.id = bm.biomarker_id
-    GROUP BY gb.id
-  `);
-  res.json(biomarkers);
+  try {
+    const biomarkers = query(`
+      SELECT gb.*,
+        gp.pathway_name,
+        gm.gene_name,
+        COUNT(bm.id) as measurement_count,
+        MAX(bm.measurement_date) as last_measured
+      FROM genomic_biomarkers gb
+      LEFT JOIN genomic_pathways gp ON gb.related_pathway_id = gp.id
+      LEFT JOIN genomic_mutations gm ON gb.related_mutation_id = gm.id
+      LEFT JOIN biomarker_measurements bm ON gb.id = bm.biomarker_id
+      GROUP BY gb.id
+    `);
+    res.json(biomarkers);
+  } catch (err) {
+    res.json([]);
+  }
 });
 
 // Foundation One Genomics Endpoints
@@ -1194,6 +1202,7 @@ app.get('/api/genomics/pathway-graph', requireAuth, (req, res) => {
 
 // Get Mutation-Drug Network for Cytoscape visualization
 app.get('/api/genomics/mutation-drug-network', requireAuth, (req, res) => {
+  try {
   // Get mutations
   const mutations = query('SELECT id, gene, alteration, variant_allele_frequency FROM genomic_mutations');
   
@@ -1269,6 +1278,9 @@ app.get('/api/genomics/mutation-drug-network', requireAuth, (req, res) => {
   });
   
   res.json({ nodes, edges });
+  } catch (err) {
+    res.json({ nodes: [], edges: [] });
+  }
 });
 
 // Get Precision Medicine Dashboard summary

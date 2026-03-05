@@ -371,11 +371,46 @@ const initDb = () => {
     CREATE TABLE IF NOT EXISTS genomic_biomarkers (
       id                   INTEGER PRIMARY KEY AUTOINCREMENT,
       related_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      related_pathway_id   INTEGER REFERENCES genomic_pathways(id) ON DELETE SET NULL,
       biomarker_name       TEXT,
       value                TEXT,
       unit                 TEXT,
       clinical_significance TEXT,
       created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS biomarker_measurements (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      biomarker_id  INTEGER REFERENCES genomic_biomarkers(id) ON DELETE CASCADE,
+      value         TEXT,
+      unit          TEXT,
+      measurement_date TEXT,
+      source        TEXT,
+      notes         TEXT,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_treatments (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      treatment_name      TEXT NOT NULL,
+      treatment_type      TEXT,
+      target_pathway_id   INTEGER REFERENCES genomic_pathways(id) ON DELETE SET NULL,
+      target_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE SET NULL,
+      mechanism           TEXT,
+      evidence_level      TEXT,
+      priority_level      TEXT,
+      status              TEXT DEFAULT 'Candidate',
+      notes               TEXT,
+      created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_med_overlap (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      genomic_treatment_id  INTEGER REFERENCES genomic_treatments(id) ON DELETE CASCADE,
+      medication_id         INTEGER REFERENCES medications(id) ON DELETE CASCADE,
+      overlap_type          TEXT,
+      notes                 TEXT,
+      created_at            TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS mutation_treatment_history (

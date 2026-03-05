@@ -185,21 +185,15 @@ test.describe('POST /api/portals/credentials/:id/sync — sync trigger', () => {
   });
 
   test('sync attempt returns structured result or error (never hangs)', async ({ request }) => {
-    // Use the seeded generic credential (id = 1 or the first from list)
+    // Uses seeded generic credential (id=95) from global-setup.
+    // Sync will fail with a vault-locked error in the test env (vault never unlocked),
+    // which is a valid structured JSON error response — never raw HTML or an unhandled hang.
     const headers = await authHeaders(request);
-    const listRes = await request.get(`${API}/api/portals/credentials`, { headers });
-    const creds = await listRes.json();
-    const generic = creds.find(c => c.portal_type === 'generic');
-    if (!generic) {
-      test.skip(true, 'No generic credential seeded');
-      return;
-    }
-
     const res = await request.post(
-      `${API}/api/portals/credentials/${generic.id}/sync`,
+      `${API}/api/portals/credentials/95/sync`,
       { headers, timeout: 15000 }
     );
-    // Could fail (no real portal) but must return structured JSON
+    // Could fail (vault locked, no real portal) but MUST return structured JSON
     const body = await res.json();
     expect(typeof body).toBe('object');
     // Either success shape or error shape
@@ -236,28 +230,40 @@ test.describe('DELETE /api/portals/credentials/:id', () => {
     }
   });
 
-  test('delete a created credential — it disappears from list', async ({ request }) => {
+  test('delete a credential — it disappears from list', async ({ request }) => {
     const headers = await authHeaders(request);
-    // Create
-    const name = 'Delete-Me-' + Date.now();
+
+    // Attempt to create a new credential. In test env the vault is locked, so this
+    // may return 400. If create fails, fall back to the pre-seeded deletable credential
+    // (id=96) so we can still verify the DELETE → list-gone flow.
     const createRes = await request.post(`${API}/api/portals/credentials`, {
       headers,
-      data: { service_name: name, portal_type: 'generic', base_url: 'https://example.com', username: 'u', password: 'p' }
+      data: { service_name: 'Delete-Me-' + Date.now(), portal_type: 'generic',
+              base_url: 'https://example.com', username: 'u', password: 'p' }
     });
-    if (![200, 201].includes(createRes.status())) {
-      test.skip(true, 'Create not supported');
-      return;
+
+    let id;
+    if ([200, 201].includes(createRes.status())) {
+      id = (await createRes.json()).id;
+    } else {
+      // Vault locked in test env — use pre-seeded deletable credential (id=96)
+      id = 96;
     }
-    const { id } = await createRes.json();
+
+    // Confirm it exists in the list before deleting
+    const listBefore = await request.get(`${API}/api/portals/credentials`, { headers });
+    const before = await listBefore.json();
+    // id=96 must be present (seeded in global-setup); newly created ids will also be here
+    expect(before.find(c => c.id === id)).toBeTruthy();
 
     // Delete
     const delRes = await request.delete(`${API}/api/portals/credentials/${id}`, { headers });
     expect([200, 204]).toContain(delRes.status());
 
     // Verify gone
-    const listRes = await request.get(`${API}/api/portals/credentials`, { headers });
-    const body = await listRes.json();
-    expect(body.find(c => c.id === id)).toBeFalsy();
+    const listAfter = await request.get(`${API}/api/portals/credentials`, { headers });
+    const after = await listAfter.json();
+    expect(after.find(c => c.id === id)).toBeFalsy();
   });
 });
 

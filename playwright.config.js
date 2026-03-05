@@ -29,7 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api-tests',
-      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/portal-sync.spec.js'],
+      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/portal-sync.spec.js', '**/genomics.spec.js'],
       use: { baseURL: API_BASE },
     },
     // IPC module smoke tests — no HTTP server or browser needed

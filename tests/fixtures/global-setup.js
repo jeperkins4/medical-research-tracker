@@ -84,17 +84,105 @@ function createTestDatabase(dir) {
 
     CREATE TABLE IF NOT EXISTS genomic_mutations (
       id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-      gene                 TEXT NOT NULL,
+      gene                 TEXT,
+      gene_name            TEXT,
       mutation_type        TEXT,
       mutation_detail      TEXT,
+      alteration           TEXT,
       vaf                  REAL,
+      variant_allele_frequency REAL,
       clinical_significance TEXT,
       report_source        TEXT,
       report_date          TEXT,
       notes                TEXT,
       transcript_id        TEXT,
       coding_effect        TEXT,
+      is_confirmed         INTEGER DEFAULT 1,
       created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_pathways (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      pathway_name  TEXT NOT NULL,
+      description   TEXT,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_treatments (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      treatment_name      TEXT NOT NULL,
+      treatment_type      TEXT,
+      target_pathway_id   INTEGER,
+      created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathway_map (
+      mutation_id INTEGER NOT NULL,
+      pathway_id  INTEGER NOT NULL,
+      PRIMARY KEY (mutation_id, pathway_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS pathways (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      description   TEXT,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_pathways (
+      mutation_id  INTEGER NOT NULL,
+      pathway_id   INTEGER NOT NULL,
+      impact_level TEXT DEFAULT 'medium',
+      mechanism    TEXT,
+      PRIMARY KEY (mutation_id, pathway_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS mutation_treatments (
+      id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id              INTEGER,
+      pathway_id               INTEGER,
+      treatment_name           TEXT,
+      sensitivity_or_resistance TEXT,
+      clinical_evidence        TEXT,
+      created_at               TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS biomarkers (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      name        TEXT NOT NULL,
+      value       TEXT,
+      unit        TEXT,
+      report_date TEXT,
+      source      TEXT,
+      created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_trials (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id   INTEGER,
+      trial_name    TEXT,
+      phase         TEXT,
+      status        TEXT DEFAULT 'recruiting',
+      priority_score INTEGER DEFAULT 0,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS vus_variants (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      gene       TEXT NOT NULL,
+      variant    TEXT,
+      status     TEXT DEFAULT 'unknown',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS treatment_genomic_correlation (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      medication_id    INTEGER,
+      mutation_id      INTEGER,
+      pathway_id       INTEGER,
+      correlation_type TEXT,
+      notes            TEXT,
+      created_at       TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS subscriptions (
@@ -181,9 +269,11 @@ function createTestDatabase(dir) {
   // ── Seed: genomic mutation ─────────────────────────────────────────────────
   db.prepare(`
     INSERT OR IGNORE INTO genomic_mutations
-      (gene, mutation_type, mutation_detail, vaf, clinical_significance, report_source, report_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run('ARID1A', 'Short Variant', 'p.Q456*', 35.2, 'pathogenic',
+      (gene, gene_name, mutation_type, mutation_detail, alteration,
+       vaf, variant_allele_frequency, clinical_significance, report_source, report_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('ARID1A', 'ARID1A', 'Short Variant', 'p.Q456*', 'p.Q456*',
+         35.2, 35.2, 'pathogenic',
          'FoundationOne CDx', new Date().toISOString().split('T')[0]);
 
   db.close();
@@ -320,6 +410,87 @@ export default async function globalSetup() {
           (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', '', '', 'never');
+
+      // Seed generic credential (id=95) — used by portal-sync sync-attempt test
+      // (sync will fail with vault-locked error, which is a valid structured response)
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(95, 'Generic Test Portal', 'generic', 'https://portal.example.com', '', '', 'never');
+
+      // Seed deletable generic credential (id=96) — used by portal-sync delete test
+      // as fallback when vault is locked and POST /api/portals/credentials fails
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(96, 'Deletable Test Portal', 'generic', 'https://delete-me.example.com', '', '', 'never');
+
+      // Ensure extended genomic schema tables exist in the server DB
+      // (server migrations may not run in test mode — create them if absent)
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS genomic_pathways (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, pathway_name TEXT NOT NULL,
+          description TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS genomic_treatments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, treatment_name TEXT NOT NULL,
+          treatment_type TEXT, target_pathway_id INTEGER,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS mutation_pathway_map (
+          mutation_id INTEGER NOT NULL, pathway_id INTEGER NOT NULL,
+          PRIMARY KEY (mutation_id, pathway_id)
+        );
+        CREATE TABLE IF NOT EXISTS pathways (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+          description TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS mutation_pathways (
+          mutation_id INTEGER NOT NULL, pathway_id INTEGER NOT NULL,
+          impact_level TEXT DEFAULT 'medium', mechanism TEXT,
+          PRIMARY KEY (mutation_id, pathway_id)
+        );
+        CREATE TABLE IF NOT EXISTS mutation_treatments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, mutation_id INTEGER,
+          pathway_id INTEGER, treatment_name TEXT,
+          sensitivity_or_resistance TEXT, clinical_evidence TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS biomarkers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+          value TEXT, unit TEXT, report_date TEXT, source TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS genomic_trials (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, mutation_id INTEGER,
+          trial_name TEXT, phase TEXT, status TEXT DEFAULT 'recruiting',
+          priority_score INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS vus_variants (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, gene TEXT NOT NULL,
+          variant TEXT, status TEXT DEFAULT 'unknown',
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS treatment_genomic_correlation (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, medication_id INTEGER,
+          mutation_id INTEGER, pathway_id INTEGER, correlation_type TEXT,
+          notes TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Ensure genomic_mutations has all required columns (may have been created with minimal schema)
+      const gmCols = serverDb.pragma('table_info(genomic_mutations)').map(c => c.name);
+      if (!gmCols.includes('gene_name'))
+        serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN gene_name TEXT`);
+      if (!gmCols.includes('alteration'))
+        serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN alteration TEXT`);
+      if (!gmCols.includes('variant_allele_frequency'))
+        serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN variant_allele_frequency REAL`);
+      if (!gmCols.includes('is_confirmed'))
+        serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN is_confirmed INTEGER DEFAULT 1`);
 
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');

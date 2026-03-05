@@ -99,6 +99,15 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
     fetchBoneHealthData();
   }, []);
 
+  const normalizeIpcFlags = (flags = []) =>
+    flags.map((f) => ({
+      marker: 'Bone Marker',
+      value: f.label || 'Abnormal finding',
+      status: f.severity?.toUpperCase?.() || 'FLAG',
+      note: f.label || 'Clinical flag detected',
+      severity: f.severity === 'high' ? 'critical' : 'warning'
+    }));
+
   const fetchBoneHealthData = async () => {
     try {
       let data;
@@ -108,7 +117,7 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
         const response = await apiFetch('/api/bone-health');
         data = await response.json();
       }
-      
+
       // Check if bone health monitoring is enabled
       if (!data.enabled) {
         setEnabled(false);
@@ -116,13 +125,19 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
         setLoading(false);
         return;
       }
-      
+
+      // Normalize payloads across HTTP API and Electron IPC shapes
+      const alkData = data.alkPhosData || data.series?.alkPhos || [];
+      const supplements = data.currentSupplements || data.protectiveSupplements || [];
+      const gaps = data.missingSupplements || [];
+      const flags = data.labFlags || normalizeIpcFlags(data.flags || []);
+
       setEnabled(true);
-      setAlkPhosData(data.alkPhosData || []);
-      setCurrentSupplements(data.currentSupplements || []);
-      setMissingSupplements(data.missingSupplements || []);
+      setAlkPhosData(alkData);
+      setCurrentSupplements(supplements);
+      setMissingSupplements(gaps);
       setProtectiveSupplements(data.protectiveSupplements || []);
-      setLabFlags(data.labFlags || []);
+      setLabFlags(flags);
       setTumorFlags(data.tumorFlags || []);
       setPanelData(data.panelData || {});
       setSoftTissueData(data.softTissueData || {});
@@ -426,7 +441,7 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
                   </Box>
                 ))
               ) : (
-                <Typography color="text.secondary">Loading supplement data...</Typography>
+                <Typography color="text.secondary">No bone-support supplements found in current records.</Typography>
               )}
             </CardContent>
           </Card>
@@ -456,7 +471,7 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
                   </Box>
                 ))
               ) : (
-                <Typography color="text.secondary">Loading recommendations...</Typography>
+                <Typography color="text.secondary">No critical supplement gaps identified from available data.</Typography>
               )}
             </CardContent>
           </Card>
