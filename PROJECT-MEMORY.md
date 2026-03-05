@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-04 12:38 EST -->
+<!-- Last updated: 2026-03-04 20:45 EST -->
 Last updated: 2026-03-04
 
 ## Current Version
-**v0.1.71** — FHIR clinical notes import (DocumentReference) + 17 new tests (199 total)
+**v0.1.73** — PortalManager token-refresh UX + multi-cancer profiles + API helpers (207 total tests, 193 passing)
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
