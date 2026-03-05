@@ -580,3 +580,217 @@ test.describe('Clinical notes LOINC classification (pure logic)', () => {
     expect(classifyNoteType({})).toBe('other');
   });
 });
+
+// ─── 8. Token Refresh Endpoint ────────────────────────────────────────────────
+
+test.describe('POST /api/fhir/refresh/:credentialId — explicit token refresh', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.post(`${API}/api/fhir/refresh/${EPIC_CRED_ID}`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 400 for non-numeric credential id', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/notanumber`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('returns 404 for missing credential id', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${MISSING_CRED}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('returns 400 for non-epic credential type', async ({ request }) => {
+    const cookie = await login(request);
+    // NON_EPIC_CRED is carespace type
+    const res = await request.post(`${API}/api/fhir/refresh/${NON_EPIC_CRED}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/epic/i);
+  });
+
+  test('credential with no fhir_tokens row → 400 with requiresAuth=true', async ({ request }) => {
+    // MISSING_CRED does not exist at all → 404, so use NON_EPIC_CRED indirectly.
+    // Create a fresh epic credential with no token to test "no authorization found" path.
+    const cookie = await login(request);
+
+    // Create a bare epic credential with no token row
+    const create = await request.post(`${API}/api/portals/credentials`, {
+      headers: { Cookie: cookie },
+      data: {
+        service_name: 'Refresh Test Epic',
+        portal_type: 'epic',
+        base_url: 'https://fhir.epic.com/interconnect-fhir-oauth/api',
+      },
+    });
+    // Vault may be locked in test env → 400, or success → 200/201
+    if (create.status() === 200 || create.status() === 201) {
+      const { id } = await create.json();
+      const res = await request.post(`${API}/api/fhir/refresh/${id}`, {
+        headers: { Cookie: cookie },
+      });
+      // No token row for this cred → 400 with requiresAuth
+      expect(res.status()).toBe(400);
+      const body = await res.json();
+      expect(body).toHaveProperty('requiresAuth', true);
+    } else {
+      // Vault locked or some other expected state — test passes (guarded path)
+      expect([400]).toContain(create.status());
+    }
+  });
+
+  test('refresh with expired token → structured result (success or requiresAuth)', async ({ request }) => {
+    // EXPIRED_CRED_ID has a token with refresh_token stored.
+    // In test env no real Epic endpoint exists → refresh call fails → 400/500.
+    // Verify response is always structured JSON, never an unhandled crash.
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect([200, 400, 500]).toContain(res.status());
+    const body = await res.json();
+    expect(typeof body).toBe('object');
+    expect(body).not.toBeNull();
+    // On failure must have error field
+    if (res.status() !== 200) {
+      expect(body).toHaveProperty('error');
+    }
+    // On success must have success:true
+    if (res.status() === 200) {
+      expect(body).toHaveProperty('success', true);
+      expect(body).toHaveProperty('expiresAt');
+    }
+  });
+
+  test('refresh response never leaks raw refresh_token value', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    const text = await res.text();
+    expect(text).not.toMatch(/test-refresh-token/);
+  });
+});
+
+// ─── 9. Cancer Profiles API ───────────────────────────────────────────────────
+
+test.describe('GET /api/cancer-profiles — cancer profile registry', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/cancer-profiles`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 200 with profiles array', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('profiles');
+    expect(Array.isArray(body.profiles)).toBe(true);
+    expect(body.profiles.length).toBeGreaterThanOrEqual(4);
+  });
+
+  test('each profile has id and label', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles`, {
+      headers: { Cookie: cookie },
+    });
+    const { profiles } = await res.json();
+    for (const p of profiles) {
+      expect(typeof p.id).toBe('string');
+      expect(typeof p.label).toBe('string');
+    }
+  });
+
+  test('includes urothelial_carcinoma (primary cancer type)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles`, {
+      headers: { Cookie: cookie },
+    });
+    const { profiles } = await res.json();
+    const ids = profiles.map(p => p.id);
+    expect(ids).toContain('urothelial_carcinoma');
+  });
+
+  test('includes all 8 expected cancer types', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles`, {
+      headers: { Cookie: cookie },
+    });
+    const { profiles } = await res.json();
+    const ids = profiles.map(p => p.id);
+    const expected = [
+      'urothelial_carcinoma', 'breast_cancer', 'lung_nsclc',
+      'colorectal_cancer', 'prostate_cancer', 'ovarian_cancer',
+      'pancreatic_cancer', 'melanoma',
+    ];
+    for (const id of expected) {
+      expect(ids, `Missing profile: ${id}`).toContain(id);
+    }
+  });
+});
+
+test.describe('GET /api/cancer-profiles/:id — profile detail', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/cancer-profiles/urothelial_carcinoma`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 404 for unknown profile id', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/does_not_exist`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('returns full profile for urothelial_carcinoma', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/urothelial_carcinoma`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe('urothelial_carcinoma');
+    expect(Array.isArray(body.keyBiomarkers)).toBe(true);
+    expect(body.keyBiomarkers).toContain('FGFR3');
+    expect(Array.isArray(body.aliases)).toBe(true);
+    expect(Array.isArray(body.commonReportSources)).toBe(true);
+  });
+
+  test('prostate_cancer profile has AR and BRCA2 biomarkers', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/prostate_cancer`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.keyBiomarkers).toContain('AR');
+    expect(body.keyBiomarkers).toContain('BRCA2');
+  });
+
+  test('melanoma profile has BRAF biomarker', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/melanoma`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.keyBiomarkers).toContain('BRAF');
+  });
+});

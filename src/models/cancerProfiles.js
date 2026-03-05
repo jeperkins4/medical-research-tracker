@@ -30,6 +30,34 @@ export const CANCER_PROFILES = {
     keyBiomarkers: ['KRAS', 'NRAS', 'BRAF', 'MSI', 'TMB', 'HER2'],
     commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
   },
+  prostate_cancer: {
+    id: 'prostate_cancer',
+    label: 'Prostate Cancer',
+    aliases: ['pca', 'prostate carcinoma', 'castration-resistant prostate cancer', 'crpc', 'mcrpc'],
+    keyBiomarkers: ['AR', 'ARV7', 'BRCA1', 'BRCA2', 'CDK12', 'ATM', 'MSI', 'TMB', 'PD-L1'],
+    commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
+  },
+  ovarian_cancer: {
+    id: 'ovarian_cancer',
+    label: 'Ovarian Cancer',
+    aliases: ['ovarian carcinoma', 'high grade serous ovarian cancer', 'hgsoc'],
+    keyBiomarkers: ['BRCA1', 'BRCA2', 'HRD', 'TP53', 'CCNE1', 'NF1', 'RAD51C', 'RAD51D'],
+    commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
+  },
+  pancreatic_cancer: {
+    id: 'pancreatic_cancer',
+    label: 'Pancreatic Cancer',
+    aliases: ['pdac', 'pancreatic ductal adenocarcinoma', 'pancreatic carcinoma'],
+    keyBiomarkers: ['KRAS', 'TP53', 'SMAD4', 'CDKN2A', 'BRCA1', 'BRCA2', 'ATM', 'MSI', 'TMB'],
+    commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
+  },
+  melanoma: {
+    id: 'melanoma',
+    label: 'Melanoma',
+    aliases: ['cutaneous melanoma', 'uveal melanoma', 'mucosal melanoma'],
+    keyBiomarkers: ['BRAF', 'NRAS', 'NF1', 'KIT', 'PD-L1', 'TMB', 'MSI'],
+    commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
+  },
 };
 
 export function getCancerProfile(profileId) {

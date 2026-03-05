@@ -59863,7 +59863,7 @@ async function syncEpicFHIR(credential) {
     results.pathologyReports = importDiagnosticReports(pathology, "pathology");
     console.log("    \u2192 Fetching clinical notes (DocumentReference)...");
     const notes = await fetchAllPages(accessToken, `DocumentReference?patient=${patientId}`);
-    results.clinicalNotes = importDocumentReferences(notes);
+    results.clinicalNotes = importDocumentReferences(notes, credential.id);
     console.log("    \u2192 Fetching medications (MedicationRequest)...");
     const medications = await fetchAllPages(accessToken, `MedicationRequest?patient=${patientId}&status=active`);
     results.medications = importMedicationRequests(medications);
@@ -60021,8 +60021,144 @@ function importDiagnosticReports(reports, category) {
   }
   return imported;
 }
-function importDocumentReferences(notes) {
-  return 0;
+var CANCER_KEYWORDS = [
+  "cancer",
+  "carcinoma",
+  "tumor",
+  "tumour",
+  "malignant",
+  "malignancy",
+  "oncol",
+  "chemo",
+  "immunotherapy",
+  "bladder",
+  "urothelial",
+  "metastas",
+  "cisplatin",
+  "gemcitabine",
+  "pembrolizumab",
+  "atezolizumab",
+  "erdafitinib",
+  "arid1a",
+  "fgfr3",
+  "pik3ca",
+  "cystoscopy",
+  "pathology",
+  "biopsy",
+  "radiation",
+  "checkpoint inhibitor",
+  "pdl1",
+  "pd-l1"
+];
+function classifyNoteType(doc) {
+  const loinc = doc.type?.coding?.[0]?.code || "";
+  const display = (doc.type?.coding?.[0]?.display || doc.type?.text || "").toLowerCase();
+  if (display.includes("pathol") || loinc === "60568-3") return "pathology";
+  if (display.includes("discharg") || loinc === "18842-5") return "discharge";
+  if (display.includes("operat") || display.includes("procedur") || loinc === "11504-8") return "operative";
+  if (display.includes("radiol") || display.includes("imaging") || loinc === "18748-4") return "imaging";
+  if (display.includes("progress") || loinc === "11506-3") return "progress";
+  if (display.includes("consult") || loinc === "11488-4") return "consult";
+  return "other";
+}
+function extractNoteText(doc) {
+  const content = doc.content || [];
+  let text = "";
+  let html = "";
+  for (const item of content) {
+    const att = item.attachment || {};
+    if (!att.data) continue;
+    let decoded = "";
+    try {
+      decoded = Buffer.from(att.data, "base64").toString("utf8");
+    } catch {
+      continue;
+    }
+    if (att.contentType?.startsWith("text/html")) {
+      html = decoded;
+      text = text || decoded.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    } else if (att.contentType?.startsWith("text/plain") || !att.contentType) {
+      text = decoded;
+    }
+  }
+  return { text, html };
+}
+function importDocumentReferences(notes, credentialId = null) {
+  try {
+    run(`CREATE TABLE IF NOT EXISTS clinical_notes (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      fhir_id         TEXT UNIQUE,
+      credential_id   INTEGER,
+      note_type       TEXT,
+      title           TEXT,
+      date            TEXT,
+      author          TEXT,
+      department      TEXT,
+      facility        TEXT,
+      content_text    TEXT,
+      content_html    TEXT,
+      loinc_code      TEXT,
+      loinc_display   TEXT,
+      status          TEXT DEFAULT 'final',
+      cancer_relevant INTEGER DEFAULT 0,
+      created_at      TEXT DEFAULT (datetime('now')),
+      updated_at      TEXT DEFAULT (datetime('now'))
+    )`);
+    run(`CREATE INDEX IF NOT EXISTS idx_clinical_notes_date ON clinical_notes(date DESC)`);
+  } catch (e2) {
+    console.error("clinical_notes table init error:", e2.message);
+    return 0;
+  }
+  let imported = 0;
+  for (const doc of notes) {
+    try {
+      const fhirId = doc.id || null;
+      if (!fhirId) continue;
+      const existing = query("SELECT id FROM clinical_notes WHERE fhir_id = ?", [fhirId]);
+      if (existing.length > 0) continue;
+      const noteType = classifyNoteType(doc);
+      const loincCode = doc.type?.coding?.[0]?.code || null;
+      const loincDisplay = doc.type?.coding?.[0]?.display || doc.type?.text || null;
+      const title = loincDisplay || "Clinical Note";
+      const date = doc.date || doc.context?.period?.start || null;
+      const author = doc.author?.[0]?.display || null;
+      const department = doc.context?.practiceSetting?.text || null;
+      const facility = doc.custodian?.display || null;
+      const status = doc.status || "final";
+      const { text, html } = extractNoteText(doc);
+      const combined = (title + " " + text + " " + (loincDisplay || "")).toLowerCase();
+      const cancerRelevant = CANCER_KEYWORDS.some((kw) => combined.includes(kw)) ? 1 : 0;
+      run(
+        `INSERT OR IGNORE INTO clinical_notes
+           (fhir_id, credential_id, note_type, title, date, author, department, facility,
+            content_text, content_html, loinc_code, loinc_display, status, cancer_relevant)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          fhirId,
+          credentialId,
+          noteType,
+          title,
+          date,
+          author,
+          department,
+          facility,
+          text || null,
+          html || null,
+          loincCode,
+          loincDisplay,
+          status,
+          cancerRelevant
+        ]
+      );
+      imported++;
+    } catch (err) {
+      console.error(`      \u2717 Error importing DocumentReference ${doc.id}:`, err.message);
+    }
+  }
+  if (imported > 0) {
+    console.log(`      \u2713 Imported ${imported} clinical note(s)`);
+  }
+  return imported;
 }
 function importMedicationRequests(medications) {
   let imported = 0;
@@ -74016,6 +74152,57 @@ function registerFHIRRoutes(app2, requireAuth2) {
     } catch (error) {
       console.error("[FHIR] Sync error:", error);
       res.status(500).json({ error: error.message });
+    }
+  });
+  app2.get("/api/fhir/clinical-notes", requireAuth2, (req, res) => {
+    try {
+      const limit2 = Math.min(parseInt(req.query.limit || "100", 10), 500);
+      const offset = parseInt(req.query.offset || "0", 10);
+      const type = req.query.type || null;
+      const cancerOnly = req.query.cancer_only === "1";
+      const conditions = [];
+      const params = [];
+      if (type) {
+        conditions.push("note_type = ?");
+        params.push(type);
+      }
+      if (cancerOnly) {
+        conditions.push("cancer_relevant = 1");
+      }
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const notes = query(
+        `SELECT id, fhir_id, credential_id, note_type, title, date, author, department,
+                facility, loinc_code, loinc_display, status, cancer_relevant, created_at
+         FROM clinical_notes ${where}
+         ORDER BY date DESC NULLS LAST
+         LIMIT ? OFFSET ?`,
+        [...params, limit2, offset]
+      );
+      const total = query(
+        `SELECT COUNT(*) as cnt FROM clinical_notes ${where}`,
+        params
+      )[0]?.cnt || 0;
+      res.json({ notes, total, limit: limit2, offset });
+    } catch (err) {
+      console.error("[FHIR] clinical-notes list error:", err);
+      if (err.message?.includes("no such table")) {
+        return res.json({ notes: [], total: 0, limit: 100, offset: 0 });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/fhir/clinical-notes/:id", requireAuth2, (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return res.status(400).json({ error: "Invalid note id" });
+    try {
+      const rows = query("SELECT * FROM clinical_notes WHERE id = ?", [id]);
+      if (!rows.length) return res.status(404).json({ error: "Note not found" });
+      res.json(rows[0]);
+    } catch (err) {
+      if (err.message?.includes("no such table")) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      res.status(500).json({ error: err.message });
     }
   });
 }

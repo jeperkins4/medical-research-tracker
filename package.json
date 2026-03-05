@@ -1,6 +1,6 @@
 {
   "name": "medical-research-tracker",
-  "version": "0.1.71",
+  "version": "0.1.72",
   "private": true,
   "description": "Personal health records and medical research discovery tool",
   "author": "John Perkins <john@mytreatmentpath.com>",
@@ -27,7 +27,10 @@
     "test:ipc-coverage": "playwright test --project=ipc-coverage",
     "test:api": "playwright test --project=api-tests",
     "test:unit": "vitest run",
-    "test": "vitest run && playwright test --project=api-tests"
+    "test": "vitest run && playwright test --project=api-tests",
+    "pretest:e2e": "npm rebuild better-sqlite3",
+    "pretest:api": "npm rebuild better-sqlite3",
+    "pretest": "npm rebuild better-sqlite3"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",

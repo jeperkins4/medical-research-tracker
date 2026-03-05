@@ -277,11 +277,13 @@ export default async function globalSetup() {
         .run('testuser', hash);
 
       // Seed Epic portal credential (id=99)
+      // NOTE: username_encrypted and password_encrypted are NOT NULL in schema.
+      // Use empty strings so INSERT doesn't silently fail via INSERT OR IGNORE.
       serverDb.prepare(`
         INSERT OR IGNORE INTO portal_credentials
-          (id, service_name, portal_type, base_url, last_sync, last_sync_status)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(99, 'Epic MyChart Test', 'epic', 'https://mychart.example.org',
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(99, 'Epic MyChart Test', 'epic', 'https://mychart.example.org', '', '',
              new Date().toISOString(), 'success');
 
       // Seed valid FHIR token (credentialId=99)
@@ -298,9 +300,9 @@ export default async function globalSetup() {
       // Seed Epic portal credential (id=98) + expired token
       serverDb.prepare(`
         INSERT OR IGNORE INTO portal_credentials
-          (id, service_name, portal_type, base_url, last_sync_status)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(98, 'Epic MyChart Expired', 'epic', 'https://mychart2.example.org', 'never');
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(98, 'Epic MyChart Expired', 'epic', 'https://mychart2.example.org', '', '', 'never');
 
       // Use SQLite datetime format (no T/Z) so CASE WHEN expires_at > datetime('now') works correctly
       const expiredExpiry = new Date(Date.now() - 60 * 60 * 1000).toISOString()
@@ -315,9 +317,9 @@ export default async function globalSetup() {
       // Seed non-epic credential (id=97)
       serverDb.prepare(`
         INSERT OR IGNORE INTO portal_credentials
-          (id, service_name, portal_type, base_url, last_sync_status)
-        VALUES (?, ?, ?, ?, ?)
-      `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', 'never');
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', '', '', 'never');
 
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');

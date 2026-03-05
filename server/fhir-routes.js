@@ -4,9 +4,10 @@
  * Handles SMART on FHIR authorization flow and callbacks
  */
 
-import { getAuthorizationUrl, exchangeCodeForToken, syncEpicFHIR } from './connectors/epic-fhir.js';
+import { getAuthorizationUrl, exchangeCodeForToken, syncEpicFHIR, refreshAccessToken } from './connectors/epic-fhir.js';
 import { getCredential } from './portal-credentials.js';
 import { query, run } from './db-secure.js';
+import { listCancerProfiles, getCancerProfile } from '../src/models/cancerProfiles.js';
 
 /**
  * Register FHIR routes with Express app
@@ -283,6 +284,105 @@ export function registerFHIRRoutes(app, requireAuth) {
       if (err.message?.includes('no such table')) {
         return res.status(404).json({ error: 'Note not found' });
       }
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/fhir/refresh/:credentialId
+   *
+   * Explicitly refresh the FHIR access token using the stored refresh_token.
+   * Returns updated token metadata or error if re-authorization is required.
+   * Auth-guarded; requires an active session cookie.
+   */
+  app.post('/api/fhir/refresh/:credentialId', requireAuth, async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: 'Invalid credential id' });
+      }
+
+      // Verify credential exists and is epic type — use raw query to avoid vault unlock
+      const credRow = query(
+        `SELECT id, portal_type, service_name FROM portal_credentials WHERE id = ?`,
+        [credentialId]
+      )[0];
+      if (!credRow) {
+        return res.status(404).json({ error: 'Credential not found' });
+      }
+      if (credRow.portal_type !== 'epic') {
+        return res.status(400).json({ error: 'Token refresh only supported for Epic MyChart credentials' });
+      }
+
+      // Check there is a refresh token stored
+      const tokenRecord = query(
+        `SELECT refresh_token, expires_at FROM fhir_tokens WHERE credential_id = ?`,
+        [credentialId]
+      )[0];
+
+      if (!tokenRecord) {
+        return res.status(400).json({
+          error: 'No authorization found for this credential. Please authorize first.',
+          requiresAuth: true,
+        });
+      }
+      if (!tokenRecord.refresh_token) {
+        return res.status(400).json({
+          error: 'No refresh token stored. Re-authorization required.',
+          requiresAuth: true,
+        });
+      }
+
+      // Attempt the refresh
+      await refreshAccessToken(credentialId);
+
+      // Re-query updated token status
+      const updated = query(
+        `SELECT patient_id, expires_at, scope,
+                CASE WHEN expires_at > datetime('now') THEN 1 ELSE 0 END as is_valid
+         FROM fhir_tokens WHERE credential_id = ?`,
+        [credentialId]
+      )[0];
+
+      console.log(`[FHIR] Token refreshed for credential ${credentialId}`);
+
+      return res.json({
+        success: true,
+        message: 'Access token refreshed successfully',
+        patientId: updated?.patient_id,
+        expiresAt: updated?.expires_at,
+        valid: updated?.is_valid === 1,
+      });
+    } catch (error) {
+      console.error('[FHIR] Token refresh error:', error);
+      // Distinguish "needs re-auth" from generic server error
+      const needsReauth = error.message?.includes('Re-authorization required') ||
+                          error.message?.includes('No refresh token');
+      return res.status(needsReauth ? 400 : 500).json({
+        error: error.message,
+        requiresAuth: needsReauth,
+      });
+    }
+  });
+
+  // ── GET /api/cancer-profiles ──────────────────────────────────────────────
+  // List all supported cancer profiles (id + label)
+  app.get('/api/cancer-profiles', requireAuth, (_req, res) => {
+    try {
+      res.json({ profiles: listCancerProfiles() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── GET /api/cancer-profiles/:id ─────────────────────────────────────────
+  // Get full profile detail (biomarkers, aliases, etc.)
+  app.get('/api/cancer-profiles/:id', requireAuth, (req, res) => {
+    try {
+      const profile = getCancerProfile(req.params.id);
+      if (!profile) return res.status(404).json({ error: 'Cancer profile not found' });
+      res.json(profile);
+    } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });

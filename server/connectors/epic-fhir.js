@@ -145,7 +145,7 @@ export async function exchangeCodeForToken(code, state) {
  * @param {number} credentialId - Portal credential ID
  * @returns {Promise<string>} New access token
  */
-async function refreshAccessToken(credentialId) {
+export async function refreshAccessToken(credentialId) {
   const { EPIC_CLIENT_ID, EPIC_TOKEN_URL } = getEpicConfig();
   if (!EPIC_CLIENT_ID) throw new Error('EPIC_CLIENT_ID not configured');
 
