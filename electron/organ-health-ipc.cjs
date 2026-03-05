@@ -263,16 +263,29 @@ function getLungHealthData(run) {
 
 function getBoneHealthData(run) {
   try {
-    const calcRows  = dedup(fetchSeries(run, ['Calcium', '%Calcium%']));
-    const phosRows  = dedup(fetchSeries(run, ['Phosphorus', '%Phosphate%']));
-    const alkRows   = dedup(fetchSeries(run, ['%Alk%Phos%', '%Alkaline%Phosphatase%']));
-    const vitDRows  = dedup(fetchSeries(run, ['%Vitamin D%', '%25-OH%', '%25 OH%']));
-    const pthRows   = dedup(fetchSeries(run, ['PTH', '%Parathyroid%']));
+    // ── Primary bone markers ──────────────────────────────────────────────
+    const calcRows   = dedup(fetchSeries(run, ['Calcium', '%Calcium%']));
+    const phosRows   = dedup(fetchSeries(run, ['Phosphorus', '%Phosphate%']));
+    const alkRows    = dedup(fetchSeries(run, ['%Alk%Phos%', '%Alkaline%Phosphatase%']));
+    const vitDRows   = dedup(fetchSeries(run, ['%Vitamin D%', '%25-OH%', '%25 OH%']));
+    const pthRows    = dedup(fetchSeries(run, ['PTH', '%Parathyroid%']));
 
-    const latestCalc = calcRows.at(-1)?.value ?? null;
-    const latestPhos = phosRows.at(-1)?.value ?? null;
-    const latestAlk  = alkRows.at(-1)?.value ?? null;
-    const latestVitD = vitDRows.at(-1)?.value ?? null;
+    // ── Extended panel (mirrors server/bone-health.js panelData) ─────────
+    const ldhRows    = dedup(fetchSeries(run, ['%LDH%', '%Lactate Dehydrogenase%']));
+
+    // ── Soft tissue / inflammatory (mirrors softTissueData) ──────────────
+    const albRows    = dedup(fetchSeries(run, ['Albumin', '%Albumin%']));
+    const crpRows    = dedup(fetchSeries(run, ['CRP', '%C-Reactive%', '%C Reactive%']));
+    const ferRows    = dedup(fetchSeries(run, ['Ferritin', '%Ferritin%']));
+    const uricRows   = dedup(fetchSeries(run, ['%Uric Acid%', '%Urate%']));
+
+    const latestCalc  = calcRows.at(-1)?.value ?? null;
+    const latestPhos  = phosRows.at(-1)?.value ?? null;
+    const latestAlk   = alkRows.at(-1)?.value ?? null;
+    const latestVitD  = vitDRows.at(-1)?.value ?? null;
+    const latestLDH   = ldhRows.at(-1)?.value ?? null;
+    const latestAlb   = albRows.at(-1)?.value ?? null;
+    const latestCRP   = crpRows.at(-1)?.value ?? null;
 
     const flags = [];
     if (latestCalc !== null && latestCalc > 10.5) flags.push({ label: `Calcium Elevated ${latestCalc} mg/dL — hypercalcemia (bone mets?)`, severity: 'high' });
@@ -280,6 +293,9 @@ function getBoneHealthData(run) {
     if (latestAlk  !== null && latestAlk  > 147)  flags.push({ label: `Alk Phos Elevated ${latestAlk} U/L — bone or liver origin`, severity: 'medium' });
     if (latestVitD !== null && latestVitD < 30)   flags.push({ label: `Vitamin D Low ${latestVitD} ng/mL (optimal: 40–60)`, severity: 'medium' });
     if (latestVitD !== null && latestVitD < 20)   flags.push({ label: `Vitamin D Deficient ${latestVitD} ng/mL`, severity: 'high' });
+    if (latestLDH  !== null && latestLDH  > 246)  flags.push({ label: `LDH Elevated ${latestLDH} U/L — tissue breakdown / tumor burden`, severity: latestLDH > 400 ? 'high' : 'medium' });
+    if (latestAlb  !== null && latestAlb  < 3.5)  flags.push({ label: `Albumin Low ${latestAlb} g/dL — nutritional/systemic concern`, severity: 'medium' });
+    if (latestCRP  !== null && latestCRP  > 10)   flags.push({ label: `CRP Elevated ${latestCRP} mg/L — systemic inflammation`, severity: 'medium' });
 
     // Check for bone mets in conditions
     try {
@@ -313,7 +329,20 @@ function getBoneHealthData(run) {
         phosphorus: '2.5–4.5 mg/dL',
         alkPhos: '39–147 U/L',
         vitaminD: '30–100 ng/mL (optimal 40–60)'
-      }
+      },
+      // ── Extended panel — mirrors server/bone-health.js shape ─────────────
+      panelData: {
+        calcium:    { series: calcRows,  trend: trend(calcRows),  latest: latestCalc,  normal: { min: 8.5,  max: 10.2 }, unit: 'mg/dL', label: 'Calcium' },
+        phosphorus: { series: phosRows,  trend: trend(phosRows),  latest: latestPhos,  normal: { min: 2.5,  max: 4.5  }, unit: 'mg/dL', label: 'Phosphorus' },
+        vitaminD:   { series: vitDRows,  trend: trend(vitDRows),  latest: latestVitD,  normal: { min: 30,   max: 80   }, unit: 'ng/mL', label: 'Vitamin D (25-OH)' },
+        ldh:        { series: ldhRows,   trend: trend(ldhRows),   latest: latestLDH,   normal: { min: 100,  max: 246  }, unit: 'U/L',   label: 'LDH' },
+      },
+      softTissueData: {
+        albumin:  { series: albRows,  trend: trend(albRows),  latest: latestAlb,  normal: { min: 3.5,  max: 5.0  }, unit: 'g/dL',  label: 'Albumin' },
+        crp:      { series: crpRows,  trend: trend(crpRows),  latest: latestCRP,  normal: { min: 0,    max: 1.0  }, unit: 'mg/L',  label: 'CRP' },
+        ferritin: { series: ferRows,  trend: trend(ferRows),  latest: ferRows.at(-1)?.value ?? null, normal: { min: 12, max: 300 }, unit: 'ng/mL', label: 'Ferritin' },
+        uricAcid: { series: uricRows, trend: trend(uricRows), latest: uricRows.at(-1)?.value ?? null, normal: { min: 2.4, max: 7.0 }, unit: 'mg/dL', label: 'Uric Acid' },
+      },
     };
   } catch (err) {
     return { enabled: false, error: err.message };

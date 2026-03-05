@@ -214,6 +214,225 @@ test.describe('organ-health-ipc.cjs [IPC module smoke tests]', () => {
       const result = mod.getBoneHealthData(run);
       expect(result.flags.some(f => f.label.includes('Calcium Elevated'))).toBe(true);
     });
+
+    test('flags elevated Alk Phos correctly', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Alk Phos', result: '180', value_numeric: 180, unit: 'U/L', flag: 'H', date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.flags.some(f => f.label.includes('Alk Phos Elevated'))).toBe(true);
+      expect(result.flags.some(f => f.severity === 'medium')).toBe(true);
+    });
+
+    test('does NOT flag normal Alk Phos', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Alk Phos', result: '90', value_numeric: 90, unit: 'U/L', flag: null, date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.flags.filter(f => f.label.includes('Alk Phos'))).toHaveLength(0);
+    });
+
+    test('flags Vitamin D deficient (<20) with high severity', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Vitamin D', result: '12', value_numeric: 12, unit: 'ng/mL', flag: 'L', date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      const highFlags = result.flags.filter(f => f.severity === 'high' && f.label.includes('Vitamin D'));
+      expect(highFlags.length).toBeGreaterThan(0);
+    });
+
+    test('flags low calcium (<8.5) correctly', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Calcium', result: '8.0', value_numeric: 8.0, unit: 'mg/dL', flag: 'L', date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.flags.some(f => f.label.includes('Calcium Low'))).toBe(true);
+    });
+
+    test('flags bone metastases when documented in conditions', () => {
+      // The mock runner returns conditions with count > 0 for the bone mets query
+      const run = (sql, params) => {
+        if (sql.includes('test_results')) return [];
+        if (sql.includes('conditions')) return [{ count: 1 }];
+        return [];
+      };
+      const result = mod.getBoneHealthData(run);
+      expect(result.flags.some(f => f.label.includes('Bone metastases'))).toBe(true);
+      expect(result.flags.some(f => f.severity === 'high')).toBe(true);
+    });
+
+    test('returns series with pth data when PTH lab is present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'PTH', result: '65', value_numeric: 65, unit: 'pg/mL', flag: null, date: '2025-01-15' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.series).toHaveProperty('pth');
+      expect(Array.isArray(result.series.pth)).toBe(true);
+      expect(result.series.pth.length).toBeGreaterThan(0);
+    });
+
+    test('returns trends object with calcium and vitaminD keys', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Calcium', result: '9.0', value_numeric: 9.0, unit: 'mg/dL', flag: null, date: '2025-01-01' },
+          { test_name: 'Calcium', result: '9.2', value_numeric: 9.2, unit: 'mg/dL', flag: null, date: '2025-02-01' },
+          { test_name: 'Vitamin D', result: '35', value_numeric: 35, unit: 'ng/mL', flag: null, date: '2025-01-01' },
+          { test_name: 'Vitamin D', result: '42', value_numeric: 42, unit: 'ng/mL', flag: null, date: '2025-02-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.trends).toHaveProperty('calcium');
+      expect(result.trends).toHaveProperty('vitaminD');
+      // Two data points → trend should compute direction
+      expect(result.trends.calcium).not.toBeNull();
+      expect(result.trends.vitaminD.direction).toBe('up');
+    });
+
+    test('returns normalRanges with all expected keys', () => {
+      const run = makeMockRunner({});
+      const result = mod.getBoneHealthData(run);
+      expect(result).toHaveProperty('normalRanges');
+      expect(result.normalRanges).toHaveProperty('calcium');
+      expect(result.normalRanges).toHaveProperty('phosphorus');
+      expect(result.normalRanges).toHaveProperty('alkPhos');
+      expect(result.normalRanges).toHaveProperty('vitaminD');
+    });
+
+    test('returns enabled:true when only Alk Phos data present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Alk Phos', result: '88', value_numeric: 88, unit: 'U/L', flag: null, date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.enabled).toBe(true);
+    });
+
+    test('allNormal is true when data present and no flags', () => {
+      // makeMockRunner returns ALL test_results for any pattern query (doesn't filter by
+      // test_name), so we use a pattern-aware runner to avoid cross-contamination where
+      // the calcium value (9.5) would be interpreted as a low Vitamin D (< 30 → flag).
+      const labData = [
+        { test_name: 'Calcium',   result: '9.5', value_numeric: 9.5, unit: 'mg/dL', flag: null, date: '2025-01-01' },
+        { test_name: 'Vitamin D', result: '50',  value_numeric: 50,  unit: 'ng/mL', flag: null, date: '2025-02-01' },
+        { test_name: 'Alk Phos',  result: '88',  value_numeric: 88,  unit: 'U/L',   flag: null, date: '2025-02-01' },
+      ];
+      const run = (sql, params = []) => {
+        const lower = sql.toLowerCase();
+        if (lower.includes('count(*)')) return [{ count: 0 }];
+        if (lower.includes('test_results') && params.length > 0) {
+          // Filter by the LIKE pattern supplied as the first param
+          const pat = String(params[0]).replace(/%/g, '.*').replace(/_/g, '.');
+          const re = new RegExp(`^${pat}$`, 'i');
+          return labData.filter(r => re.test(r.test_name));
+        }
+        return [];
+      };
+      const result = mod.getBoneHealthData(run);
+      expect(result.allNormal).toBe(true);
+      expect(result.flags).toHaveLength(0);
+    });
+
+    test('allNormal is false when flags present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Vitamin D', result: '15', value_numeric: 15, unit: 'ng/mL', flag: 'L', date: '2025-01-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const result = mod.getBoneHealthData(run);
+      expect(result.allNormal).toBe(false);
+    });
+
+    test('does not throw on completely empty DB (no tables)', () => {
+      const run = () => { throw new Error('no such table: test_results'); };
+      expect(() => mod.getBoneHealthData(run)).not.toThrow();
+      const result = mod.getBoneHealthData(run);
+      expect(result).toHaveProperty('enabled');
+    });
+
+    // ── panelData / softTissueData shape (IPC ↔ server parity) ────────────
+
+    test('returns panelData with calcium, phosphorus, vitaminD, ldh keys', () => {
+      const run = makeMockRunner({});
+      const result = mod.getBoneHealthData(run);
+      expect(result).toHaveProperty('panelData');
+      expect(result.panelData).toHaveProperty('calcium');
+      expect(result.panelData).toHaveProperty('phosphorus');
+      expect(result.panelData).toHaveProperty('vitaminD');
+      expect(result.panelData).toHaveProperty('ldh');
+    });
+
+    test('panelData entries have series, trend, latest, normal, unit, label', () => {
+      const run = makeMockRunner({});
+      const { panelData } = mod.getBoneHealthData(run);
+      for (const key of ['calcium', 'vitaminD', 'ldh']) {
+        expect(Array.isArray(panelData[key].series)).toBe(true);
+        expect(panelData[key]).toHaveProperty('trend');
+        expect(panelData[key]).toHaveProperty('latest');
+        expect(panelData[key]).toHaveProperty('normal');
+        expect(panelData[key]).toHaveProperty('unit');
+        expect(panelData[key]).toHaveProperty('label');
+      }
+    });
+
+    test('returns softTissueData with albumin, crp, ferritin, uricAcid keys', () => {
+      const run = makeMockRunner({});
+      const result = mod.getBoneHealthData(run);
+      expect(result).toHaveProperty('softTissueData');
+      expect(result.softTissueData).toHaveProperty('albumin');
+      expect(result.softTissueData).toHaveProperty('crp');
+      expect(result.softTissueData).toHaveProperty('ferritin');
+      expect(result.softTissueData).toHaveProperty('uricAcid');
+    });
+
+    test('panelData.ldh.latest populated when LDH lab present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'LDH', result: '310', value_numeric: 310, unit: 'U/L', flag: 'H', date: '2025-03-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { panelData, flags } = mod.getBoneHealthData(run);
+      expect(panelData.ldh.latest).toBe(310);
+      expect(flags.some(f => f.label.includes('LDH Elevated'))).toBe(true);
+    });
+
+    test('softTissueData.albumin.latest populated and flags when low', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Albumin', result: '3.1', value_numeric: 3.1, unit: 'g/dL', flag: 'L', date: '2025-03-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { softTissueData, flags } = mod.getBoneHealthData(run);
+      expect(softTissueData.albumin.latest).toBe(3.1);
+      expect(flags.some(f => f.label.includes('Albumin Low'))).toBe(true);
+    });
+
+    test('panelData shape survives empty DB (no throws, all keys present)', () => {
+      const run = () => { throw new Error('no such table: test_results'); };
+      const result = mod.getBoneHealthData(run);
+      // Should not throw — returns enabled:false on outer catch
+      expect(result).toHaveProperty('enabled', false);
+    });
   });
 });
 

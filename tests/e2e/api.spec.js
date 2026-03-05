@@ -338,3 +338,4 @@ test.describe('GET /api/ai/healthcare-summary [REGRESSION: 401 in packaged app]'
     expect([401, 403]).toContain(res.status());
   });
 });
+

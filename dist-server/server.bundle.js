@@ -30293,11 +30293,46 @@ var init_db_secure = __esm({
     CREATE TABLE IF NOT EXISTS genomic_biomarkers (
       id                   INTEGER PRIMARY KEY AUTOINCREMENT,
       related_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE CASCADE,
+      related_pathway_id   INTEGER REFERENCES genomic_pathways(id) ON DELETE SET NULL,
       biomarker_name       TEXT,
       value                TEXT,
       unit                 TEXT,
       clinical_significance TEXT,
       created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS biomarker_measurements (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      biomarker_id  INTEGER REFERENCES genomic_biomarkers(id) ON DELETE CASCADE,
+      value         TEXT,
+      unit          TEXT,
+      measurement_date TEXT,
+      source        TEXT,
+      notes         TEXT,
+      created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_treatments (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      treatment_name      TEXT NOT NULL,
+      treatment_type      TEXT,
+      target_pathway_id   INTEGER REFERENCES genomic_pathways(id) ON DELETE SET NULL,
+      target_mutation_id  INTEGER REFERENCES genomic_mutations(id) ON DELETE SET NULL,
+      mechanism           TEXT,
+      evidence_level      TEXT,
+      priority_level      TEXT,
+      status              TEXT DEFAULT 'Candidate',
+      notes               TEXT,
+      created_at          TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS genomic_med_overlap (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      genomic_treatment_id  INTEGER REFERENCES genomic_treatments(id) ON DELETE CASCADE,
+      medication_id         INTEGER REFERENCES medications(id) ON DELETE CASCADE,
+      overlap_type          TEXT,
+      notes                 TEXT,
+      created_at            TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS mutation_treatment_history (
@@ -74015,6 +74050,74 @@ function getConfigAsEnv() {
 
 // server/fhir-routes.js
 init_db_secure();
+
+// src/models/cancerProfiles.js
+var CANCER_PROFILES = {
+  urothelial_carcinoma: {
+    id: "urothelial_carcinoma",
+    label: "Urothelial Carcinoma",
+    aliases: ["bladder cancer", "urothelial cancer", "mibc", "muc"],
+    keyBiomarkers: ["FGFR3", "ERBB2", "NECTIN4", "PD-L1", "TMB", "ctDNA"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  breast_cancer: {
+    id: "breast_cancer",
+    label: "Breast Cancer",
+    aliases: ["breast carcinoma"],
+    keyBiomarkers: ["ER", "PR", "HER2", "PIK3CA", "ESR1", "BRCA1", "BRCA2"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  lung_nsclc: {
+    id: "lung_nsclc",
+    label: "Lung Cancer (NSCLC)",
+    aliases: ["nsclc", "non-small cell lung cancer"],
+    keyBiomarkers: ["EGFR", "ALK", "ROS1", "BRAF", "KRAS", "MET", "RET", "PD-L1"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  colorectal_cancer: {
+    id: "colorectal_cancer",
+    label: "Colorectal Cancer",
+    aliases: ["crc", "colon cancer", "rectal cancer"],
+    keyBiomarkers: ["KRAS", "NRAS", "BRAF", "MSI", "TMB", "HER2"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  prostate_cancer: {
+    id: "prostate_cancer",
+    label: "Prostate Cancer",
+    aliases: ["pca", "prostate carcinoma", "castration-resistant prostate cancer", "crpc", "mcrpc"],
+    keyBiomarkers: ["AR", "ARV7", "BRCA1", "BRCA2", "CDK12", "ATM", "MSI", "TMB", "PD-L1"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  ovarian_cancer: {
+    id: "ovarian_cancer",
+    label: "Ovarian Cancer",
+    aliases: ["ovarian carcinoma", "high grade serous ovarian cancer", "hgsoc"],
+    keyBiomarkers: ["BRCA1", "BRCA2", "HRD", "TP53", "CCNE1", "NF1", "RAD51C", "RAD51D"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  pancreatic_cancer: {
+    id: "pancreatic_cancer",
+    label: "Pancreatic Cancer",
+    aliases: ["pdac", "pancreatic ductal adenocarcinoma", "pancreatic carcinoma"],
+    keyBiomarkers: ["KRAS", "TP53", "SMAD4", "CDKN2A", "BRCA1", "BRCA2", "ATM", "MSI", "TMB"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  },
+  melanoma: {
+    id: "melanoma",
+    label: "Melanoma",
+    aliases: ["cutaneous melanoma", "uveal melanoma", "mucosal melanoma"],
+    keyBiomarkers: ["BRAF", "NRAS", "NF1", "KIT", "PD-L1", "TMB", "MSI"],
+    commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
+  }
+};
+function getCancerProfile(profileId) {
+  return CANCER_PROFILES[profileId] || null;
+}
+function listCancerProfiles() {
+  return Object.values(CANCER_PROFILES).map((p) => ({ id: p.id, label: p.label }));
+}
+
+// server/fhir-routes.js
 function registerFHIRRoutes(app2, requireAuth2) {
   app2.get("/api/fhir/config-check", requireAuth2, (_req, res) => {
     const hasClientId = Boolean(process.env.EPIC_CLIENT_ID);
@@ -74202,6 +74305,78 @@ function registerFHIRRoutes(app2, requireAuth2) {
       if (err.message?.includes("no such table")) {
         return res.status(404).json({ error: "Note not found" });
       }
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.post("/api/fhir/refresh/:credentialId", requireAuth2, async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId, 10);
+      if (!Number.isFinite(credentialId)) {
+        return res.status(400).json({ error: "Invalid credential id" });
+      }
+      const credRow = query(
+        `SELECT id, portal_type, service_name FROM portal_credentials WHERE id = ?`,
+        [credentialId]
+      )[0];
+      if (!credRow) {
+        return res.status(404).json({ error: "Credential not found" });
+      }
+      if (credRow.portal_type !== "epic") {
+        return res.status(400).json({ error: "Token refresh only supported for Epic MyChart credentials" });
+      }
+      const tokenRecord = query(
+        `SELECT refresh_token, expires_at FROM fhir_tokens WHERE credential_id = ?`,
+        [credentialId]
+      )[0];
+      if (!tokenRecord) {
+        return res.status(400).json({
+          error: "No authorization found for this credential. Please authorize first.",
+          requiresAuth: true
+        });
+      }
+      if (!tokenRecord.refresh_token) {
+        return res.status(400).json({
+          error: "No refresh token stored. Re-authorization required.",
+          requiresAuth: true
+        });
+      }
+      await refreshAccessToken(credentialId);
+      const updated = query(
+        `SELECT patient_id, expires_at, scope,
+                CASE WHEN expires_at > datetime('now') THEN 1 ELSE 0 END as is_valid
+         FROM fhir_tokens WHERE credential_id = ?`,
+        [credentialId]
+      )[0];
+      console.log(`[FHIR] Token refreshed for credential ${credentialId}`);
+      return res.json({
+        success: true,
+        message: "Access token refreshed successfully",
+        patientId: updated?.patient_id,
+        expiresAt: updated?.expires_at,
+        valid: updated?.is_valid === 1
+      });
+    } catch (error) {
+      console.error("[FHIR] Token refresh error:", error);
+      const needsReauth = error.message?.includes("Re-authorization required") || error.message?.includes("No refresh token");
+      return res.status(needsReauth ? 400 : 500).json({
+        error: error.message,
+        requiresAuth: needsReauth
+      });
+    }
+  });
+  app2.get("/api/cancer-profiles", requireAuth2, (_req, res) => {
+    try {
+      res.json({ profiles: listCancerProfiles() });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+  app2.get("/api/cancer-profiles/:id", requireAuth2, (req, res) => {
+    try {
+      const profile = getCancerProfile(req.params.id);
+      if (!profile) return res.status(404).json({ error: "Cancer profile not found" });
+      res.json(profile);
+    } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
@@ -75111,27 +75286,31 @@ app.get("/api/genomic/pathways", requireAuth, (req, res) => {
   res.json(pathways);
 });
 app.get("/api/genomic/treatments", requireAuth, (req, res) => {
-  const treatments = query(`
-    SELECT gt.*, 
-      gp.pathway_name, gp.pathway_category,
-      gm.gene_name as target_gene,
-      gmo.overlap_type,
-      m.name as existing_medication
-    FROM genomic_treatments gt
-    LEFT JOIN genomic_pathways gp ON gt.target_pathway_id = gp.id
-    LEFT JOIN genomic_mutations gm ON gt.target_mutation_id = gm.id
-    LEFT JOIN genomic_med_overlap gmo ON gt.id = gmo.genomic_treatment_id
-    LEFT JOIN medications m ON gmo.medication_id = m.id
-    ORDER BY 
-      CASE priority_level 
-        WHEN 'Critical' THEN 1 
-        WHEN 'High' THEN 2 
-        WHEN 'Medium' THEN 3 
-        ELSE 4 
-      END,
-      gt.treatment_name
-  `);
-  res.json(treatments);
+  try {
+    const treatments = query(`
+      SELECT gt.*, 
+        gp.pathway_name, gp.pathway_category,
+        gm.gene_name as target_gene,
+        gmo.overlap_type,
+        m.name as existing_medication
+      FROM genomic_treatments gt
+      LEFT JOIN genomic_pathways gp ON gt.target_pathway_id = gp.id
+      LEFT JOIN genomic_mutations gm ON gt.target_mutation_id = gm.id
+      LEFT JOIN genomic_med_overlap gmo ON gt.id = gmo.genomic_treatment_id
+      LEFT JOIN medications m ON gmo.medication_id = m.id
+      ORDER BY 
+        CASE priority_level 
+          WHEN 'Critical' THEN 1 
+          WHEN 'High' THEN 2 
+          WHEN 'Medium' THEN 3 
+          ELSE 4 
+        END,
+        gt.treatment_name
+    `);
+    res.json(treatments);
+  } catch (err) {
+    res.json([]);
+  }
 });
 app.get("/api/genomic/precision-map", requireAuth, (req, res) => {
   const mutations = query(`
@@ -75156,19 +75335,23 @@ app.get("/api/genomic/precision-map", requireAuth, (req, res) => {
   res.json({ mutations, pathways });
 });
 app.get("/api/genomic/biomarkers", requireAuth, (req, res) => {
-  const biomarkers = query(`
-    SELECT gb.*,
-      gp.pathway_name,
-      gm.gene_name,
-      COUNT(bm.id) as measurement_count,
-      MAX(bm.measurement_date) as last_measured
-    FROM genomic_biomarkers gb
-    LEFT JOIN genomic_pathways gp ON gb.related_pathway_id = gp.id
-    LEFT JOIN genomic_mutations gm ON gb.related_mutation_id = gm.id
-    LEFT JOIN biomarker_measurements bm ON gb.id = bm.biomarker_id
-    GROUP BY gb.id
-  `);
-  res.json(biomarkers);
+  try {
+    const biomarkers = query(`
+      SELECT gb.*,
+        gp.pathway_name,
+        gm.gene_name,
+        COUNT(bm.id) as measurement_count,
+        MAX(bm.measurement_date) as last_measured
+      FROM genomic_biomarkers gb
+      LEFT JOIN genomic_pathways gp ON gb.related_pathway_id = gp.id
+      LEFT JOIN genomic_mutations gm ON gb.related_mutation_id = gm.id
+      LEFT JOIN biomarker_measurements bm ON gb.id = bm.biomarker_id
+      GROUP BY gb.id
+    `);
+    res.json(biomarkers);
+  } catch (err) {
+    res.json([]);
+  }
 });
 app.get("/api/genomics/mutations", requireAuth, (req, res) => {
   const mutations = query(`
@@ -75276,8 +75459,9 @@ app.get("/api/genomics/pathway-graph", requireAuth, (req, res) => {
   });
 });
 app.get("/api/genomics/mutation-drug-network", requireAuth, (req, res) => {
-  const mutations = query("SELECT id, gene, alteration, variant_allele_frequency FROM genomic_mutations");
-  const treatmentConnections = query(`
+  try {
+    const mutations = query("SELECT id, gene, alteration, variant_allele_frequency FROM genomic_mutations");
+    const treatmentConnections = query(`
     SELECT DISTINCT
       m.id as mutation_id,
       m.gene,
@@ -75295,46 +75479,49 @@ app.get("/api/genomics/mutation-drug-network", requireAuth, (req, res) => {
     WHERE t.status = 'Recommended' OR t.status = 'Active'
     ORDER BY m.gene, t.treatment_name
   `);
-  const nodes = [];
-  const edges = [];
-  mutations.forEach((mut) => {
-    nodes.push({
-      data: {
-        id: `mutation_${mut.id}`,
-        label: mut.gene,
-        type: "mutation",
-        alteration: mut.alteration,
-        vaf: mut.variant_allele_frequency
-      }
-    });
-  });
-  const treatmentSet = /* @__PURE__ */ new Set();
-  treatmentConnections.forEach((conn) => {
-    const treatmentNodeId = `treatment_${conn.treatment_id}`;
-    if (!treatmentSet.has(conn.treatment_id)) {
+    const nodes = [];
+    const edges = [];
+    mutations.forEach((mut) => {
       nodes.push({
         data: {
-          id: treatmentNodeId,
-          label: conn.treatment_name,
-          type: "treatment",
-          treatment_type: conn.treatment_type,
-          priority: conn.priority_level,
-          status: conn.status
+          id: `mutation_${mut.id}`,
+          label: mut.gene,
+          type: "mutation",
+          alteration: mut.alteration,
+          vaf: mut.variant_allele_frequency
         }
       });
-      treatmentSet.add(conn.treatment_id);
-    }
-    edges.push({
-      data: {
-        id: `edge_${conn.mutation_id}_${conn.treatment_id}`,
-        source: `mutation_${conn.mutation_id}`,
-        target: treatmentNodeId,
-        pathway: conn.pathway_name,
-        impact: conn.impact_level
-      }
     });
-  });
-  res.json({ nodes, edges });
+    const treatmentSet = /* @__PURE__ */ new Set();
+    treatmentConnections.forEach((conn) => {
+      const treatmentNodeId = `treatment_${conn.treatment_id}`;
+      if (!treatmentSet.has(conn.treatment_id)) {
+        nodes.push({
+          data: {
+            id: treatmentNodeId,
+            label: conn.treatment_name,
+            type: "treatment",
+            treatment_type: conn.treatment_type,
+            priority: conn.priority_level,
+            status: conn.status
+          }
+        });
+        treatmentSet.add(conn.treatment_id);
+      }
+      edges.push({
+        data: {
+          id: `edge_${conn.mutation_id}_${conn.treatment_id}`,
+          source: `mutation_${conn.mutation_id}`,
+          target: treatmentNodeId,
+          pathway: conn.pathway_name,
+          impact: conn.impact_level
+        }
+      });
+    });
+    res.json({ nodes, edges });
+  } catch (err) {
+    res.json({ nodes: [], edges: [] });
+  }
 });
 app.get("/api/genomics/dashboard", requireAuth, (req, res) => {
   try {

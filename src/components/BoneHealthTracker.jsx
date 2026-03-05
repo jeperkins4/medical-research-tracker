@@ -167,6 +167,24 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
     handleOrderClose();
   };
 
+  // Detect how many consecutive rising values at the end of a series
+  const detectRisingTrend = (series) => {
+    if (!series || series.length < 2) return 0;
+    let count = 0;
+    for (let i = series.length - 1; i > 0; i--) {
+      if (series[i].value > series[i - 1].value) count++;
+      else break;
+    }
+    return count;
+  };
+
+  // Build chart data from a series array with date + value
+  const buildChartData = (series) =>
+    (series || []).map(r => ({
+      date: r.date?.slice(0, 10),
+      value: typeof r.value === 'number' ? r.value : parseFloat(r.value) || null,
+    })).filter(r => r.value !== null);
+
   // Calculate trend
   const calculateTrend = () => {
     if (alkPhosData.length < 2) return null;
@@ -294,6 +312,207 @@ export default function BoneHealthTracker({ apiFetch: propApiFetch }) {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Cancer Spread Signals ────────────────────────────────────────── */}
+      {(() => {
+        // Key markers for metastasis / spread in urothelial cancer
+        const spreadMarkers = [
+          {
+            key: 'ldh',
+            label: 'LDH (Lactate Dehydrogenase)',
+            unit: 'U/L',
+            normal: { min: 100, max: 246 },
+            color: '#e53935',
+            tooltip: 'Elevated LDH = cell death / tumor burden. Rising trend is a key metastasis signal.',
+            series: panelData?.ldh?.series,
+          },
+          {
+            key: 'alkPhos',
+            label: 'Alkaline Phosphatase',
+            unit: 'U/L',
+            normal: { min: 39, max: 147 },
+            color: '#ff6b6b',
+            tooltip: 'Bone resorption marker. Elevated / rising = possible bone mets.',
+            series: alkPhosData,
+          },
+          {
+            key: 'calcium',
+            label: 'Calcium',
+            unit: 'mg/dL',
+            normal: { min: 8.5, max: 10.2 },
+            color: '#fb8c00',
+            tooltip: 'Hypercalcemia can signal osteolytic bone metastases.',
+            series: panelData?.calcium?.series,
+          },
+          {
+            key: 'vitaminD',
+            label: 'Vitamin D (25-OH)',
+            unit: 'ng/mL',
+            normal: { min: 30, max: 80 },
+            color: '#ffd600',
+            tooltip: 'Low Vit D = impaired bone protection. Cancer patients need 50–80 ng/mL.',
+            series: panelData?.vitaminD?.series,
+            invertAlert: true, // alert when LOW not high
+          },
+          {
+            key: 'albumin',
+            label: 'Albumin',
+            unit: 'g/dL',
+            normal: { min: 3.5, max: 5.0 },
+            color: '#8e24aa',
+            tooltip: 'Falling albumin = tumor burden / malnutrition / systemic disease progression.',
+            series: softTissueData?.albumin?.series,
+            invertAlert: true,
+          },
+          {
+            key: 'crp',
+            label: 'CRP (C-Reactive Protein)',
+            unit: 'mg/L',
+            normal: { min: 0, max: 1.0 },
+            color: '#ef5350',
+            tooltip: 'Rising CRP = systemic inflammation, possible disease progression.',
+            series: softTissueData?.crp?.series,
+          },
+        ].filter(m => m.series && m.series.length >= 1);
+
+        if (spreadMarkers.length === 0) return null;
+
+        const risingMarkers = spreadMarkers.filter(m => {
+          const count = detectRisingTrend(m.series);
+          return m.invertAlert ? false : count >= 2;
+        });
+        const fallingConcernMarkers = spreadMarkers.filter(m => {
+          if (!m.invertAlert) return false;
+          const s = m.series;
+          if (!s || s.length < 2) return false;
+          let count = 0;
+          for (let i = s.length - 1; i > 0; i--) {
+            if (s[i].value < s[i - 1].value) count++;
+            else break;
+          }
+          return count >= 2;
+        });
+
+        return (
+          <Card sx={{ mb: 3, border: risingMarkers.length > 0 || fallingConcernMarkers.length > 0 ? '2px solid #ef5350' : '1px solid #e0e0e0' }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                📈 Cancer Spread Signals
+                {(risingMarkers.length > 0 || fallingConcernMarkers.length > 0) && (
+                  <Chip label="⚠️ Rising Trend Detected" color="error" size="small" />
+                )}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Key blood markers tracked over time. Rising trends in these values may indicate disease progression or metastatic spread.
+              </Typography>
+
+              {/* Rising trend alert banners */}
+              {risingMarkers.map(m => {
+                const count = detectRisingTrend(m.series);
+                const latest = m.series[m.series.length - 1];
+                const isAbove = latest.value > m.normal.max;
+                return (
+                  <Alert
+                    key={m.key}
+                    severity={isAbove ? 'error' : 'warning'}
+                    sx={{ mb: 1 }}
+                    icon={<ArrowUpwardIcon />}
+                  >
+                    <strong>{m.label}:</strong> Rising for {count} consecutive tests.
+                    Latest: <strong>{latest.value} {m.unit}</strong>
+                    {isAbove ? ` — above normal (≤${m.normal.max} ${m.unit})` : ` — still within range but trending up`}.
+                    {' '}{m.tooltip}
+                  </Alert>
+                );
+              })}
+              {fallingConcernMarkers.map(m => {
+                const latest = m.series[m.series.length - 1];
+                return (
+                  <Alert key={m.key} severity="warning" sx={{ mb: 1 }}>
+                    <strong>{m.label}:</strong> Declining for 2+ consecutive tests.
+                    Latest: <strong>{latest.value} {m.unit}</strong> (normal: {m.normal.min}–{m.normal.max} {m.unit}).
+                    {' '}{m.tooltip}
+                  </Alert>
+                );
+              })}
+
+              {/* Individual trend charts */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3, mt: 2 }}>
+                {spreadMarkers.map(m => {
+                  const chartData = buildChartData(m.series);
+                  const risingCount = m.invertAlert ? 0 : detectRisingTrend(m.series);
+                  const latestVal = chartData.at(-1)?.value ?? null;
+                  const isAbnormal = latestVal !== null && (
+                    m.invertAlert ? latestVal < m.normal.min : latestVal > m.normal.max
+                  );
+                  return (
+                    <Box key={m.key}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="subtitle2" fontWeight={700}>{m.label}</Typography>
+                        {isAbnormal && (
+                          <Chip
+                            label={m.invertAlert ? 'LOW' : 'HIGH'}
+                            color="error"
+                            size="small"
+                          />
+                        )}
+                        {risingCount >= 2 && (
+                          <Chip label={`▲ ${risingCount} rising`} color="warning" size="small" />
+                        )}
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
+                        {m.tooltip}
+                      </Typography>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} unit={` ${m.unit}`} width={60} />
+                          <Tooltip formatter={(v) => [`${v} ${m.unit}`, m.label]} />
+                          {/* Normal range reference lines */}
+                          <ReferenceLine
+                            y={m.normal.max}
+                            stroke="#ef5350"
+                            strokeDasharray="4 3"
+                            label={{ value: `Max ${m.normal.max}`, position: 'insideTopRight', fontSize: 10, fill: '#ef5350' }}
+                          />
+                          {m.normal.min > 0 && (
+                            <ReferenceLine
+                              y={m.normal.min}
+                              stroke="#43a047"
+                              strokeDasharray="4 3"
+                              label={{ value: `Min ${m.normal.min}`, position: 'insideBottomRight', fontSize: 10, fill: '#43a047' }}
+                            />
+                          )}
+                          <Line
+                            type="monotone"
+                            dataKey="value"
+                            stroke={isAbnormal ? '#ef5350' : m.color}
+                            strokeWidth={2.5}
+                            dot={(props) => {
+                              const { cx, cy, payload } = props;
+                              const aboveMax = payload.value > m.normal.max;
+                              const belowMin = payload.value < (m.normal.min || -Infinity);
+                              const fill = (aboveMax || belowMin) ? '#ef5350' : m.color;
+                              return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={fill} stroke="#fff" strokeWidth={1} />;
+                            }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                      {latestVal !== null && (
+                        <Typography variant="caption" color={isAbnormal ? 'error' : 'text.secondary'} display="block" sx={{ mt: 0.5 }}>
+                          Latest: <strong>{latestVal} {m.unit}</strong> · Normal: {m.normal.min}–{m.normal.max} {m.unit}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* ── Lab Flags — all abnormal values ─────────────────────────────── */}
       {(labFlags.length > 0 || tumorFlags.length > 0 || imagingFindings.length > 0) && (
