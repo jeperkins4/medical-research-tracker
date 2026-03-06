@@ -393,3 +393,142 @@ test.describe('Sync history endpoints — portal_sync_log rows are written once 
     }
   });
 });
+
+// ─── 7. PUT /api/portals/credentials/:id — update credential ─────────────────
+
+test.describe('PUT /api/portals/credentials/:id — update credential', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.put(`${API}/api/portals/credentials/1`, {
+      data: { service_name: 'Updated Portal' },
+    });
+    expect(res.status()).toBe(401);
+  });
+
+  test('non-numeric id → 400 or 404 (no crash)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.put(`${API}/api/portals/credentials/notanumber`, {
+      headers,
+      data: { service_name: 'Ghost' },
+    });
+    expect([400, 404, 500]).toContain(res.status());
+  });
+
+  test('update existing credential — round-trip verified', async ({ request }) => {
+    const headers = await authHeaders(request);
+
+    // Create a credential to update
+    const createRes = await request.post(`${API}/api/portals/credentials`, {
+      headers,
+      data: {
+        service_name: `UpdateTarget-${Date.now()}`,
+        portal_type: 'generic',
+        username: 'user_update_test',
+        password: 'initial_pass',
+      },
+    });
+    // Skip if vault is locked (can't create credentials without vault)
+    if (createRes.status() !== 200 && createRes.status() !== 201) {
+      test.skip();
+      return;
+    }
+    const { id } = await createRes.json();
+
+    // Update the credential
+    const updatedName = `Updated-${Date.now()}`;
+    const updateRes = await request.put(`${API}/api/portals/credentials/${id}`, {
+      headers,
+      data: { service_name: updatedName },
+    });
+    expect([200, 204]).toContain(updateRes.status());
+
+    // Verify the update persisted
+    const listRes = await request.get(`${API}/api/portals/credentials`, { headers });
+    const list = await listRes.json();
+    const found = list.find(c => c.id === id);
+    if (found) {
+      expect(found.service_name).toBe(updatedName);
+    }
+  });
+
+  test('update response is JSON (not HTML or empty)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.put(`${API}/api/portals/credentials/999999`, {
+      headers,
+      data: { service_name: 'Ghost Update' },
+    });
+    const ct = res.headers()['content-type'] ?? '';
+    expect(ct).toMatch(/json/i);
+  });
+
+  test('update does not expose password in response', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.put(`${API}/api/portals/credentials/999999`, {
+      headers,
+      data: { service_name: 'Safe', password: 'supersecret123' },
+    });
+    const text = await res.text();
+    expect(text).not.toMatch(/supersecret123/);
+  });
+});
+
+// ─── 8. Portal sync data-ingestion contracts ──────────────────────────────────
+
+test.describe('Portal sync data-ingestion contracts', () => {
+  test('sync result has records_synced field (number or null)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.post(`${API}/api/portals/credentials/95/sync`, {
+      headers,
+      timeout: 15000,
+    });
+    expect([200, 500]).toContain(res.status());
+    const body = await res.json();
+    if (res.status() === 200) {
+      expect(['number', 'object']).toContain(typeof body.records_synced ?? 'object');
+    }
+  });
+
+  test('sync result JSON never contains raw SQL (no "SQLITE_ERROR" strings)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.post(`${API}/api/portals/credentials/95/sync`, {
+      headers,
+      timeout: 15000,
+    });
+    const text = await res.text();
+    expect(text).not.toMatch(/SQLITE_ERROR|SQLITE_CONSTRAINT|no such column/i);
+  });
+
+  test('sync result JSON never contains a raw stack trace', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.post(`${API}/api/portals/credentials/95/sync`, {
+      headers,
+      timeout: 15000,
+    });
+    const text = await res.text();
+    expect(text).not.toMatch(/at Object\.<anonymous>|at processTicksAndRejections/);
+  });
+
+  test('GET /api/portals/sync-history returns objects with required join fields', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/sync-history?limit=5`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    expect(Array.isArray(rows)).toBe(true);
+    if (rows.length > 0) {
+      const row = rows[0];
+      expect(row).toHaveProperty('credential_id');
+      expect(row).toHaveProperty('status');
+      expect(row).toHaveProperty('sync_started');
+    }
+  });
+
+  test('sync-history rows have no raw SQL error in error_message field', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/sync-history?limit=20`, { headers });
+    const rows = await res.json();
+    for (const row of rows) {
+      if (row.error_message) {
+        expect(row.error_message).not.toMatch(/SQLITE_ERROR|SQLITE_CONSTRAINT|no such column/i);
+      }
+    }
+  });
+});

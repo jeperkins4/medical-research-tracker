@@ -552,6 +552,96 @@ export default async function globalSetup() {
 
       console.log('✅ Clinical notes test data seeded (ids 901, 902, 903)');
 
+      // ── Migration 011: medications_enhanced ─────────────────────────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS medications_enhanced (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'supplement',
+          category TEXT,
+          dosage TEXT,
+          frequency TEXT,
+          route TEXT DEFAULT 'oral',
+          started_date TEXT,
+          stopped_date TEXT,
+          active BOOLEAN DEFAULT 1,
+          reason TEXT,
+          prescribed_by TEXT,
+          mechanism TEXT,
+          target_pathways TEXT,
+          genomic_alignment TEXT,
+          evidence_strength TEXT,
+          recommended_dosing TEXT,
+          precautions TEXT,
+          interactions TEXT,
+          brand TEXT,
+          manufacturer TEXT,
+          notes TEXT,
+          effectiveness_rating TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('✅ medications_enhanced table ensured');
+
+      // ── Migration 012: analytics tables ────────────────────────────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS analytics_user_metrics (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          metric_date DATE NOT NULL,
+          total_users INTEGER DEFAULT 0,
+          new_users_today INTEGER DEFAULT 0,
+          active_users_30d INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(metric_date)
+        );
+        CREATE TABLE IF NOT EXISTS analytics_diagnosis_aggregates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          diagnosis_type TEXT NOT NULL,
+          cancer_type TEXT,
+          stage TEXT,
+          patient_count INTEGER DEFAULT 0,
+          diagnosis_name TEXT,
+          last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(diagnosis_type, cancer_type, stage)
+        );
+        CREATE TABLE IF NOT EXISTS analytics_mutation_aggregates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          gene_name TEXT NOT NULL,
+          mutation_type TEXT,
+          patient_count INTEGER DEFAULT 0,
+          last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(gene_name, mutation_type)
+        );
+        CREATE TABLE IF NOT EXISTS analytics_treatment_aggregates (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          treatment_name TEXT NOT NULL,
+          treatment_type TEXT,
+          patient_count INTEGER DEFAULT 0,
+          last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(treatment_name, treatment_type)
+        );
+        CREATE TABLE IF NOT EXISTS analytics_demographics (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          snapshot_date DATE NOT NULL,
+          age_group TEXT,
+          gender TEXT,
+          patient_count INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS analytics_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          snapshot_date DATE NOT NULL,
+          metric_name TEXT NOT NULL,
+          metric_category TEXT NOT NULL,
+          metric_value TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(snapshot_date, metric_name, metric_value)
+        );
+      `);
+      console.log('✅ analytics tables ensured');
+
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');
     } else {

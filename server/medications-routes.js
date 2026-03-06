@@ -65,7 +65,7 @@ export const setupMedicationRoutes = (app, requireAuth) => {
     }
   });
 
-  // Update a medication
+  // Update a medication (merge with existing to avoid overwriting unset fields)
   app.put('/api/medications/:id', requireAuth, (req, res) => {
     try {
       const existing = getMedicationById(req.params.id);
@@ -73,7 +73,9 @@ export const setupMedicationRoutes = (app, requireAuth) => {
         return res.status(404).json({ error: 'Medication not found' });
       }
 
-      updateMedication(req.params.id, req.body);
+      // Merge: existing fields as defaults, request body as overrides
+      const merged = { ...existing, ...req.body };
+      updateMedication(req.params.id, merged);
       res.json({ id: req.params.id, message: 'Medication updated successfully' });
     } catch (error) {
       console.error('Error updating medication:', error);

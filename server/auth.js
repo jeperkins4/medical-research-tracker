@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 
 // Use environment variable or fallback (in production, always use env var)
 const JWT_SECRET = process.env.JWT_SECRET || 'medical-tracker-secret-change-in-production';
@@ -17,7 +18,9 @@ export const verifyPassword = async (password, hash) => {
 };
 
 export const generateToken = (userId, username) => {
-  return jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  // Include jti (unique JWT ID) so concurrent logins for the same user
+  // produce distinct tokens — prevents cross-test revocation collisions.
+  return jwt.sign({ userId, username, jti: randomUUID() }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
 
 export const verifyToken = (token) => {
