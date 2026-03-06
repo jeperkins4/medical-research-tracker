@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { validateConfig } from './config-validator.js';
 import { init, query, run } from './db-secure.js';
-import { hashPassword, verifyPassword, generateToken, requireAuth } from './auth.js';
+import { hashPassword, verifyPassword, generateToken, requireAuth, revokeToken } from './auth.js';
 import { auditMiddleware, logAuth } from './audit.js';
 import { createEncryptedBackup, cleanupOldBackups } from './backup.js';
 import { generateHealthcareSummary } from './ai-summary.js';
@@ -271,6 +271,9 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
+  // Revoke the token server-side so it can't be reused even if sent manually
+  const token = req.cookies?.auth_token;
+  if (token) revokeToken(token);
   if (req.user) {
     logAuth(req.user.userId, req.user.username, 'logout', 'success', null, req);
   }
@@ -1559,10 +1562,21 @@ app.get('/api/portals/credentials', requireAuth, (req, res) => {
 });
 
 app.get('/api/portals/credentials/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid credential ID — must be a positive integer' });
+  }
   try {
-    const credential = portalCreds.getCredential(req.params.id);
+    const credential = portalCreds.getCredential(id);
+    if (!credential) return res.status(404).json({ error: 'Credential not found' });
     res.json(credential);
   } catch (error) {
+    if (error.message && error.message.toLowerCase().includes('vault')) {
+      return res.status(403).json({ error: error.message });
+    }
+    if (error.message && error.message.toLowerCase().includes('not found')) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message });
   }
 });

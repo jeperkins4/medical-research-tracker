@@ -446,9 +446,26 @@ export function getBoneHealthData() {
 export function getBoneHealthMetrics() {
   try {
     const data = getBoneHealthData();
+
+    // When monitoring is not warranted, return a safe minimal response
+    if (!data || data.enabled === false) {
+      return {
+        currentAlkPhos: null,
+        isAbnormal: false,
+        normalRange: '39-147 U/L',
+        trend: null,
+        riskLevel: 'low',
+        supplementsActive: 0,
+        supplementsMissing: 0,
+        urgentActions: 0,
+        lastMeasurement: null,
+        monitoringEnabled: false,
+        reason: data?.reason ?? 'no_indicators',
+      };
+    }
     
     // Calculate metrics
-    const latestAlkPhos = data.alkPhosData.length > 0 
+    const latestAlkPhos = (data.alkPhosData?.length ?? 0) > 0
       ? data.alkPhosData[data.alkPhosData.length - 1] 
       : null;
 

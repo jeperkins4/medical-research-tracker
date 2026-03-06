@@ -161,8 +161,8 @@ export function shouldMonitorLungs() {
 
     // Check for low oxygen saturation (<92%)
     const o2sat = query(`
-      SELECT value FROM vitals 
-      WHERE vital_type = 'oxygen_saturation'
+      SELECT oxygen_saturation AS value FROM vitals 
+      WHERE oxygen_saturation IS NOT NULL
       ORDER BY date DESC LIMIT 1
     `);
 

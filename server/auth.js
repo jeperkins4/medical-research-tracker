@@ -28,12 +28,24 @@ export const verifyToken = (token) => {
   }
 };
 
+// In-memory token revocation list (cleared on server restart, sufficient for session invalidation)
+const revokedTokens = new Set();
+
+export const revokeToken = (token) => {
+  if (token) revokedTokens.add(token);
+};
+
 // Middleware to protect routes
 export const requireAuth = (req, res, next) => {
   const token = req.cookies?.auth_token;
   
   if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  // Check token revocation list
+  if (revokedTokens.has(token)) {
+    return res.status(401).json({ error: 'Token has been revoked' });
   }
   
   const decoded = verifyToken(token);
@@ -43,5 +55,6 @@ export const requireAuth = (req, res, next) => {
   }
   
   req.user = decoded;
+  req._authToken = token; // Expose for logout revocation
   next();
 };
