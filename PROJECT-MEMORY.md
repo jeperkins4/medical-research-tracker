@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-05 12:40 EST -->
-Last updated: 2026-03-05
+<!-- Last updated: 2026-03-06 00:42 EST -->
+Last updated: 2026-03-06
 
 ## Current Version
-**v0.1.75** — BoneHealthTracker Cancer Spread Signals panel + IPC panelData/softTissueData parity + 292 tests passing
+**v0.1.76** — Biomarker cross-reference endpoint + clinical notes test seeding + 235 tests passing
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
