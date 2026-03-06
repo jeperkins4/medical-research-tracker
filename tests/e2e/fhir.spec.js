@@ -909,3 +909,239 @@ test.describe('POST /api/fhir/refresh — contract assertions', () => {
     }
   });
 });
+
+// ─── 12. Clinical notes detail — happy path (seeded note 901) ─────────────────
+
+test.describe('GET /api/fhir/clinical-notes/:id — detail happy path', () => {
+  const SEEDED_NOTE_ID = 901;  // pathology, cancer_relevant=1, seeded in global-setup
+
+  test('returns 200 with full note object for seeded note', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes/${SEEDED_NOTE_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('id', SEEDED_NOTE_ID);
+  });
+
+  test('detail includes content_text field (full body)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes/${SEEDED_NOTE_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('content_text');
+    expect(typeof body.content_text).toBe('string');
+    expect(body.content_text.length).toBeGreaterThan(0);
+  });
+
+  test('detail note has expected metadata fields', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes/${SEEDED_NOTE_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.note_type).toBe('pathology');
+    expect(body.cancer_relevant).toBe(1);
+    expect(body.loinc_code).toBe('60568-3');
+    expect(body.fhir_id).toBe('fhir-note-901');
+  });
+
+  test('list endpoint includes seeded notes in response', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body).toHaveProperty('notes');
+    expect(Array.isArray(body.notes)).toBe(true);
+    // At least the 3 seeded notes should be present
+    expect(body.total).toBeGreaterThanOrEqual(3);
+  });
+
+  test('cancer_only=1 filter excludes non-cancer notes', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes?cancer_only=1`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // All results must have cancer_relevant=1
+    for (const note of body.notes) {
+      expect(note.cancer_relevant).toBe(1);
+    }
+    // Progress note (id=902, cancer_relevant=0) must not appear
+    const ids = body.notes.map((n) => n.id);
+    expect(ids).not.toContain(902);
+  });
+
+  test('type=pathology filter returns only pathology notes', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes?type=pathology`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    for (const note of body.notes) {
+      expect(note.note_type).toBe('pathology');
+    }
+  });
+
+  test('combined filter: cancer_only=1 + type=imaging', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(
+      `${API}/api/fhir/clinical-notes?cancer_only=1&type=imaging`,
+      { headers: { Cookie: cookie } }
+    );
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    for (const note of body.notes) {
+      expect(note.note_type).toBe('imaging');
+      expect(note.cancer_relevant).toBe(1);
+    }
+    // Seeded imaging note (id=903) must appear
+    const ids = body.notes.map((n) => n.id);
+    expect(ids).toContain(903);
+  });
+
+  test('list endpoint does NOT expose content_text (body stripped)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/clinical-notes`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // The list SELECT omits content_text — no note in list should have it
+    for (const note of body.notes) {
+      expect(note).not.toHaveProperty('content_text');
+      expect(note).not.toHaveProperty('content_html');
+    }
+  });
+});
+
+// ─── 13. GET /api/cancer-profiles/biomarkers/:gene — cross-reference ──────────
+
+test.describe('GET /api/cancer-profiles/biomarkers/:gene — biomarker cross-reference', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/FGFR3`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('FGFR3 → matches urothelial_carcinoma', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/FGFR3`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.gene).toBe('FGFR3');
+    expect(Array.isArray(body.matches)).toBe(true);
+    const ids = body.matches.map((m) => m.id);
+    expect(ids).toContain('urothelial_carcinoma');
+  });
+
+  test('ARID1A → matches urothelial_carcinoma (newly added)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/ARID1A`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.gene).toBe('ARID1A');
+    const ids = body.matches.map((m) => m.id);
+    expect(ids).toContain('urothelial_carcinoma');
+  });
+
+  test('PIK3CA → matches urothelial_carcinoma and breast_cancer', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/PIK3CA`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.gene).toBe('PIK3CA');
+    const ids = body.matches.map((m) => m.id);
+    expect(ids).toContain('urothelial_carcinoma');
+    expect(ids).toContain('breast_cancer');
+  });
+
+  test('BRAF → matches lung_nsclc, colorectal_cancer, melanoma', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/BRAF`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const ids = body.matches.map((m) => m.id);
+    expect(ids).toContain('lung_nsclc');
+    expect(ids).toContain('colorectal_cancer');
+    expect(ids).toContain('melanoma');
+  });
+
+  test('gene matching is case-insensitive', async ({ request }) => {
+    const cookie = await login(request);
+    const [upper, lower] = await Promise.all([
+      request.get(`${API}/api/cancer-profiles/biomarkers/BRCA1`, { headers: { Cookie: cookie } }),
+      request.get(`${API}/api/cancer-profiles/biomarkers/brca1`, { headers: { Cookie: cookie } }),
+    ]);
+    expect(upper.status()).toBe(200);
+    expect(lower.status()).toBe(200);
+    const u = await upper.json();
+    const l = await lower.json();
+    expect(u.gene).toBe('BRCA1');
+    expect(l.gene).toBe('BRCA1');
+    // Same number of matches
+    expect(u.count).toBe(l.count);
+  });
+
+  test('unknown gene → 200 with empty matches array', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/NOTAREALGENE`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.count).toBe(0);
+    expect(body.matches).toEqual([]);
+  });
+
+  test('invalid gene name (too long) → 400', async ({ request }) => {
+    const cookie = await login(request);
+    const tooLong = 'A'.repeat(40);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/${tooLong}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('each match includes id, label, and keyBiomarkers array', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/KRAS`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    for (const match of body.matches) {
+      expect(match).toHaveProperty('id');
+      expect(match).toHaveProperty('label');
+      expect(match).toHaveProperty('keyBiomarkers');
+      expect(Array.isArray(match.keyBiomarkers)).toBe(true);
+    }
+  });
+
+  test('count field matches matches array length', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/cancer-profiles/biomarkers/TMB`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.count).toBe(body.matches.length);
+  });
+});

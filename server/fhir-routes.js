@@ -7,7 +7,7 @@
 import { getAuthorizationUrl, exchangeCodeForToken, syncEpicFHIR, refreshAccessToken } from './connectors/epic-fhir.js';
 import { getCredential } from './portal-credentials.js';
 import { query, run } from './db-secure.js';
-import { listCancerProfiles, getCancerProfile } from '../src/models/cancerProfiles.js';
+import { listCancerProfiles, getCancerProfile, searchProfilesByBiomarker } from '../src/models/cancerProfiles.js';
 
 /**
  * Register FHIR routes with Express app
@@ -375,8 +375,29 @@ export function registerFHIRRoutes(app, requireAuth) {
     }
   });
 
+  // ── GET /api/cancer-profiles/biomarkers/:gene ─────────────────────────────
+  // Cross-reference: which cancer profiles include this gene as a key biomarker?
+  // Gene matching is case-insensitive. Returns empty array (not 404) when none found.
+  // Requires auth.
+  //
+  // Example: GET /api/cancer-profiles/biomarkers/FGFR3
+  //   → [{ id: 'urothelial_carcinoma', label: '...', keyBiomarkers: [...] }, ...]
+  app.get('/api/cancer-profiles/biomarkers/:gene', requireAuth, (req, res) => {
+    try {
+      const gene = req.params.gene?.trim();
+      if (!gene || gene.length > 32 || !/^[A-Za-z0-9_\-]+$/.test(gene)) {
+        return res.status(400).json({ error: 'Invalid gene name' });
+      }
+      const matches = searchProfilesByBiomarker(gene);
+      res.json({ gene: gene.toUpperCase(), matches, count: matches.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── GET /api/cancer-profiles/:id ─────────────────────────────────────────
   // Get full profile detail (biomarkers, aliases, etc.)
+  // NOTE: must be registered AFTER /biomarkers/:gene to avoid route conflict
   app.get('/api/cancer-profiles/:id', requireAuth, (req, res) => {
     try {
       const profile = getCancerProfile(req.params.id);

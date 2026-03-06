@@ -6,7 +6,7 @@ export const CANCER_PROFILES = {
     id: 'urothelial_carcinoma',
     label: 'Urothelial Carcinoma',
     aliases: ['bladder cancer', 'urothelial cancer', 'mibc', 'muc'],
-    keyBiomarkers: ['FGFR3', 'ERBB2', 'NECTIN4', 'PD-L1', 'TMB', 'ctDNA'],
+    keyBiomarkers: ['FGFR3', 'ERBB2', 'NECTIN4', 'PD-L1', 'TMB', 'ctDNA', 'ARID1A', 'PIK3CA', 'CDKN2A', 'TP53'],
     commonReportSources: ['FoundationOne', 'Tempus', 'Caris', 'Guardant'],
   },
   breast_cancer: {
@@ -66,4 +66,21 @@ export function getCancerProfile(profileId) {
 
 export function listCancerProfiles() {
   return Object.values(CANCER_PROFILES).map((p) => ({ id: p.id, label: p.label }));
+}
+
+/**
+ * Search all cancer profiles for those that list a given gene as a key biomarker.
+ * Gene matching is case-insensitive.
+ *
+ * @param {string} gene - e.g. "FGFR3", "ARID1A", "BRAF"
+ * @returns {Array<{id, label, keyBiomarkers}>} - matching profiles (may be empty)
+ */
+export function searchProfilesByBiomarker(gene) {
+  if (!gene || typeof gene !== 'string') return [];
+  const normalized = gene.toUpperCase().trim();
+  return Object.values(CANCER_PROFILES)
+    .filter((p) =>
+      p.keyBiomarkers.some((b) => b.toUpperCase() === normalized)
+    )
+    .map((p) => ({ id: p.id, label: p.label, keyBiomarkers: p.keyBiomarkers }));
 }

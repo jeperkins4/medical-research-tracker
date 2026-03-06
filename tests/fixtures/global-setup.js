@@ -492,6 +492,66 @@ export default async function globalSetup() {
       if (!gmCols.includes('is_confirmed'))
         serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN is_confirmed INTEGER DEFAULT 1`);
 
+      // Ensure clinical_notes table exists and seed test notes
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS clinical_notes (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          fhir_id          TEXT UNIQUE,
+          credential_id    INTEGER,
+          note_type        TEXT,
+          title            TEXT,
+          date             TEXT,
+          author           TEXT,
+          department       TEXT,
+          facility         TEXT,
+          loinc_code       TEXT,
+          loinc_display    TEXT,
+          status           TEXT DEFAULT 'current',
+          cancer_relevant  INTEGER DEFAULT 0,
+          content_text     TEXT,
+          content_html     TEXT,
+          created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // Seed test clinical notes (ids 901, 902, 903 — well above real data range)
+      const seedNote = serverDb.prepare(`
+        INSERT OR IGNORE INTO clinical_notes
+          (id, fhir_id, credential_id, note_type, title, date, author, department,
+           facility, loinc_code, loinc_display, status, cancer_relevant,
+           content_text, content_html)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      // Note 901: pathology, cancer-relevant — for happy-path detail + filter tests
+      seedNote.run(
+        901, 'fhir-note-901', 99, 'pathology',
+        'Foundation One CDx Pathology Report', '2025-10-15',
+        'Dr. Smith', 'Pathology', 'AdventHealth',
+        '60568-3', 'Pathology report', 'current', 1,
+        'FGFR3 S249C mutation detected. PIK3CA E545K mutation detected. ARID1A loss.',
+        '<p>FGFR3 S249C mutation detected.</p>'
+      );
+      // Note 902: progress note, not cancer-relevant — for type/cancer filter contrast
+      seedNote.run(
+        902, 'fhir-note-902', 99, 'progress',
+        'Routine Follow-up Progress Note', '2025-11-01',
+        'Dr. Jones', 'Oncology', 'AdventHealth',
+        '11506-3', 'Progress note', 'current', 0,
+        'Patient tolerating treatment well. No new symptoms.',
+        null
+      );
+      // Note 903: imaging, cancer-relevant — tests combined filter
+      seedNote.run(
+        903, 'fhir-note-903', 99, 'imaging',
+        'CT Abdomen/Pelvis with Contrast', '2025-12-01',
+        'Dr. Lee', 'Radiology', 'AdventHealth',
+        '18748-4', 'CT report', 'current', 1,
+        'No evidence of distant metastasis. Bladder wall thickening noted.',
+        null
+      );
+
+      console.log('✅ Clinical notes test data seeded (ids 901, 902, 903)');
+
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');
     } else {
