@@ -44,6 +44,8 @@ test.describe('Portal sync route auth guards — unauthenticated → 401', () =>
     { method: 'GET',    path: '/api/portals/credentials' },
     { method: 'POST',   path: '/api/portals/credentials' },
     { method: 'POST',   path: '/api/portals/credentials/99/sync' },
+    { method: 'GET',    path: '/api/portals/sync-history' },
+    { method: 'GET',    path: '/api/portals/credentials/99/sync-history' },
     { method: 'DELETE', path: '/api/portals/credentials/99' },
   ];
 
@@ -337,6 +339,57 @@ test.describe('Sync status tracking — last_sync_status updated after sync', ()
       if ('last_sync_records' in cred && cred.last_sync_records !== null) {
         expect(typeof cred.last_sync_records).toBe('number');
       }
+    }
+  });
+});
+
+// ─── 8. Sync history endpoints (portal_sync_log ingestion) ───────────────────
+
+test.describe('Sync history endpoints — portal_sync_log rows are written once per sync', () => {
+  test('GET /api/portals/sync-history returns array with joined fields', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/sync-history?limit=10`, { headers });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+
+    // If there are rows, ensure join fields exist.
+    if (body.length) {
+      expect(body[0]).toHaveProperty('service_name');
+      expect(body[0]).toHaveProperty('portal_type');
+      expect(body[0]).toHaveProperty('credential_id');
+      expect(body[0]).toHaveProperty('status');
+    }
+  });
+
+  test('sync attempt creates exactly one new portal_sync_log row (no duplicates)', async ({ request }) => {
+    const headers = await authHeaders(request);
+
+    const beforeRes = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=50`, { headers });
+    expect(beforeRes.status()).toBe(200);
+    const before = await beforeRes.json();
+    expect(Array.isArray(before)).toBe(true);
+
+    // Trigger a sync attempt (expected to fail in test env due to vault locked)
+    const syncRes = await request.post(`${API}/api/portals/credentials/95/sync`, { headers, timeout: 15000 });
+    expect([200, 500]).toContain(syncRes.status());
+
+    const afterRes = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=50`, { headers });
+    expect(afterRes.status()).toBe(200);
+    const after = await afterRes.json();
+
+    // One attempt → one new log row
+    expect(after.length).toBe(before.length + 1);
+
+    const latest = after[0];
+    expect(latest).toHaveProperty('credential_id', 95);
+    expect(latest).toHaveProperty('sync_started');
+    expect(latest).toHaveProperty('status');
+
+    // On failure, sync_completed + error_message should be set.
+    if (latest.status === 'failed') {
+      expect(latest).toHaveProperty('sync_completed');
+      expect(latest).toHaveProperty('error_message');
     }
   });
 });

@@ -216,21 +216,15 @@ export function deleteCredential(id) {
 /**
  * Update last sync status
  */
-export function updateSyncStatus(id, status, recordsImported = 0, errorMessage = null) {
+export function updateSyncStatus(id, status, _recordsImported = 0, _errorMessage = null) {
+  // NOTE: Sync history logging is handled by server/portal-sync.js so a single
+  // sync attempt produces a single portal_sync_log row (running → success/failed).
   run(`
     UPDATE portal_credentials
     SET last_sync = CURRENT_TIMESTAMP,
         last_sync_status = ?
     WHERE id = ?
   `, [status, id]);
-
-  // Also log to sync history
-  run(`
-    INSERT INTO portal_sync_log (
-      credential_id, sync_started, sync_completed,
-      status, records_imported, error_message
-    ) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?)
-  `, [id, status, recordsImported, errorMessage]);
 
   return { success: true };
 }

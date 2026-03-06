@@ -8,25 +8,42 @@ import { syncEpicFHIR } from './connectors/epic-fhir.js';
  */
 export async function syncPortal(credentialId) {
   const startTime = new Date().toISOString();
-  
+
+  // Normalize to integer for queries + logging
+  const id = parseInt(String(credentialId), 10);
+  if (!Number.isFinite(id)) {
+    throw new Error('Invalid credential id');
+  }
+
+  // Track the log row we create so failure handling can update it reliably.
+  let syncLogId;
+
   try {
-    // Get decrypted credentials
-    const credential = getCredential(credentialId);
-    
+    // Verify credential exists before inserting a FK-constrained sync log row.
+    const exists = query(
+      `SELECT id FROM portal_credentials WHERE id = ?`,
+      [id]
+    )[0];
+    if (!exists) {
+      throw new Error('Credential not found');
+    }
+
+    // Log sync start early so vault-locked failures still produce history.
+    const logResult = run(
+      `INSERT INTO portal_sync_log (credential_id, sync_started, status)
+       VALUES (?, ?, 'running')`,
+      [id, startTime]
+    );
+    syncLogId = logResult.lastInsertRowid;
+
+    // Get decrypted credentials (requires vault unlocked)
+    const credential = getCredential(id);
+
     console.log(`🔄 Starting sync for: ${credential.service_name} (${credential.portal_type})`);
-    
-    // Log sync start
-    const logResult = run(`
-      INSERT INTO portal_sync_log (
-        credential_id, sync_started, status
-      ) VALUES (?, ?, 'running')
-    `, [credentialId, startTime]);
-    
-    const syncLogId = logResult.lastInsertRowid;
-    
+
     // Route to appropriate connector
     let result;
-    
+
     switch (credential.portal_type) {
       case 'epic':
         result = await syncEpicMyChart(credential);
@@ -46,45 +63,51 @@ export async function syncPortal(credentialId) {
       default:
         throw new Error(`Unknown portal type: ${credential.portal_type}`);
     }
-    
+
     // Update sync log with results
     const endTime = new Date().toISOString();
-    run(`
-      UPDATE portal_sync_log
-      SET sync_completed = ?,
-          status = 'success',
-          records_imported = ?
-      WHERE id = ?
-    `, [endTime, result.recordsImported, syncLogId]);
-    
+    run(
+      `UPDATE portal_sync_log
+       SET sync_completed = ?,
+           status = 'success',
+           records_imported = ?
+       WHERE id = ?`,
+      [endTime, result.recordsImported || 0, syncLogId]
+    );
+
     // Update credential last_sync
-    updateSyncStatus(credentialId, 'success', result.recordsImported);
-    
+    updateSyncStatus(id, 'success', result.recordsImported);
+
     console.log(`✅ Sync complete: ${result.recordsImported} records imported`);
-    
+
     return {
       success: true,
       recordsImported: result.recordsImported,
       summary: result.summary,
-      syncLogId
+      syncLogId,
     };
-    
   } catch (error) {
     console.error(`❌ Sync failed for credential ${credentialId}:`, error);
-    
-    // Update sync log with error
-    run(`
-      UPDATE portal_sync_log
-      SET sync_completed = CURRENT_TIMESTAMP,
-          status = 'failed',
-          error_message = ?
-      WHERE credential_id = ?
-      AND sync_started = ?
-    `, [error.message, credentialId, startTime]);
-    
-    // Update credential status
-    updateSyncStatus(credentialId, 'failed', 0, error.message);
-    
+
+    // Update sync log with error (only if we created one)
+    if (syncLogId) {
+      run(
+        `UPDATE portal_sync_log
+         SET sync_completed = CURRENT_TIMESTAMP,
+             status = 'failed',
+             error_message = ?
+         WHERE id = ?`,
+        [error.message, syncLogId]
+      );
+    }
+
+    // Update credential status (best-effort — no-op if credential doesn't exist)
+    try {
+      updateSyncStatus(id, 'failed', 0, error.message);
+    } catch (_err) {
+      // Ignore secondary failures — original error is what caller cares about.
+    }
+
     throw error;
   }
 }

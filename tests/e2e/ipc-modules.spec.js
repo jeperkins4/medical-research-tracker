@@ -433,6 +433,182 @@ test.describe('organ-health-ipc.cjs [IPC module smoke tests]', () => {
       // Should not throw — returns enabled:false on outer catch
       expect(result).toHaveProperty('enabled', false);
     });
+
+    // ── Cancer Spread Signals — flag threshold precision ──────────────────
+    // Note: makeMockRunner returns ALL rows for any test_results query (no LIKE
+    // filtering). For single-lab tests this works fine. For multi-lab tests we
+    // use a LIKE-aware runner (makeLikeRunner) defined below.
+
+    // Helper: simulates SQLite LIKE filtering so multi-lab tests work correctly.
+    function makeLikeRunner(allRows, conditionCount = 0) {
+      return (sql, params = []) => {
+        const lower = sql.toLowerCase();
+        if (lower.includes('test_results')) {
+          const pattern = params[0];
+          if (!pattern) return allRows;
+          const regex = new RegExp(
+            '^' + String(pattern).replace(/%/g, '.*').replace(/_/g, '.') + '$',
+            'i'
+          );
+          return allRows.filter(r => regex.test(r.test_name));
+        }
+        if (lower.includes('count(*)')) return [{ count: conditionCount }];
+        return [];
+      };
+    }
+
+    test('softTissueData.crp.latest populated and flags when elevated > 10 mg/L', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'CRP', result: '18.5', value_numeric: 18.5, unit: 'mg/L', flag: 'H', date: '2025-03-10' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { softTissueData, flags } = mod.getBoneHealthData(run);
+      expect(softTissueData.crp.latest).toBe(18.5);
+      expect(flags.some(f => f.label.includes('CRP Elevated'))).toBe(true);
+      expect(flags.find(f => f.label.includes('CRP'))?.severity).toBe('medium');
+    });
+
+    test('softTissueData.crp is NOT flagged when CRP is within normal range', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'CRP', result: '0.8', value_numeric: 0.8, unit: 'mg/L', flag: null, date: '2025-03-10' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { flags } = mod.getBoneHealthData(run);
+      expect(flags.some(f => f.label.includes('CRP'))).toBe(false);
+    });
+
+    test('LDH flag severity is "high" when LDH > 400 U/L', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'LDH', result: '520', value_numeric: 520, unit: 'U/L', flag: 'H', date: '2025-03-10' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { flags } = mod.getBoneHealthData(run);
+      const ldhFlag = flags.find(f => f.label.includes('LDH Elevated'));
+      expect(ldhFlag).toBeTruthy();
+      expect(ldhFlag.severity).toBe('high');
+    });
+
+    test('LDH flag severity is "medium" when LDH is 247–400 U/L', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'LDH', result: '300', value_numeric: 300, unit: 'U/L', flag: 'H', date: '2025-03-10' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { flags } = mod.getBoneHealthData(run);
+      const ldhFlag = flags.find(f => f.label.includes('LDH Elevated'));
+      expect(ldhFlag).toBeTruthy();
+      expect(ldhFlag.severity).toBe('medium');
+    });
+
+    test('softTissueData.ferritin.latest populated when ferritin lab present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Ferritin', result: '450', value_numeric: 450, unit: 'ng/mL', flag: 'H', date: '2025-03-05' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { softTissueData } = mod.getBoneHealthData(run);
+      expect(softTissueData.ferritin.latest).toBe(450);
+    });
+
+    test('softTissueData.uricAcid.latest populated when uric acid lab present', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Uric Acid', result: '8.2', value_numeric: 8.2, unit: 'mg/dL', flag: 'H', date: '2025-03-05' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { softTissueData } = mod.getBoneHealthData(run);
+      expect(softTissueData.uricAcid.latest).toBe(8.2);
+    });
+
+    test('multiple Cancer Spread Signals all flagged simultaneously (makeLikeRunner)', () => {
+      const allLabs = [
+        { test_name: 'LDH',       result: '310', value_numeric: 310,  unit: 'U/L',   flag: 'H', date: '2025-03-01' },
+        { test_name: 'CRP',       result: '22',  value_numeric: 22,   unit: 'mg/L',  flag: 'H', date: '2025-03-01' },
+        { test_name: 'Albumin',   result: '3.0', value_numeric: 3.0,  unit: 'g/dL',  flag: 'L', date: '2025-03-01' },
+        { test_name: 'Calcium',   result: '11.2',value_numeric: 11.2, unit: 'mg/dL', flag: 'H', date: '2025-03-01' },
+      ];
+      const run = makeLikeRunner(allLabs, 0);
+      const { flags } = mod.getBoneHealthData(run);
+      expect(flags.some(f => f.label.includes('LDH'))).toBe(true);
+      expect(flags.some(f => f.label.includes('CRP'))).toBe(true);
+      expect(flags.some(f => f.label.includes('Albumin'))).toBe(true);
+      expect(flags.some(f => f.label.includes('Calcium Elevated'))).toBe(true);
+      expect(flags.length).toBeGreaterThanOrEqual(4);
+    });
+
+    // ── Cancer Spread Signals — trend direction (pure) ────────────────────
+    // trend() in organ-health-ipc.cjs returns { change, direction } not a string.
+    // These tests verify the direction property used by BoneHealthTracker chart rendering.
+
+    test('panelData series is chronologically ordered (oldest → newest)', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'LDH', result: '200', value_numeric: 200, unit: 'U/L', flag: null, date: '2025-01-01' },
+          { test_name: 'LDH', result: '250', value_numeric: 250, unit: 'U/L', flag: null, date: '2025-02-01' },
+          { test_name: 'LDH', result: '310', value_numeric: 310, unit: 'U/L', flag: 'H',  date: '2025-03-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { panelData } = mod.getBoneHealthData(run);
+      const ldhSeries = panelData.ldh.series;
+      expect(ldhSeries.length).toBe(3);
+      for (let i = 1; i < ldhSeries.length; i++) {
+        expect(ldhSeries[i].date >= ldhSeries[i - 1].date).toBe(true);
+      }
+    });
+
+    test('panelData.ldh.trend.direction is "up" when LDH has 3 consecutive increases', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'LDH', result: '200', value_numeric: 200, unit: 'U/L', flag: null, date: '2025-01-01' },
+          { test_name: 'LDH', result: '250', value_numeric: 250, unit: 'U/L', flag: null, date: '2025-02-01' },
+          { test_name: 'LDH', result: '310', value_numeric: 310, unit: 'U/L', flag: 'H',  date: '2025-03-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { panelData } = mod.getBoneHealthData(run);
+      // trend() returns { change: number, direction: 'up' | 'down' }
+      expect(panelData.ldh.trend).not.toBeNull();
+      expect(panelData.ldh.trend.direction).toBe('up');
+      expect(panelData.ldh.trend.change).toBeGreaterThan(0);
+    });
+
+    test('softTissueData.albumin.trend.direction is "down" when albumin consistently drops', () => {
+      const run = makeMockRunner({
+        test_results: [
+          { test_name: 'Albumin', result: '4.2', value_numeric: 4.2, unit: 'g/dL', flag: null, date: '2025-01-01' },
+          { test_name: 'Albumin', result: '3.8', value_numeric: 3.8, unit: 'g/dL', flag: null, date: '2025-02-01' },
+          { test_name: 'Albumin', result: '3.1', value_numeric: 3.1, unit: 'g/dL', flag: 'L',  date: '2025-03-01' },
+        ],
+        conditions: [{ count: 0 }],
+      });
+      const { softTissueData } = mod.getBoneHealthData(run);
+      expect(softTissueData.albumin.trend).not.toBeNull();
+      expect(softTissueData.albumin.trend.direction).toBe('down');
+    });
+
+    test('flags array is empty and allNormal is true when all labs are in range (makeLikeRunner)', () => {
+      const allLabs = [
+        { test_name: 'Calcium',    result: '9.2', value_numeric: 9.2, unit: 'mg/dL', flag: null, date: '2025-03-01' },
+        { test_name: 'Lactate Dehydrogenase', result: '180', value_numeric: 180, unit: 'U/L', flag: null, date: '2025-03-01' },
+        { test_name: 'Albumin',    result: '4.1', value_numeric: 4.1, unit: 'g/dL',  flag: null, date: '2025-03-01' },
+        { test_name: 'Vitamin D',  result: '52',  value_numeric: 52,  unit: 'ng/mL', flag: null, date: '2025-03-01' },
+      ];
+      const run = makeLikeRunner(allLabs, 0);
+      const { flags, allNormal, enabled } = mod.getBoneHealthData(run);
+      expect(flags.length).toBe(0);
+      expect(allNormal).toBe(true);
+      expect(enabled).toBe(true);
+    });
   });
 });
 
