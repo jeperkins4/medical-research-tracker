@@ -3,7 +3,7 @@
 Last updated: 2026-03-06
 
 ## Current Version
-**v0.1.76** — Biomarker cross-reference endpoint + clinical notes test seeding + 235 tests passing
+**v0.1.78** — medication PUT merge-on-update + JWT jti uniqueness + portal credential update tests + 353 tests passing
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
