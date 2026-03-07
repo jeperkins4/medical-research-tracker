@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-07 00:42 EST -->
+<!-- Last updated: 2026-03-07 04:45 EST -->
 Last updated: 2026-03-07
 
 ## Current Version
-**v0.1.79** — credential detail + per-credential sync-history + records_synced integrity tests + 399 passing
+**v0.1.80** — medication extended routes (search, stats, research articles, dose log, DELETE) + global-setup DDL fixes + 447 passing
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
