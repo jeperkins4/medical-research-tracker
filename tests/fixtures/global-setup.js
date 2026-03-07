@@ -584,6 +584,41 @@ export default async function globalSetup() {
       `);
       console.log('✅ medications_enhanced table ensured');
 
+      // ── Migration 011b: medication_research + medication_log ─────────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS medication_research (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          medication_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          authors TEXT,
+          journal TEXT,
+          publication_year INTEGER,
+          abstract TEXT,
+          url TEXT,
+          pubmed_id TEXT,
+          doi TEXT,
+          article_type TEXT,
+          evidence_quality TEXT,
+          key_findings TEXT,
+          relevance TEXT,
+          added_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS medication_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          medication_id INTEGER NOT NULL,
+          taken_date TEXT NOT NULL,
+          taken_time TEXT,
+          dosage_taken TEXT,
+          notes TEXT,
+          missed BOOLEAN DEFAULT 0,
+          logged_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_medication_research_med_id ON medication_research(medication_id);
+        CREATE INDEX IF NOT EXISTS idx_medication_log_date ON medication_log(taken_date DESC);
+        CREATE INDEX IF NOT EXISTS idx_medication_log_med_id ON medication_log(medication_id);
+      `);
+      console.log('✅ medication_research + medication_log tables ensured');
+
       // ── Migration 012: analytics tables ────────────────────────────────────
       serverDb.exec(`
         CREATE TABLE IF NOT EXISTS analytics_user_metrics (
