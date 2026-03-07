@@ -2,7 +2,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const API_PORT  = process.env.TEST_API_PORT  || '3999';
-const UI_PORT   = process.env.TEST_UI_PORT   || '5174'; // separate Vite instance for tests
+const UI_PORT   = process.env.TEST_UI_PORT   || '5179'; // separate Vite instance for tests (5174 conflicts with OpenFuse)
 const API_BASE  = `http://localhost:${API_PORT}`;
 const UI_BASE   = `http://localhost:${UI_PORT}`;
 
@@ -29,7 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api-tests',
-      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/portal-sync.spec.js', '**/genomics.spec.js', '**/api-extended.spec.js', '**/api-crud.spec.js'],
+      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/portal-sync.spec.js', '**/genomics.spec.js', '**/api-extended.spec.js', '**/api-crud.spec.js', '**/api-coverage.spec.js'],
       use: { baseURL: API_BASE },
     },
     // IPC module smoke tests — no HTTP server or browser needed

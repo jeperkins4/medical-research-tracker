@@ -8,7 +8,7 @@
 
 import { test, expect } from '@playwright/test';
 
-const UI_PORT   = process.env.TEST_UI_PORT  || '5174';
+const UI_PORT   = process.env.TEST_UI_PORT  || '5179'; // must match playwright.config.js (5174 conflicts with OpenFuse)
 const API_PORT  = process.env.TEST_API_PORT || '3999';
 const BASE      = `http://localhost:${UI_PORT}`;
 const API       = `http://localhost:${API_PORT}`;

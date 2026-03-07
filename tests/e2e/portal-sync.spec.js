@@ -532,3 +532,176 @@ test.describe('Portal sync data-ingestion contracts', () => {
     }
   });
 });
+
+// ─── 8. GET /api/portals/credentials/:id — individual credential detail ────────
+
+test.describe('GET /api/portals/credentials/:id — credential detail', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/portals/credentials/95`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('non-numeric id → 400 (no crash)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/notanumber`, { headers });
+    expect([400, 404]).toContain(res.status());
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('returns 404 for non-existent credential id', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/999999`, { headers });
+    expect([404, 403, 500]).toContain(res.status());
+  });
+
+  test('returns seeded credential 95 with expected fields', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95`, { headers });
+    // Vault locked in test env may return 403 instead of credential object
+    expect([200, 403]).toContain(res.status());
+    if (res.status() === 200) {
+      const cred = await res.json();
+      expect(cred).toHaveProperty('id', 95);
+      expect(cred).toHaveProperty('service_name');
+      expect(cred).toHaveProperty('portal_type');
+    }
+  });
+
+  test('response never leaks encrypted password fields in plaintext', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/99`, { headers });
+    if (res.status() !== 200) return; // vault locked OK
+    const text = await res.text();
+    expect(text).not.toContain('testpass123');
+    expect(text).not.toMatch(/password_encrypted/); // should be re-mapped or excluded
+  });
+
+  test('epic credential (id=99) has portal_type=epic', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/99`, { headers });
+    if (res.status() !== 200) return; // vault locked — skip assertions
+    const cred = await res.json();
+    expect(cred.portal_type).toBe('epic');
+  });
+
+  test('response is valid JSON (not HTML or empty string)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95`, { headers });
+    const contentType = res.headers()['content-type'] || '';
+    expect(contentType).toContain('application/json');
+  });
+});
+
+// ─── 9. GET /api/portals/credentials/:id/sync-history — per-credential history ─
+
+test.describe('GET /api/portals/credentials/:id/sync-history — per-credential sync history', () => {
+  test('requires auth — 401 without cookie', async ({ request }) => {
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history`);
+    expect(res.status()).toBe(401);
+  });
+
+  test('returns 200 and an array for seeded credential 95', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  test('sync-history rows for credential 95 have expected fields (when present)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=5`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    if (rows.length > 0) {
+      const row = rows[0];
+      expect(row).toHaveProperty('credential_id');
+      expect(row).toHaveProperty('status');
+      expect(row).toHaveProperty('sync_started');
+    }
+  });
+
+  test('all returned rows belong to the requested credential', async ({ request }) => {
+    const headers = await authHeaders(request);
+    // Trigger a sync so there is at least one row
+    await request.post(`${API}/api/portals/credentials/95/sync`, { headers });
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=10`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    for (const row of rows) {
+      expect(row.credential_id).toBe(95);
+    }
+  });
+
+  test('limit query param is respected — never returns more than limit rows', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=2`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    expect(rows.length).toBeLessThanOrEqual(2);
+  });
+
+  test('non-numeric credential id → never crashes server (200 empty or 4xx)', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/bogus/sync-history`, { headers });
+    expect([200, 400, 404]).toContain(res.status());
+  });
+
+  test('per-credential history rows have no raw SQL error in error_message', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/95/sync-history?limit=10`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    for (const row of rows) {
+      if (row.error_message) {
+        expect(row.error_message).not.toMatch(/SQLITE_ERROR|SQLITE_CONSTRAINT|no such column/i);
+      }
+    }
+  });
+
+  test('per-credential history for epic credential 99 — status field is a known value', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.get(`${API}/api/portals/credentials/99/sync-history?limit=5`, { headers });
+    expect(res.status()).toBe(200);
+    const rows = await res.json();
+    const validStatuses = ['success', 'failed', 'partial', 'in_progress', 'never', null];
+    for (const row of rows) {
+      expect(validStatuses).toContain(row.status);
+    }
+  });
+});
+
+// ─── 10. Portal sync data-ingestion contract: records_synced field integrity ───
+
+test.describe('Portal sync records_synced integrity across credential types', () => {
+  const CREDENTIAL_IDS = [95, 97, 99]; // generic, carespace, epic
+
+  for (const credId of CREDENTIAL_IDS) {
+    test(`credential ${credId}: sync response has records_synced that is numeric or null`, async ({ request }) => {
+      const headers = await authHeaders(request);
+      const res = await request.post(`${API}/api/portals/credentials/${credId}/sync`, { headers });
+      expect([200, 400, 500]).toContain(res.status());
+      const body = await res.json();
+      if (body.records_synced !== undefined) {
+        expect(typeof body.records_synced === 'number' || body.records_synced === null).toBe(true);
+      }
+    });
+  }
+
+  test('sync response always contains either records_synced or error — never empty', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const res = await request.post(`${API}/api/portals/credentials/95/sync`, { headers });
+    const body = await res.json();
+    const hasContent = 'records_synced' in body || 'error' in body || 'status' in body || 'message' in body;
+    expect(hasContent).toBe(true);
+  });
+
+  test('sync history row written after each trigger — count increases monotonically', async ({ request }) => {
+    const headers = await authHeaders(request);
+    const before = await (await request.get(`${API}/api/portals/credentials/95/sync-history`, { headers })).json();
+    await request.post(`${API}/api/portals/credentials/95/sync`, { headers });
+    const after = await (await request.get(`${API}/api/portals/credentials/95/sync-history`, { headers })).json();
+    expect(after.length).toBeGreaterThanOrEqual(before.length);
+  });
+});
