@@ -677,6 +677,85 @@ export default async function globalSetup() {
       `);
       console.log('✅ analytics tables ensured');
 
+      // ── Migration: nutrition tables (foods, meals, meal_foods) ──────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS foods (
+          id                INTEGER PRIMARY KEY AUTOINCREMENT,
+          name              TEXT NOT NULL,
+          category          TEXT,
+          anti_cancer_score REAL DEFAULT 0,
+          pathway_support   TEXT,
+          notes             TEXT,
+          created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS meals (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          date            TEXT NOT NULL,
+          time            TEXT,
+          meal_type       TEXT,
+          description     TEXT,
+          treatment_phase TEXT,
+          energy_level    INTEGER,
+          nausea_level    INTEGER,
+          notes           TEXT,
+          created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS meal_foods (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          meal_id      INTEGER NOT NULL,
+          food_id      INTEGER NOT NULL,
+          portion_size TEXT
+        );
+        CREATE TABLE IF NOT EXISTS food_pathways (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          food_id      INTEGER NOT NULL,
+          pathway_id   INTEGER NOT NULL,
+          potency_score REAL DEFAULT 0
+        );
+      `);
+      console.log('✅ nutrition tables ensured');
+
+      // ── Migration: news_feed table ──────────────────────────────────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS news_feed (
+          id               INTEGER PRIMARY KEY AUTOINCREMENT,
+          title            TEXT NOT NULL,
+          url              TEXT,
+          source           TEXT,
+          summary          TEXT,
+          category         TEXT,
+          relevance_score  REAL DEFAULT 0,
+          is_read          INTEGER DEFAULT 0,
+          discovered_at    TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('✅ news_feed table ensured');
+
+      // ── Migration: cloud sync tables ────────────────────────────────────────
+      serverDb.exec(`
+        CREATE TABLE IF NOT EXISTS sync_log (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id     INTEGER NOT NULL,
+          action      TEXT,
+          status      TEXT,
+          details     TEXT,
+          created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS papers (
+          id                INTEGER PRIMARY KEY AUTOINCREMENT,
+          title             TEXT NOT NULL,
+          supabase_paper_id TEXT,
+          created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      // Ensure users table has cloud-sync columns (non-destructive ALTER TABLE)
+      try { serverDb.exec('ALTER TABLE users ADD COLUMN supabase_user_id TEXT'); } catch(e) {}
+      try { serverDb.exec('ALTER TABLE users ADD COLUMN last_synced_at TEXT'); } catch(e) {}
+      try { serverDb.exec("ALTER TABLE users ADD COLUMN sync_status TEXT DEFAULT 'local'"); } catch(e) {}
+      // Ensure papers table has supabase_paper_id column (for cloud-sync status query)
+      try { serverDb.exec('ALTER TABLE papers ADD COLUMN supabase_paper_id TEXT'); } catch(e) {}
+      console.log('✅ cloud sync tables ensured');
+
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');
     } else {
