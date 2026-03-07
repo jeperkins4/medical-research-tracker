@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-06 00:42 EST -->
-Last updated: 2026-03-06
+<!-- Last updated: 2026-03-07 00:42 EST -->
+Last updated: 2026-03-07
 
 ## Current Version
-**v0.1.78** — medication PUT merge-on-update + JWT jti uniqueness + portal credential update tests + 353 tests passing
+**v0.1.79** — credential detail + per-credential sync-history + records_synced integrity tests + 399 passing
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
