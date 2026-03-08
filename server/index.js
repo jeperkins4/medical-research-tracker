@@ -521,10 +521,13 @@ app.get('/api/conditions', requireAuth, (req, res) => {
 });
 
 app.post('/api/conditions', requireAuth, (req, res) => {
-  const { name, diagnosed_date, status, notes } = req.body;
+  const { name, diagnosed_date, status, notes } = req.body || {};
+  if (!name || typeof name !== 'string' || name.trim() === '') {
+    return res.status(400).json({ error: 'name is required' });
+  }
   const result = run(
     'INSERT INTO conditions (name, diagnosed_date, status, notes) VALUES (?, ?, ?, ?)',
-    [name, diagnosed_date, status || 'active', notes]
+    [name.trim(), diagnosed_date, status || 'active', notes]
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -536,10 +539,13 @@ app.get('/api/symptoms', requireAuth, (req, res) => {
 });
 
 app.post('/api/symptoms', requireAuth, (req, res) => {
-  const { description, severity, date, notes } = req.body;
+  const { description, severity, date, notes } = req.body || {};
+  if (!description || typeof description !== 'string' || description.trim() === '') {
+    return res.status(400).json({ error: 'description is required' });
+  }
   const result = run(
     'INSERT INTO symptoms (description, severity, date, notes) VALUES (?, ?, ?, ?)',
-    [description, severity, date, notes]
+    [description.trim(), severity, date, notes]
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -664,15 +670,23 @@ app.post('/api/documents/parse', requireAuth, async (req, res) => {
 });
 
 app.put('/api/documents/:id/markers', requireAuth, (req, res) => {
-  const { markers } = req.body;
-  run('UPDATE medical_documents SET body_markers=? WHERE id=?',
-    [JSON.stringify(markers || []), req.params.id]);
-  res.json({ success: true });
+  try {
+    const { markers } = req.body;
+    run('UPDATE medical_documents SET body_markers=? WHERE id=?',
+      [JSON.stringify(markers || []), req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update markers', message: error.message });
+  }
 });
 
 app.delete('/api/documents/:id', requireAuth, (req, res) => {
-  run('DELETE FROM medical_documents WHERE id=?', [req.params.id]);
-  res.json({ success: true });
+  try {
+    run('DELETE FROM medical_documents WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete document', message: error.message });
+  }
 });
 
 // Test Results
@@ -759,16 +773,24 @@ app.post('/api/conditions/:conditionId/vitals/:vitalId', requireAuth, (req, res)
 
 // Associate existing symptom with condition
 app.post('/api/conditions/:conditionId/symptoms/:symptomId', requireAuth, (req, res) => {
-  run('INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)',
-    [req.params.conditionId, req.params.symptomId]);
-  res.json({ success: true });
+  try {
+    run('INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)',
+      [req.params.conditionId, req.params.symptomId]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to link symptom to condition', message: error.message });
+  }
 });
 
 // Associate existing test with condition
 app.post('/api/conditions/:conditionId/tests/:testId', requireAuth, (req, res) => {
-  run('INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)',
-    [req.params.conditionId, req.params.testId]);
-  res.json({ success: true });
+  try {
+    run('INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)',
+      [req.params.conditionId, req.params.testId]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to link test to condition', message: error.message });
+  }
 });
 
 // Papers
@@ -1630,6 +1652,10 @@ app.get('/api/portals/credentials/:id/sync-history', requireAuth, (req, res) => 
 
 // Manual sync trigger
 app.post('/api/portals/credentials/:id/sync', requireAuth, async (req, res) => {
+  const credId = parseInt(req.params.id, 10);
+  if (isNaN(credId) || credId <= 0) {
+    return res.status(400).json({ error: 'Invalid credential id — must be a positive integer' });
+  }
   try {
     const result = await syncPortal(req.params.id);
     res.json(result);

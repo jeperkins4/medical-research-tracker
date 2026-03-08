@@ -212,12 +212,39 @@ function createTestDatabase(dir) {
       created_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at        TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS subscription_payments (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id       INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      amount                REAL    NOT NULL,
+      currency              TEXT    NOT NULL DEFAULT 'USD',
+      paid_at               TEXT,
+      billing_period_start  TEXT,
+      billing_period_end    TEXT,
+      status                TEXT    NOT NULL DEFAULT 'paid',
+      transaction_id        TEXT,
+      notes                 TEXT,
+      created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   // ── Seed: test user ────────────────────────────────────────────────────────
   const passwordHash = bcrypt.hashSync('testpass123', 10);
   db.prepare(`INSERT OR IGNORE INTO users (username, password, email) VALUES (?, ?, ?)`)
     .run('testuser', passwordHash, 'test@example.com');
+
+  // ── Seed: test subscription (id=1 for subscription tests) ─────────────────
+  const testUserId = db.prepare(`SELECT id FROM users WHERE username = 'testuser'`).get()?.id || 1;
+  db.prepare(`
+    INSERT OR IGNORE INTO subscriptions
+      (id, user_id, service_name, provider, category, status, cost, currency, billing_cycle,
+       billing_day, next_billing_date, auto_renews, reminder_days, tags)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    101, testUserId, 'Test Subscription', 'Test Provider',
+    'Healthcare & Medical', 'active', 29.99, 'USD', 'monthly',
+    15, '2026-04-15', 1, 3, '["test","health"]'
+  );
 
   // ── Seed: portal credential with last_sync ─────────────────────────────────
   db.prepare(`
@@ -755,6 +782,43 @@ export default async function globalSetup() {
       // Ensure papers table has supabase_paper_id column (for cloud-sync status query)
       try { serverDb.exec('ALTER TABLE papers ADD COLUMN supabase_paper_id TEXT'); } catch(e) {}
       console.log('✅ cloud sync tables ensured');
+
+      // ── Migration: document + condition relationship tables ──────────────────
+      try {
+        serverDb.exec(`
+          CREATE TABLE IF NOT EXISTS medical_documents (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER,
+            title       TEXT,
+            file_name   TEXT,
+            file_type   TEXT,
+            content     TEXT,
+            body_markers TEXT DEFAULT '[]',
+            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS condition_symptoms (
+            condition_id INTEGER NOT NULL,
+            symptom_id   INTEGER NOT NULL,
+            PRIMARY KEY (condition_id, symptom_id)
+          );
+
+          CREATE TABLE IF NOT EXISTS condition_tests (
+            condition_id INTEGER NOT NULL,
+            test_id      INTEGER NOT NULL,
+            PRIMARY KEY (condition_id, test_id)
+          );
+
+          CREATE TABLE IF NOT EXISTS paper_tags (
+            paper_id INTEGER NOT NULL,
+            tag_id   INTEGER NOT NULL,
+            PRIMARY KEY (paper_id, tag_id)
+          );
+        `);
+        console.log('✅ document/condition-relationship/paper-tag tables ensured');
+      } catch (e) {
+        console.warn('⚠️  document/condition-relationship tables:', e.message);
+      }
 
       serverDb.close();
       console.log('✅ FHIR test data seeded into server DB');
