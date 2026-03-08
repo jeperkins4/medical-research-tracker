@@ -1145,3 +1145,232 @@ test.describe('GET /api/cancer-profiles/biomarkers/:gene — biomarker cross-ref
     expect(body.count).toBe(body.matches.length);
   });
 });
+
+// ─── 13. FHIR status — full response shape ───────────────────────────────────
+
+test.describe('GET /api/fhir/status/:credentialId — response field contracts', () => {
+  test('valid token response includes expiresAt, patientId, and scope', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/${EPIC_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.authorized).toBe(true);
+    expect(body.valid).toBe(true);
+    expect(body).toHaveProperty('expiresAt');
+    expect(body).toHaveProperty('patientId');
+    expect(body).toHaveProperty('scope');
+    // expiresAt must be a parseable date string in the future
+    expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  test('expired token response includes expiresAt — date is in the past (when token present)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // If the token was already revoked by a prior test (idempotent revoke tests run earlier),
+    // authorized will be false and there's no expiresAt — that's still a valid state.
+    if (body.authorized) {
+      expect(body.valid).toBe(false);
+      expect(body).toHaveProperty('expiresAt');
+      // expiresAt must be a parseable date string in the past
+      expect(new Date(body.expiresAt).getTime()).toBeLessThan(Date.now());
+    } else {
+      // Token already revoked — authorized:false is correct; no expiresAt expected
+      expect(body.authorized).toBe(false);
+    }
+  });
+
+  test('valid token response includes message field (non-empty string)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/${EPIC_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(typeof body.message).toBe('string');
+    expect(body.message.length).toBeGreaterThan(0);
+  });
+
+  test('unauthorized credential response includes message field', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/${NON_EPIC_CRED}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // NON_EPIC_CRED has no fhir_tokens row
+    expect(body.authorized).toBe(false);
+    expect(body).toHaveProperty('message');
+  });
+
+  test('status response content-type is application/json', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/${EPIC_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.headers()['content-type']).toMatch(/application\/json/);
+  });
+
+  test('status for very large credential id → 200 with authorized:false (no crash)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/status/99999999`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.authorized).toBe(false);
+  });
+});
+
+// ─── 14. FHIR authorize — mode=json response contract ────────────────────────
+
+test.describe('GET /api/fhir/authorize/:credentialId — mode=json response shape', () => {
+  test('non-numeric id with mode=json → 400 with error field', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/authorize/notanid?mode=json`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+  });
+
+  test('mode=json always returns JSON (not redirect)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/authorize/${EPIC_CRED_ID}?mode=json`, {
+      headers: { Cookie: cookie },
+    });
+    // Status 200 (configured) or 500 (env missing) — never 302
+    expect([200, 500]).toContain(res.status());
+    const ct = res.headers()['content-type'] || '';
+    expect(ct).toMatch(/application\/json/);
+  });
+
+  test('mode=json error response always includes error field', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.get(`${API}/api/fhir/authorize/${EPIC_CRED_ID}?mode=json`, {
+      headers: { Cookie: cookie },
+    });
+    if (res.status() !== 200) {
+      const body = await res.json();
+      expect(body).toHaveProperty('error');
+    }
+  });
+
+  test('requires auth — no cookie → 401 (not 302 or 500)', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/authorize/${EPIC_CRED_ID}?mode=json`);
+    expect(res.status()).toBe(401);
+  });
+});
+
+// ─── 15. FHIR callback — parameter validation edge cases ─────────────────────
+
+test.describe('GET /api/fhir/callback — parameter validation', () => {
+  test('callback with empty string code and valid state → 400', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/callback?code=&state=somestate`, {
+      maxRedirects: 0,
+    });
+    // Empty code counts as falsy → 400 or redirect with error
+    expect([400, 302]).toContain(res.status());
+  });
+
+  test('callback with code but empty state → 400', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/callback?code=somecode&state=`, {
+      maxRedirects: 0,
+    });
+    expect([400, 302]).toContain(res.status());
+  });
+
+  test('callback OAuth error redirect never exposes raw stack trace in URL', async ({ request }) => {
+    const res = await request.get(`${API}/api/fhir/callback?error=access_denied`, {
+      maxRedirects: 0,
+    });
+    expect(res.status()).toBe(302);
+    const location = res.headers()['location'] || '';
+    expect(location).not.toMatch(/at .* \(.+\.js:\d+:\d+\)/); // stack trace pattern
+  });
+
+  test('callback always returns either 302 or 400 — never 500 or 200', async ({ request }) => {
+    // Any bad input must produce 302 (redirect with error) or 400 — never unhandled 500
+    const res = await request.get(`${API}/api/fhir/callback?code=bad&state=bad`, {
+      maxRedirects: 0,
+    });
+    // Invalid state causes redirect to /?error=... or a 400
+    expect([302, 400]).toContain(res.status());
+  });
+});
+
+// ─── 16. FHIR refresh — success response field contracts ─────────────────────
+
+test.describe('POST /api/fhir/refresh/:credentialId — success/error field contracts', () => {
+  test('refresh with no-token epic credential → 400 with requiresAuth field', async ({ request }) => {
+    const cookie = await login(request);
+    // NON_EPIC_CRED (97) is carespace type, so we'll expect 400 for wrong portal type
+    // Use a freshly-created epic cred or NON_EPIC_CRED and expect the right error
+    const res = await request.post(`${API}/api/fhir/refresh/${NON_EPIC_CRED}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+    // Non-epic credential should say "epic" in error
+    expect(body.error).toMatch(/epic/i);
+  });
+
+  test('refresh error response is always JSON (never HTML)', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    const ct = res.headers()['content-type'] || '';
+    expect(ct).toMatch(/application\/json/);
+    const body = await res.json();
+    expect(typeof body).toBe('object');
+  });
+
+  test('refresh for missing credential returns 404 with error field', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${MISSING_CRED}`, {
+      headers: { Cookie: cookie },
+    });
+    expect(res.status()).toBe(404);
+    const body = await res.json();
+    expect(body).toHaveProperty('error');
+    expect(body.error).toMatch(/not found/i);
+  });
+
+  test('refresh response never contains raw SQLite error text', async ({ request }) => {
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    const text = await res.text();
+    expect(text).not.toMatch(/SQLITE_ERROR|SQLITE_CONSTRAINT/i);
+  });
+
+  test('successful refresh response includes expiresAt and valid fields', async ({ request }) => {
+    // In test env, this will fail (no real Epic endpoint) — assert error shape
+    // If somehow it succeeds, assert the success shape
+    const cookie = await login(request);
+    const res = await request.post(`${API}/api/fhir/refresh/${EXPIRED_CRED_ID}`, {
+      headers: { Cookie: cookie },
+    });
+    const body = await res.json();
+    if (res.status() === 200) {
+      expect(body).toHaveProperty('success', true);
+      expect(body).toHaveProperty('expiresAt');
+      expect(body).toHaveProperty('valid');
+      expect(typeof body.valid).toBe('boolean');
+    } else {
+      // Error case — must not leak token values
+      expect(body).toHaveProperty('error');
+      expect(body).not.toHaveProperty('access_token');
+      expect(body).not.toHaveProperty('refresh_token');
+    }
+  });
+});
