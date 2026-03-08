@@ -125,10 +125,30 @@ function initializeDatabase() {
     return true;
   } catch (err) {
     console.error('[Electron] Database initialization failed:', err);
-    dialog.showErrorBox(
-      'Database Error',
-      `Failed to initialize database: ${err.message}`
+
+    // Detect native module ABI mismatch (NODE_MODULE_VERSION conflict)
+    const isABIMismatch = err.message && (
+      err.message.includes('NODE_MODULE_VERSION') ||
+      err.message.includes('was compiled against a different') ||
+      err.message.includes('please try re-compiling')
     );
+
+    if (isABIMismatch) {
+      dialog.showErrorBox(
+        'Native Module Version Mismatch',
+        `MyTreatmentPath needs to update a system component before it can start.\n\n` +
+        `This is a one-time fix. Please:\n\n` +
+        `1. Download the latest version from:\n` +
+        `   https://github.com/jeperkins4/medical-research-tracker/releases\n\n` +
+        `2. Replace the existing app and relaunch.\n\n` +
+        `Technical detail: ${err.message}`
+      );
+    } else {
+      dialog.showErrorBox(
+        'Database Error',
+        `Failed to initialize database: ${err.message}`
+      );
+    }
     return false;
   }
 }

@@ -1,9 +1,9 @@
 appId: com.mytreatmentpath.app
 productName: MyTreatmentPath
 copyright: Copyright © 2026 John Perkins
-npmRebuild: true
+npmRebuild: false
 nodeGypRebuild: false
-buildDependenciesFromSource: true
+buildDependenciesFromSource: false
 asarUnpack:
   - node_modules/better-sqlite3/**/*
   - node_modules/bindings/**/*
