@@ -1,9 +1,9 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-07 04:45 EST -->
-Last updated: 2026-03-07
+<!-- Last updated: 2026-03-08 13:45 EST -->
+Last updated: 2026-03-08
 
 ## Current Version
-**v0.1.80** — medication extended routes (search, stats, research articles, dose log, DELETE) + global-setup DDL fixes + 447 passing
+**v0.1.84** — cancer profiles data contract tests: all 8 profiles + biomarker cross-ref contracts + urothelial FGFR3/ARID1A/PIK3CA guards + input validation (877 passing, 1 skipped, 0 failed)
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**
