@@ -276,3 +276,249 @@ describe('TP53 — universal across all profiles', () => {
     });
   }
 });
+
+// ─── 9. Prostate cancer profile ───────────────────────────────────────────────
+
+describe('Prostate cancer profile', () => {
+  const PROFILE = 'prostate_cancer';
+
+  it('extracts BRCA2 pathogenic variant', () => {
+    const r = norm('BRCA2 p.E1953* pathogenic truncation detected. PARP inhibitor eligible.', PROFILE);
+    const g = gene(r, 'BRCA2');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('BRCA2');
+  });
+
+  it('extracts BRCA1 loss-of-function', () => {
+    const r = norm('BRCA1 frameshift deletion c.68_69del identified.', PROFILE);
+    const g = gene(r, 'BRCA1');
+    expect(g).not.toBeNull();
+    expect(['likely_pathogenic', 'pathogenic']).toContain(g.pathogenicity);
+  });
+
+  it('extracts ATM mutation', () => {
+    const r = norm('ATM p.R2832* stop-gain mutation present.', PROFILE);
+    const g = gene(r, 'ATM');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts CDK12 biallelic loss', () => {
+    const r = norm('CDK12 biallelic loss of function — immunotherapy biomarker.', PROFILE);
+    const g = gene(r, 'CDK12');
+    expect(g).not.toBeNull();
+  });
+
+  it('flags TMB-High for prostate profile', () => {
+    const r = norm('TMB: 16 mut/Mb — high mutational burden.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('TMB-H');
+  });
+
+  it('flags MSI-H for prostate profile', () => {
+    const r = norm('MSI-High confirmed via PCR-based testing.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('MSI-H');
+  });
+
+  it('cancerProfileId preserved for prostate profile', () => {
+    const r = norm('BRCA2 p.E1953* detected.', PROFILE);
+    expect(r.patient.cancerProfileId).toBe(PROFILE);
+  });
+});
+
+// ─── 10. Ovarian cancer profile ───────────────────────────────────────────────
+
+describe('Ovarian cancer profile', () => {
+  const PROFILE = 'ovarian_cancer';
+
+  it('extracts BRCA1 germline pathogenic variant', () => {
+    const r = norm('BRCA1 c.5266dupC (germline) — pathogenic. PARP inhibitor eligible.', PROFILE);
+    const g = gene(r, 'BRCA1');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('BRCA1');
+  });
+
+  it('extracts BRCA2 somatic variant', () => {
+    const r = norm('BRCA2 p.K3326* somatic variant detected.', PROFILE);
+    const g = gene(r, 'BRCA2');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts TP53 (driver in HGSOC)', () => {
+    const r = norm('TP53 p.R248W missense — classic HGSOC driver mutation.', PROFILE);
+    const g = gene(r, 'TP53');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('TP53');
+  });
+
+  it('extracts NF1 loss-of-function', () => {
+    const r = norm('NF1 p.R1947* nonsense mutation detected.', PROFILE);
+    const g = gene(r, 'NF1');
+    expect(g).not.toBeNull();
+  });
+
+  it('flags TMB-High for ovarian profile', () => {
+    const r = norm('TMB: 20 mutations/Mb — high.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('TMB-H');
+  });
+
+  it('cancerProfileId preserved for ovarian profile', () => {
+    const r = norm('BRCA1 pathogenic.', PROFILE);
+    expect(r.patient.cancerProfileId).toBe(PROFILE);
+  });
+});
+
+// ─── 11. Pancreatic cancer profile ────────────────────────────────────────────
+
+describe('Pancreatic cancer profile', () => {
+  const PROFILE = 'pancreatic_cancer';
+
+  it('extracts KRAS G12D — canonical PDAC driver', () => {
+    const r = norm('KRAS G12D mutation detected — pancreatic adenocarcinoma driver.', PROFILE);
+    const g = gene(r, 'KRAS');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('KRAS');
+  });
+
+  it('extracts KRAS G12V', () => {
+    const r = norm('KRAS p.G12V detected in pancreatic tumor sample.', PROFILE);
+    const g = gene(r, 'KRAS');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts SMAD4 loss (PDAC prognosis marker)', () => {
+    const r = norm('SMAD4 homozygous deletion — poor prognosis indicator in PDAC.', PROFILE);
+    const g = gene(r, 'SMAD4');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts TP53 mutation', () => {
+    const r = norm('TP53 p.R282W missense detected.', PROFILE);
+    const g = gene(r, 'TP53');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts BRCA2 for PARP eligibility', () => {
+    const r = norm('BRCA2 p.I2490T pathogenic — olaparib-eligible pancreatic cancer.', PROFILE);
+    const g = gene(r, 'BRCA2');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('BRCA2');
+  });
+
+  it('extracts ATM pathogenic variant', () => {
+    const r = norm('ATM p.L2307fs frameshift detected.', PROFILE);
+    const g = gene(r, 'ATM');
+    expect(g).not.toBeNull();
+  });
+
+  it('flags MSI-H — immunotherapy benefit in PDAC', () => {
+    const r = norm('MSI-H detected — pembrolizumab indicated regardless of tumor type.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('MSI-H');
+  });
+
+  it('cancerProfileId preserved for pancreatic profile', () => {
+    const r = norm('KRAS G12D detected.', PROFILE);
+    expect(r.patient.cancerProfileId).toBe(PROFILE);
+  });
+});
+
+// ─── 12. Melanoma profile ─────────────────────────────────────────────────────
+
+describe('Melanoma profile', () => {
+  const PROFILE = 'melanoma';
+
+  it('extracts BRAF V600E — primary targeted therapy target', () => {
+    const r = norm('BRAF V600E mutation detected. Vemurafenib + cobimetinib indicated.', PROFILE);
+    const g = gene(r, 'BRAF');
+    expect(g).not.toBeNull();
+    expect(g.pathogenicity).toBe('pathogenic');
+    expect(r.keyBiomarkersFound).toContain('BRAF');
+  });
+
+  it('extracts BRAF V600K variant', () => {
+    const r = norm('BRAF p.V600K detected in cutaneous melanoma specimen.', PROFILE);
+    const g = gene(r, 'BRAF');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts NRAS Q61K hotspot', () => {
+    const r = norm('NRAS Q61K mutation — MEK inhibitor resistance marker.', PROFILE);
+    const g = gene(r, 'NRAS');
+    expect(g).not.toBeNull();
+    expect(r.keyBiomarkersFound).toContain('NRAS');
+  });
+
+  it('extracts NRAS Q61R variant', () => {
+    const r = norm('NRAS p.Q61R hotspot detected.', PROFILE);
+    const g = gene(r, 'NRAS');
+    expect(g).not.toBeNull();
+  });
+
+  it('extracts NF1 loss-of-function (RAS pathway)', () => {
+    const r = norm('NF1 p.Q1228* truncating mutation — RAS pathway activation.', PROFILE);
+    const g = gene(r, 'NF1');
+    expect(g).not.toBeNull();
+  });
+
+  it('flags TMB-High — immunotherapy benefit marker', () => {
+    const r = norm('TMB-High: 25 mutations/Mb — pembrolizumab indicated.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('TMB-H');
+  });
+
+  it('flags MSI-H for melanoma profile', () => {
+    const r = norm('MSI-H confirmed — checkpoint inhibitor eligible.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('MSI-H');
+  });
+
+  it('flags PD-L1 expression', () => {
+    const r = norm('PD-L1 expression: 80% TPS — high expressors benefit from nivolumab.', PROFILE);
+    expect(r.keyBiomarkersFound).toContain('PD-L1');
+  });
+
+  it('cancerProfileId preserved for melanoma profile', () => {
+    const r = norm('BRAF V600E confirmed.', PROFILE);
+    expect(r.patient.cancerProfileId).toBe(PROFILE);
+  });
+});
+
+// ─── 13. Cross-profile gene overlap ───────────────────────────────────────────
+
+describe('Cross-profile gene sharing', () => {
+  it('KRAS extracted in both CRC and pancreatic profiles', () => {
+    const text = 'KRAS G12D mutation detected.';
+    for (const profile of ['colorectal_cancer', 'pancreatic_cancer']) {
+      const r = norm(text, profile);
+      const g = gene(r, 'KRAS');
+      expect(g).not.toBeNull();
+    }
+  });
+
+  it('BRCA2 extracted in ovarian, prostate, and pancreatic profiles', () => {
+    const text = 'BRCA2 p.K3326* pathogenic variant.';
+    for (const profile of ['ovarian_cancer', 'prostate_cancer', 'pancreatic_cancer']) {
+      const r = norm(text, profile);
+      const g = gene(r, 'BRCA2');
+      expect(g).not.toBeNull();
+    }
+  });
+
+  it('BRAF V600E extracted in both CRC and melanoma profiles', () => {
+    const text = 'BRAF V600E detected.';
+    for (const profile of ['colorectal_cancer', 'melanoma']) {
+      const r = norm(text, profile);
+      const g = gene(r, 'BRAF');
+      expect(g).not.toBeNull();
+      expect(g.pathogenicity).toBe('pathogenic');
+    }
+  });
+
+  it('TMB-High flagged identically across all 8 profiles', () => {
+    const text = 'TMB: 15 mut/Mb — TMB-High.';
+    const allProfiles = [
+      'urothelial_carcinoma', 'breast_cancer', 'lung_nsclc', 'colorectal_cancer',
+      'prostate_cancer', 'ovarian_cancer', 'pancreatic_cancer', 'melanoma',
+    ];
+    for (const profile of allProfiles) {
+      const r = norm(text, profile);
+      expect(r.keyBiomarkersFound).toContain('TMB-H');
+    }
+  });
+});
