@@ -361,6 +361,19 @@ export default function MedicationManager({ apiFetch }) {
             </option>
           </select>
           
+          <button
+            onClick={() => {
+              const qs = filterType === 'all' ? '' : filterType === 'prescription' ? '?active=true' : '';
+              const url = `/api/medications/print-report${qs}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+            className="btn-secondary"
+            title="Open print-ready report in new tab, then ⌘P to save as PDF"
+            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            🖨️ Print PDF
+          </button>
+
           <button 
             onClick={() => showAddForm ? resetForm() : setShowAddForm(true)}
             className="btn-add"

@@ -17,6 +17,7 @@ import {
   getMedicationStats,
   searchMedications
 } from './medications-api.js';
+import { generateMedicationReportHtml } from './medication-report.js';
 
 export const setupMedicationRoutes = (app, requireAuth) => {
   
@@ -33,6 +34,36 @@ export const setupMedicationRoutes = (app, requireAuth) => {
     } catch (error) {
       console.error('Error fetching medications:', error);
       res.status(500).json({ error: 'Failed to fetch medications' });
+    }
+  });
+
+  // ============================================================================
+  // Print / PDF Report — MUST be before /:id to avoid route shadowing
+  // ============================================================================
+
+  // GET /api/medications/print-report?active=true|false|all
+  // Returns a print-ready HTML page. Open in a new tab, ⌘P to save as PDF.
+  app.get('/api/medications/print-report', requireAuth, (req, res) => {
+    try {
+      const activeFilter = req.query.active; // 'true' | 'false' | undefined (all)
+      const filters = {};
+      if (activeFilter === 'true')  filters.active = true;
+      if (activeFilter === 'false') filters.active = false;
+
+      const medications = getAllMedications(filters);
+      const html = generateMedicationReportHtml(medications, {
+        patientName: 'John Perkins',
+        title: activeFilter === 'true'  ? 'Active Medications & Supplements'
+             : activeFilter === 'false' ? 'Discontinued Medications & Supplements'
+             : 'All Medications & Supplements',
+      });
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } catch (error) {
+      console.error('Error generating medication report:', error);
+      res.status(500).json({ error: 'Failed to generate report' });
     }
   });
 
