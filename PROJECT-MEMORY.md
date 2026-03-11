@@ -1,9 +1,15 @@
 # MyTreatmentPath — Project Memory
-<!-- Last updated: 2026-03-08 13:45 EST -->
-Last updated: 2026-03-08
+<!-- Last updated: 2026-03-11 18:45 EST -->
+Last updated: 2026-03-11
 
 ## Current Version
-**v0.1.85** — FHIR token refresh contracts + cancerProfiles unit tests (901+ passing, 1 skipped, 0 failed)
+**v0.1.86** — auth-contracts + fhir-token-lifecycle + PortalManager polling unit tests (1121 passing)
+
+### v0.1.86 (2026-03-11)
+- **NEW:** `tests/e2e/auth-contracts.spec.js` — 42 Playwright tests: POST /api/auth/login shape, cookie security, input validation (SQL injection, long strings, empty), session guard, re-login and logout idempotency
+- **NEW:** `tests/e2e/fhir-token-lifecycle.spec.js` — 37 Playwright tests: FHIR status field type contracts, expired/valid boundary, revoke→status transitions, concurrent isolation, non-numeric id validation, missing-cred 4xx (not 500), auth guards on all 5 FHIR routes
+- **NEW:** `tests/unit/fhirConnectPolling.vitest.js` — 204 Vitest unit tests (372 lines): pure polling decision logic extracted from PortalManager.jsx handleFhirConnect, button label derivation, timeout/maxAttempts, concurrent credential isolation, error-swallowing and retry, fhirConnecting state transitions
+- **TOTAL:** 1121 Playwright API tests (1084 + 37) + 204 Vitest unit tests = 1325 total
 
 ### v0.1.85 (2026-03-10)
 - **NEW:** `tests/unit/cancerProfiles.vitest.js` — 103 unit tests for cancerProfiles.js model (listCancerProfiles, getCancerProfile, searchProfilesByBiomarker, data contracts, edge inputs)
