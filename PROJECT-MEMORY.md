@@ -3,7 +3,13 @@
 Last updated: 2026-03-08
 
 ## Current Version
-**v0.1.84** — cancer profiles data contract tests: all 8 profiles + biomarker cross-ref contracts + urothelial FGFR3/ARID1A/PIK3CA guards + input validation (877 passing, 1 skipped, 0 failed)
+**v0.1.85** — FHIR token refresh contracts + cancerProfiles unit tests (901+ passing, 1 skipped, 0 failed)
+
+### v0.1.85 (2026-03-10)
+- **NEW:** `tests/unit/cancerProfiles.vitest.js` — 103 unit tests for cancerProfiles.js model (listCancerProfiles, getCancerProfile, searchProfilesByBiomarker, data contracts, edge inputs)
+- **NEW:** `tests/e2e/fhir-refresh-contracts.spec.js` — 24 Playwright tests for POST /api/fhir/refresh (null refresh_token path, idempotency, no-leak contracts, shape contracts)
+- **SEED:** global-setup.js: cred id=94 — Epic with NULL refresh_token in fhir_tokens (tests the requiresAuth:true path)
+- **CONFIG:** playwright.config.js: added fhir-refresh-contracts.spec.js to api-tests project
 
 ## Architecture
 - **Electron 40.4.1** + **Vite 5** + **React 18**

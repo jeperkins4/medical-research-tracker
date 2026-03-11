@@ -939,7 +939,7 @@ var require_ms = __commonJS({
       if (type === "string" && val.length > 0) {
         return parse(val);
       } else if (type === "number" && isNaN(val) === false) {
-        return options.long ? fmtLong(val) : fmtShort(val);
+        return options.long ? fmtLong(val) : fmtShort2(val);
       }
       throw new Error(
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
@@ -997,7 +997,7 @@ var require_ms = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
+    function fmtShort2(ms) {
       if (ms >= d) {
         return Math.round(ms / d) + "d";
       }
@@ -17256,7 +17256,7 @@ var require_ms2 = __commonJS({
       if (type === "string" && val.length > 0) {
         return parse(val);
       } else if (type === "number" && isNaN(val) === false) {
-        return options.long ? fmtLong(val) : fmtShort(val);
+        return options.long ? fmtLong(val) : fmtShort2(val);
       }
       throw new Error(
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
@@ -17314,7 +17314,7 @@ var require_ms2 = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
+    function fmtShort2(ms) {
       if (ms >= d) {
         return Math.round(ms / d) + "d";
       }
@@ -17969,7 +17969,7 @@ var require_ms3 = __commonJS({
       if (type === "string" && val.length > 0) {
         return parse(val);
       } else if (type === "number" && isNaN(val) === false) {
-        return options.long ? fmtLong(val) : fmtShort(val);
+        return options.long ? fmtLong(val) : fmtShort2(val);
       }
       throw new Error(
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
@@ -18027,7 +18027,7 @@ var require_ms3 = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
+    function fmtShort2(ms) {
       if (ms >= d) {
         return Math.round(ms / d) + "d";
       }
@@ -19533,7 +19533,7 @@ var require_ms4 = __commonJS({
       if (type === "string" && val.length > 0) {
         return parse(val);
       } else if (type === "number" && isNaN(val) === false) {
-        return options.long ? fmtLong(val) : fmtShort(val);
+        return options.long ? fmtLong(val) : fmtShort2(val);
       }
       throw new Error(
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
@@ -19591,7 +19591,7 @@ var require_ms4 = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
+    function fmtShort2(ms) {
       if (ms >= d) {
         return Math.round(ms / d) + "d";
       }
@@ -20134,7 +20134,7 @@ var require_ms5 = __commonJS({
       if (type === "string" && val.length > 0) {
         return parse(val);
       } else if (type === "number" && isFinite(val)) {
-        return options.long ? fmtLong(val) : fmtShort(val);
+        return options.long ? fmtLong(val) : fmtShort2(val);
       }
       throw new Error(
         "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
@@ -20196,7 +20196,7 @@ var require_ms5 = __commonJS({
           return void 0;
       }
     }
-    function fmtShort(ms) {
+    function fmtShort2(ms) {
       var msAbs = Math.abs(ms);
       if (msAbs >= d) {
         return Math.round(ms / d) + "d";
@@ -51439,6 +51439,7 @@ var bcryptjs_default = {
 
 // server/auth.js
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+import { randomUUID } from "crypto";
 var JWT_SECRET = process.env.JWT_SECRET || "medical-tracker-secret-change-in-production";
 if (!process.env.JWT_SECRET) {
   console.warn("[AUTH] \u26A0\uFE0F  JWT_SECRET is not set \u2014 using insecure default. Set JWT_SECRET in .env before production use.");
@@ -51451,7 +51452,7 @@ var verifyPassword = async (password, hash2) => {
   return await bcryptjs_default.compare(password, hash2);
 };
 var generateToken = (userId, username) => {
-  return import_jsonwebtoken.default.sign({ userId, username }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return import_jsonwebtoken.default.sign({ userId, username, jti: randomUUID() }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 };
 var verifyToken = (token) => {
   try {
@@ -51460,16 +51461,24 @@ var verifyToken = (token) => {
     return null;
   }
 };
+var revokedTokens = /* @__PURE__ */ new Set();
+var revokeToken = (token) => {
+  if (token) revokedTokens.add(token);
+};
 var requireAuth = (req, res, next) => {
   const token = req.cookies?.auth_token;
   if (!token) {
     return res.status(401).json({ error: "Authentication required" });
+  }
+  if (revokedTokens.has(token)) {
+    return res.status(401).json({ error: "Token has been revoked" });
   }
   const decoded = verifyToken(token);
   if (!decoded) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
   req.user = decoded;
+  req._authToken = token;
   next();
 };
 
@@ -58917,19 +58926,13 @@ function deleteCredential(id) {
   run("DELETE FROM portal_credentials WHERE id = ?", [id]);
   return { success: true };
 }
-function updateSyncStatus(id, status, recordsImported = 0, errorMessage = null) {
+function updateSyncStatus(id, status, _recordsImported = 0, _errorMessage = null) {
   run(`
     UPDATE portal_credentials
     SET last_sync = CURRENT_TIMESTAMP,
         last_sync_status = ?
     WHERE id = ?
   `, [status, id]);
-  run(`
-    INSERT INTO portal_sync_log (
-      credential_id, sync_started, sync_completed,
-      status, records_imported, error_message
-    ) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, ?, ?)
-  `, [id, status, recordsImported, errorMessage]);
   return { success: true };
 }
 function getSyncHistory(credentialId, limit2 = 20) {
@@ -60259,15 +60262,27 @@ function importConditions(conditions) {
 // server/portal-sync.js
 async function syncPortal(credentialId) {
   const startTime = (/* @__PURE__ */ new Date()).toISOString();
+  const id = parseInt(String(credentialId), 10);
+  if (!Number.isFinite(id)) {
+    throw new Error("Invalid credential id");
+  }
+  let syncLogId;
   try {
-    const credential = getCredential(credentialId);
+    const exists = query(
+      `SELECT id FROM portal_credentials WHERE id = ?`,
+      [id]
+    )[0];
+    if (!exists) {
+      throw new Error("Credential not found");
+    }
+    const logResult = run(
+      `INSERT INTO portal_sync_log (credential_id, sync_started, status)
+       VALUES (?, ?, 'running')`,
+      [id, startTime]
+    );
+    syncLogId = logResult.lastInsertRowid;
+    const credential = getCredential(id);
     console.log(`\u{1F504} Starting sync for: ${credential.service_name} (${credential.portal_type})`);
-    const logResult = run(`
-      INSERT INTO portal_sync_log (
-        credential_id, sync_started, status
-      ) VALUES (?, ?, 'running')
-    `, [credentialId, startTime]);
-    const syncLogId = logResult.lastInsertRowid;
     let result;
     switch (credential.portal_type) {
       case "epic":
@@ -60289,14 +60304,15 @@ async function syncPortal(credentialId) {
         throw new Error(`Unknown portal type: ${credential.portal_type}`);
     }
     const endTime = (/* @__PURE__ */ new Date()).toISOString();
-    run(`
-      UPDATE portal_sync_log
-      SET sync_completed = ?,
-          status = 'success',
-          records_imported = ?
-      WHERE id = ?
-    `, [endTime, result.recordsImported, syncLogId]);
-    updateSyncStatus(credentialId, "success", result.recordsImported);
+    run(
+      `UPDATE portal_sync_log
+       SET sync_completed = ?,
+           status = 'success',
+           records_imported = ?
+       WHERE id = ?`,
+      [endTime, result.recordsImported || 0, syncLogId]
+    );
+    updateSyncStatus(id, "success", result.recordsImported);
     console.log(`\u2705 Sync complete: ${result.recordsImported} records imported`);
     return {
       success: true,
@@ -60306,15 +60322,20 @@ async function syncPortal(credentialId) {
     };
   } catch (error) {
     console.error(`\u274C Sync failed for credential ${credentialId}:`, error);
-    run(`
-      UPDATE portal_sync_log
-      SET sync_completed = CURRENT_TIMESTAMP,
-          status = 'failed',
-          error_message = ?
-      WHERE credential_id = ?
-      AND sync_started = ?
-    `, [error.message, credentialId, startTime]);
-    updateSyncStatus(credentialId, "failed", 0, error.message);
+    if (syncLogId) {
+      run(
+        `UPDATE portal_sync_log
+         SET sync_completed = CURRENT_TIMESTAMP,
+             status = 'failed',
+             error_message = ?
+         WHERE id = ?`,
+        [error.message, syncLogId]
+      );
+    }
+    try {
+      updateSyncStatus(id, "failed", 0, error.message);
+    } catch (_err) {
+    }
     throw error;
   }
 }
@@ -61105,7 +61126,22 @@ function getBoneHealthData() {
 function getBoneHealthMetrics() {
   try {
     const data = getBoneHealthData();
-    const latestAlkPhos = data.alkPhosData.length > 0 ? data.alkPhosData[data.alkPhosData.length - 1] : null;
+    if (!data || data.enabled === false) {
+      return {
+        currentAlkPhos: null,
+        isAbnormal: false,
+        normalRange: "39-147 U/L",
+        trend: null,
+        riskLevel: "low",
+        supplementsActive: 0,
+        supplementsMissing: 0,
+        urgentActions: 0,
+        lastMeasurement: null,
+        monitoringEnabled: false,
+        reason: data?.reason ?? "no_indicators"
+      };
+    }
+    const latestAlkPhos = (data.alkPhosData?.length ?? 0) > 0 ? data.alkPhosData[data.alkPhosData.length - 1] : null;
     const metrics = {
       currentAlkPhos: latestAlkPhos ? latestAlkPhos.value : null,
       isAbnormal: latestAlkPhos && latestAlkPhos.value > 147,
@@ -61327,8 +61363,8 @@ function shouldMonitorLungs() {
       };
     }
     const o2sat = query(`
-      SELECT value FROM vitals 
-      WHERE vital_type = 'oxygen_saturation'
+      SELECT oxygen_saturation AS value FROM vitals 
+      WHERE oxygen_saturation IS NOT NULL
       ORDER BY date DESC LIMIT 1
     `);
     if (o2sat.length > 0 && o2sat[0].value < 92) {
@@ -67780,6 +67816,599 @@ var searchMedications = (searchTerm, filters = {}) => {
   return query(sql, params);
 };
 
+// server/medication-report.js
+var TYPE_ORDER = ["prescription", "integrative", "otc", "supplement"];
+var TYPE_LABELS = {
+  prescription: "Prescription Medications",
+  supplement: "Dietary Supplements",
+  otc: "Over-the-Counter",
+  integrative: "Integrative & Functional"
+};
+var TYPE_ICONS = {
+  prescription: "\u{1F48A}",
+  supplement: "\u{1F33F}",
+  otc: "\u{1F3EA}",
+  integrative: "\u{1F343}"
+};
+var TYPE_COLORS = {
+  prescription: { accent: "#1d4ed8", light: "#eff6ff", border: "#93c5fd", pill: "#dbeafe", pillText: "#1e40af" },
+  supplement: { accent: "#15803d", light: "#f0fdf4", border: "#86efac", pill: "#dcfce7", pillText: "#166534" },
+  otc: { accent: "#b45309", light: "#fffbeb", border: "#fcd34d", pill: "#fef3c7", pillText: "#92400e" },
+  integrative: { accent: "#7e22ce", light: "#faf5ff", border: "#d8b4fe", pill: "#f3e8ff", pillText: "#6b21a8" }
+};
+function fmtShort(dateStr) {
+  if (!dateStr) return null;
+  try {
+    return (/* @__PURE__ */ new Date(dateStr + "T12:00:00")).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  } catch {
+    return dateStr;
+  }
+}
+function detailRow(label, value) {
+  if (!value && value !== 0) return "";
+  return `
+    <div class="detail-row">
+      <span class="detail-label">${label}</span>
+      <span class="detail-value">${value}</span>
+    </div>`;
+}
+function medCard(med, colors) {
+  const isActive = !!med.active;
+  const dateRange = (() => {
+    const start = fmtShort(med.started_date);
+    const stop = fmtShort(med.stopped_date);
+    if (start && stop) return `${start} \u2192 ${stop}`;
+    if (start) return `Since ${start}`;
+    return null;
+  })();
+  const targetPathways = (() => {
+    try {
+      return JSON.parse(med.target_pathways).join(" \xB7 ");
+    } catch {
+      return med.target_pathways || null;
+    }
+  })();
+  const brandLine = [med.brand, med.manufacturer].filter(Boolean).join(" \xB7 ");
+  return `
+  <div class="med-card ${isActive ? "active" : "stopped"}" style="border-top:3px solid ${colors.accent}">
+    <div class="med-card-header">
+      <div class="med-name-block">
+        <div class="med-name">${med.name}</div>
+        ${brandLine ? `<div class="med-brand">${brandLine}</div>` : ""}
+      </div>
+      <div class="med-status-block">
+        <span class="status-badge ${isActive ? "status-active" : "status-stopped"}">
+          ${isActive ? "\u25CF Active" : "\u25CB Stopped"}
+        </span>
+      </div>
+    </div>
+
+    <div class="med-pills">
+      ${med.dosage ? `<span class="pill-chip">${med.dosage}</span>` : ""}
+      ${med.frequency ? `<span class="pill-chip">${med.frequency}</span>` : ""}
+      ${med.route && med.route !== "oral" ? `<span class="pill-chip">${med.route}</span>` : ""}
+      ${dateRange ? `<span class="pill-chip pill-date">${dateRange}</span>` : ""}
+    </div>
+
+    <div class="med-details">
+      ${detailRow("Indication", med.reason)}
+      ${detailRow("Prescribed by", med.prescribed_by)}
+      ${detailRow("Evidence", med.evidence_strength)}
+      ${detailRow("Target Pathways", targetPathways)}
+      ${detailRow("Genomic Alignment", med.genomic_alignment)}
+      ${detailRow("Precautions", med.precautions)}
+      ${detailRow("Interactions", med.interactions)}
+      ${detailRow("Notes", med.notes)}
+    </div>
+  </div>`;
+}
+function generateMedicationReportHtml(medications, {
+  patientName = "John Perkins",
+  dob = null,
+  title = "Medications & Supplements"
+} = {}) {
+  const generatedAt = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric"
+  });
+  const generatedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true
+  });
+  const grouped = {};
+  for (const m2 of medications) {
+    const t2 = m2.type || "supplement";
+    if (!grouped[t2]) grouped[t2] = [];
+    grouped[t2].push(m2);
+  }
+  for (const t2 of Object.keys(grouped)) {
+    grouped[t2].sort((a, b) => {
+      if (!!b.active !== !!a.active) return (b.active ? 1 : 0) - (a.active ? 1 : 0);
+      return a.name.localeCompare(b.name);
+    });
+  }
+  const activeTotal = medications.filter((m2) => m2.active).length;
+  const inactiveTotal = medications.length - activeTotal;
+  const typeCounts = TYPE_ORDER.filter((t2) => grouped[t2]?.length).map((t2) => {
+    const a = grouped[t2].filter((m2) => m2.active).length;
+    const s2 = grouped[t2].length - a;
+    return { type: t2, total: grouped[t2].length, active: a, stopped: s2 };
+  });
+  const summaryRows = typeCounts.map(({ type, total, active, stopped }) => `
+    <tr>
+      <td>${TYPE_ICONS[type]} ${TYPE_LABELS[type]}</td>
+      <td class="num">${total}</td>
+      <td class="num active-num">${active}</td>
+      <td class="num stopped-num">${stopped || "\u2014"}</td>
+    </tr>`).join("");
+  const sections = TYPE_ORDER.filter((t2) => grouped[t2]?.length).map((t2) => {
+    const colors = TYPE_COLORS[t2] || TYPE_COLORS.supplement;
+    const cards = grouped[t2].map((m2) => medCard(m2, colors)).join("\n");
+    const activeN = grouped[t2].filter((m2) => m2.active).length;
+    const inactiveN = grouped[t2].length - activeN;
+    return `
+    <section class="type-section">
+      <div class="section-header" style="background:${colors.light};border-left:4px solid ${colors.accent}">
+        <span class="section-icon">${TYPE_ICONS[t2]}</span>
+        <span class="section-title">${TYPE_LABELS[t2]}</span>
+        <span class="section-counts">
+          <span class="count-active">${activeN} active</span>
+          ${inactiveN ? `<span class="count-stopped">${inactiveN} stopped</span>` : ""}
+        </span>
+      </div>
+      <div class="cards-grid">
+        ${cards}
+      </div>
+    </section>`;
+  }).join("\n");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title} \u2014 ${patientName}</title>
+<style>
+/* \u2500\u2500 Reset \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* \u2500\u2500 Page \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+html { font-size: 13px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #1e293b;
+  background: #f8fafc;
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  background: #fff;
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* \u2500\u2500 Print banner (screen-only) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.print-banner {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%);
+  color: #fff;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.print-banner p { font-size: 13px; opacity: 0.9; }
+.print-banner strong { color: #bfdbfe; }
+.btn-print {
+  background: #fff;
+  color: #1d4ed8;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+}
+.btn-print:hover { background: #eff6ff; }
+
+/* \u2500\u2500 Letterhead \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.letterhead {
+  padding: 28px 36px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.logo-block { display: flex; align-items: center; gap: 12px; }
+.logo-mark {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 100%);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.logo-text {}
+.logo-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+.logo-tagline {
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.doc-meta {
+  text-align: right;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.7;
+}
+.doc-meta .confidential {
+  display: inline-block;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.doc-meta .generated { color: #94a3b8; font-size: 10.5px; }
+
+/* \u2500\u2500 Divider \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.divider {
+  margin: 20px 36px 0;
+  height: 2px;
+  background: linear-gradient(to right, #0f172a 0%, #0f172a 40%, #e2e8f0 100%);
+  border-radius: 1px;
+}
+
+/* \u2500\u2500 Patient banner \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.patient-banner {
+  margin: 0 36px;
+  padding: 14px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.patient-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.patient-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 1px;
+}
+.report-title-line {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin: 20px 36px 0;
+}
+
+/* \u2500\u2500 Summary table \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.summary-section {
+  margin: 16px 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.summary-section table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.summary-section thead th {
+  background: #0f172a;
+  color: #fff;
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.summary-section thead th.num { text-align: right; }
+.summary-section tbody td {
+  padding: 7px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+.summary-section tbody tr:last-child td { border-bottom: none; }
+.summary-section tbody tr:nth-child(even) td { background: #f8fafc; }
+.summary-section td.num { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.summary-section td.active-num  { color: #15803d; }
+.summary-section td.stopped-num { color: #dc2626; }
+.summary-footer {
+  background: #f8fafc;
+  border-top: 2px solid #e2e8f0;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.summary-footer .total-active  { color: #15803d; }
+.summary-footer .total-stopped { color: #dc2626; }
+
+/* \u2500\u2500 Section header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.type-section { margin: 20px 36px 0; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+}
+.section-icon { font-size: 16px; }
+.section-title { font-size: 13px; font-weight: 700; color: #0f172a; flex: 1; }
+.section-counts { display: flex; gap: 8px; }
+.count-active  { font-size: 11px; font-weight: 600; color: #15803d; background: #dcfce7; padding: 2px 8px; border-radius: 10px; }
+.count-stopped { font-size: 11px; font-weight: 600; color: #b91c1c; background: #fee2e2; padding: 2px 8px; border-radius: 10px; }
+
+/* \u2500\u2500 Cards grid \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.med-card {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 13px 15px;
+  background: #fff;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.med-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.med-name-block { flex: 1; }
+.med-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.med-brand {
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+.med-status-block { flex-shrink: 0; }
+
+.status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.status-active  { background: #dcfce7; color: #166534; }
+.status-stopped { background: #f1f5f9; color: #64748b; }
+
+/* \u2500\u2500 Dosage pills \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.med-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 9px;
+}
+.pill-chip {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+.pill-date {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+/* \u2500\u2500 Detail rows \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.med-details {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+}
+.detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  padding: 2px 0;
+  line-height: 1.4;
+}
+.detail-label {
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.detail-value { color: #334155; }
+
+/* \u2500\u2500 Footer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+.report-footer {
+  margin: 24px 36px 28px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+.footer-brand { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #64748b; }
+.footer-dot {
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, #1e3a5f, #1d4ed8);
+  border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px;
+}
+.footer-right { text-align: right; }
+
+/* \u2500\u2500 Page numbers for print \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+@page {
+  size: letter;
+  margin: 0.55in 0.6in 0.65in;
+}
+
+/* \u2500\u2500 Print overrides \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .page { max-width: 100%; }
+  .letterhead  { padding: 0 0 0; }
+  .divider     { margin: 14px 0 0; }
+  .patient-banner { margin: 0; }
+  .report-title-line { margin: 14px 0 0; }
+  .summary-section { margin: 10px 0; }
+  .type-section { margin: 14px 0 0; }
+  .report-footer { margin: 16px 0 20px; }
+  .cards-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .med-card { border: 1px solid #d1d5db; page-break-inside: avoid; break-inside: avoid; }
+  .type-section { page-break-inside: avoid; break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Print Banner (screen only) -->
+  <div class="print-banner no-print">
+    <p>\u{1F4C4} <strong>Print Preview</strong> \u2014 Use <strong>\u2318P</strong> (or Ctrl+P) and choose "Save as PDF".<br>
+    Recommended: Letter size, default margins, Background graphics ON.</p>
+    <button class="btn-print" onclick="window.print()">\u{1F5A8}\uFE0F Print / Save PDF</button>
+  </div>
+
+  <!-- Letterhead -->
+  <div class="letterhead">
+    <div class="logo-block">
+      <div class="logo-mark">\u2695\uFE0F</div>
+      <div class="logo-text">
+        <div class="logo-name">Medical Research Tracker</div>
+        <div class="logo-tagline">Personal Health Intelligence Platform</div>
+      </div>
+    </div>
+    <div class="doc-meta">
+      <div class="confidential">Private &amp; Confidential</div>
+      <div>Generated: ${generatedAt}</div>
+      <div class="generated">${generatedTime} \xB7 Medical Research Tracker</div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="divider"></div>
+
+  <!-- Patient Banner -->
+  <div class="patient-banner">
+    <div>
+      <span class="patient-label">Patient</span>
+      <span class="patient-name">${patientName}</span>
+    </div>
+    ${dob ? `<div><span class="patient-label">Date of Birth</span><span class="patient-name" style="font-size:13px">${dob}</span></div>` : ""}
+    <div style="text-align:right">
+      <span class="patient-label">Report Date</span>
+      <span class="patient-name" style="font-size:13px">${generatedAt}</span>
+    </div>
+  </div>
+
+  <!-- Report Title -->
+  <div class="report-title-line">${title}</div>
+
+  <!-- Summary Table -->
+  <div class="summary-section">
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th class="num">Total</th>
+          <th class="num">Active</th>
+          <th class="num">Stopped</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${summaryRows}
+      </tbody>
+    </table>
+    <div class="summary-footer">
+      <span>Total: <strong>${medications.length}</strong> medications &amp; supplements</span>
+      <span>
+        <span class="total-active">${activeTotal} active</span>
+        ${inactiveTotal ? `&nbsp;\xB7&nbsp;<span class="total-stopped">${inactiveTotal} stopped</span>` : ""}
+      </span>
+    </div>
+  </div>
+
+  <!-- Medication Sections -->
+  ${sections}
+
+  <!-- Footer -->
+  <div class="report-footer">
+    <div class="footer-brand">
+      <span class="footer-dot">\u2695\uFE0F</span>
+      Medical Research Tracker
+    </div>
+    <div class="footer-right">
+      Patient: ${patientName} &nbsp;\xB7&nbsp; Generated ${generatedAt} &nbsp;\xB7&nbsp; PRIVATE &amp; CONFIDENTIAL
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+}
+
 // server/medications-routes.js
 var setupMedicationRoutes = (app2, requireAuth2) => {
   app2.get("/api/medications", requireAuth2, (req, res) => {
@@ -67793,6 +68422,25 @@ var setupMedicationRoutes = (app2, requireAuth2) => {
     } catch (error) {
       console.error("Error fetching medications:", error);
       res.status(500).json({ error: "Failed to fetch medications" });
+    }
+  });
+  app2.get("/api/medications/print-report", requireAuth2, (req, res) => {
+    try {
+      const activeFilter = req.query.active;
+      const filters = {};
+      if (activeFilter === "true") filters.active = true;
+      if (activeFilter === "false") filters.active = false;
+      const medications = getAllMedications(filters);
+      const html = generateMedicationReportHtml(medications, {
+        patientName: "John Perkins",
+        title: activeFilter === "true" ? "Active Medications & Supplements" : activeFilter === "false" ? "Discontinued Medications & Supplements" : "All Medications & Supplements"
+      });
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.send(html);
+    } catch (error) {
+      console.error("Error generating medication report:", error);
+      res.status(500).json({ error: "Failed to generate report" });
     }
   });
   app2.get("/api/medications/:id", requireAuth2, (req, res) => {
@@ -67825,7 +68473,8 @@ var setupMedicationRoutes = (app2, requireAuth2) => {
       if (!existing) {
         return res.status(404).json({ error: "Medication not found" });
       }
-      updateMedication(req.params.id, req.body);
+      const merged = { ...existing, ...req.body };
+      updateMedication(req.params.id, merged);
       res.json({ id: req.params.id, message: "Medication updated successfully" });
     } catch (error) {
       console.error("Error updating medication:", error);
@@ -74057,7 +74706,7 @@ var CANCER_PROFILES = {
     id: "urothelial_carcinoma",
     label: "Urothelial Carcinoma",
     aliases: ["bladder cancer", "urothelial cancer", "mibc", "muc"],
-    keyBiomarkers: ["FGFR3", "ERBB2", "NECTIN4", "PD-L1", "TMB", "ctDNA"],
+    keyBiomarkers: ["FGFR3", "ERBB2", "NECTIN4", "PD-L1", "TMB", "ctDNA", "ARID1A", "PIK3CA", "CDKN2A", "TP53"],
     commonReportSources: ["FoundationOne", "Tempus", "Caris", "Guardant"]
   },
   breast_cancer: {
@@ -74115,6 +74764,13 @@ function getCancerProfile(profileId) {
 }
 function listCancerProfiles() {
   return Object.values(CANCER_PROFILES).map((p) => ({ id: p.id, label: p.label }));
+}
+function searchProfilesByBiomarker(gene) {
+  if (!gene || typeof gene !== "string") return [];
+  const normalized = gene.toUpperCase().trim();
+  return Object.values(CANCER_PROFILES).filter(
+    (p) => p.keyBiomarkers.some((b) => b.toUpperCase() === normalized)
+  ).map((p) => ({ id: p.id, label: p.label, keyBiomarkers: p.keyBiomarkers }));
 }
 
 // server/fhir-routes.js
@@ -74371,6 +75027,18 @@ function registerFHIRRoutes(app2, requireAuth2) {
       res.status(500).json({ error: err.message });
     }
   });
+  app2.get("/api/cancer-profiles/biomarkers/:gene", requireAuth2, (req, res) => {
+    try {
+      const gene = req.params.gene?.trim();
+      if (!gene || gene.length > 32 || !/^[A-Za-z0-9_\-]+$/.test(gene)) {
+        return res.status(400).json({ error: "Invalid gene name" });
+      }
+      const matches = searchProfilesByBiomarker(gene);
+      res.json({ gene: gene.toUpperCase(), matches, count: matches.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
   app2.get("/api/cancer-profiles/:id", requireAuth2, (req, res) => {
     try {
       const profile = getCancerProfile(req.params.id);
@@ -74550,6 +75218,8 @@ app.post("/api/auth/login", async (req, res) => {
   res.json({ success: true, username: user.username });
 });
 app.post("/api/auth/logout", (req, res) => {
+  const token = req.cookies?.auth_token;
+  if (token) revokeToken(token);
   if (req.user) {
     logAuth(req.user.userId, req.user.username, "logout", "success", null, req);
   }
@@ -74775,10 +75445,13 @@ app.get("/api/conditions", requireAuth, (req, res) => {
   res.json(conditions);
 });
 app.post("/api/conditions", requireAuth, (req, res) => {
-  const { name, diagnosed_date, status, notes } = req.body;
+  const { name, diagnosed_date, status, notes } = req.body || {};
+  if (!name || typeof name !== "string" || name.trim() === "") {
+    return res.status(400).json({ error: "name is required" });
+  }
   const result = run(
     "INSERT INTO conditions (name, diagnosed_date, status, notes) VALUES (?, ?, ?, ?)",
-    [name, diagnosed_date, status || "active", notes]
+    [name.trim(), diagnosed_date, status || "active", notes]
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -74787,10 +75460,13 @@ app.get("/api/symptoms", requireAuth, (req, res) => {
   res.json(symptoms);
 });
 app.post("/api/symptoms", requireAuth, (req, res) => {
-  const { description, severity, date, notes } = req.body;
+  const { description, severity, date, notes } = req.body || {};
+  if (!description || typeof description !== "string" || description.trim() === "") {
+    return res.status(400).json({ error: "description is required" });
+  }
   const result = run(
     "INSERT INTO symptoms (description, severity, date, notes) VALUES (?, ?, ?, ?)",
-    [description, severity, date, notes]
+    [description.trim(), severity, date, notes]
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -75009,16 +75685,24 @@ app.post("/api/documents/parse", requireAuth, async (req, res) => {
   }
 });
 app.put("/api/documents/:id/markers", requireAuth, (req, res) => {
-  const { markers } = req.body;
-  run(
-    "UPDATE medical_documents SET body_markers=? WHERE id=?",
-    [JSON.stringify(markers || []), req.params.id]
-  );
-  res.json({ success: true });
+  try {
+    const { markers } = req.body;
+    run(
+      "UPDATE medical_documents SET body_markers=? WHERE id=?",
+      [JSON.stringify(markers || []), req.params.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update markers", message: error.message });
+  }
 });
 app.delete("/api/documents/:id", requireAuth, (req, res) => {
-  run("DELETE FROM medical_documents WHERE id=?", [req.params.id]);
-  res.json({ success: true });
+  try {
+    run("DELETE FROM medical_documents WHERE id=?", [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete document", message: error.message });
+  }
 });
 app.get("/api/tests", requireAuth, (req, res) => {
   const tests = query("SELECT * FROM test_results ORDER BY date DESC");
@@ -75107,18 +75791,26 @@ app.post("/api/conditions/:conditionId/vitals/:vitalId", requireAuth, (req, res)
   res.json({ success: true });
 });
 app.post("/api/conditions/:conditionId/symptoms/:symptomId", requireAuth, (req, res) => {
-  run(
-    "INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)",
-    [req.params.conditionId, req.params.symptomId]
-  );
-  res.json({ success: true });
+  try {
+    run(
+      "INSERT OR IGNORE INTO condition_symptoms (condition_id, symptom_id) VALUES (?, ?)",
+      [req.params.conditionId, req.params.symptomId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to link symptom to condition", message: error.message });
+  }
 });
 app.post("/api/conditions/:conditionId/tests/:testId", requireAuth, (req, res) => {
-  run(
-    "INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)",
-    [req.params.conditionId, req.params.testId]
-  );
-  res.json({ success: true });
+  try {
+    run(
+      "INSERT OR IGNORE INTO condition_tests (condition_id, test_id) VALUES (?, ?)",
+      [req.params.conditionId, req.params.testId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to link test to condition", message: error.message });
+  }
 });
 app.get("/api/papers", requireAuth, (req, res) => {
   const papers = query("SELECT * FROM papers ORDER BY saved_at DESC");
@@ -75779,10 +76471,21 @@ app.get("/api/portals/credentials", requireAuth, (req, res) => {
   }
 });
 app.get("/api/portals/credentials/:id", requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: "Invalid credential ID \u2014 must be a positive integer" });
+  }
   try {
-    const credential = getCredential(req.params.id);
+    const credential = getCredential(id);
+    if (!credential) return res.status(404).json({ error: "Credential not found" });
     res.json(credential);
   } catch (error) {
+    if (error.message && error.message.toLowerCase().includes("vault")) {
+      return res.status(403).json({ error: error.message });
+    }
+    if (error.message && error.message.toLowerCase().includes("not found")) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message });
   }
 });
@@ -75829,6 +76532,10 @@ app.get("/api/portals/credentials/:id/sync-history", requireAuth, (req, res) => 
   }
 });
 app.post("/api/portals/credentials/:id/sync", requireAuth, async (req, res) => {
+  const credId = parseInt(req.params.id, 10);
+  if (isNaN(credId) || credId <= 0) {
+    return res.status(400).json({ error: "Invalid credential id \u2014 must be a positive integer" });
+  }
   try {
     const result = await syncPortal(req.params.id);
     res.json(result);

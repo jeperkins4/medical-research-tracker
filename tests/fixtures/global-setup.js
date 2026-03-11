@@ -454,6 +454,23 @@ export default async function globalSetup() {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(96, 'Deletable Test Portal', 'generic', 'https://delete-me.example.com', '', '', 'never');
 
+      // Seed Epic credential (id=94) with FHIR token that has NULL refresh_token
+      // Used by fhir-refresh-contracts.spec.js to test the "no refresh token → requiresAuth:true" path
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO portal_credentials
+          (id, service_name, portal_type, base_url, username_encrypted, password_encrypted, last_sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(94, 'Epic No-Refresh-Token Test', 'epic', 'https://mychart3.example.org', '', '', 'never');
+
+      const expiredExpiry94 = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+        .replace('T', ' ').replace('Z', '').split('.')[0];
+      serverDb.prepare(`
+        INSERT OR IGNORE INTO fhir_tokens
+          (credential_id, access_token, refresh_token, patient_id, expires_at, scope)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(94, 'test-access-token-no-refresh', null, 'patient-fhir-789', expiredExpiry94,
+             'patient/Observation.read');
+
       // Ensure extended genomic schema tables exist in the server DB
       // (server migrations may not run in test mode — create them if absent)
       serverDb.exec(`

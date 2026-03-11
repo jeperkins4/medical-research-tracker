@@ -11,6 +11,10 @@ const EMOJI = {
   breast_cancer: '🎗️',
   lung_nsclc: '🫁',
   colorectal_cancer: '🔵',
+  prostate_cancer: '🔷',
+  ovarian_cancer: '🩵',
+  pancreatic_cancer: '🟡',
+  melanoma: '🌞',
 };
 
 export default function CancerProfileSelector() {

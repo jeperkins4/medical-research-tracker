@@ -4,7 +4,7 @@
 Last updated: 2026-03-06
 
 ## Current Version
-**v0.1.78** — stable, all tests passing
+**v0.1.85** — stable, all tests passing
 
 ## Current Branch
 `main`

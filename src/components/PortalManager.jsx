@@ -37,6 +37,7 @@ export default function PortalManager() {
   const [fhirSyncResult, setFhirSyncResult] = useState({}); // { [credentialId]: { recordsImported, summary } }
   const [fhirRefreshing, setFhirRefreshing] = useState({}); // { [credentialId]: bool }
   const [fhirRefreshResult, setFhirRefreshResult] = useState({}); // { [credentialId]: { success, error, requiresAuth } }
+  const [fhirConnecting, setFhirConnecting] = useState({}); // { [credentialId]: bool }
 
   useEffect(() => {
     loadVaultStatus();
@@ -79,6 +80,8 @@ export default function PortalManager() {
 
   const handleFhirConnect = async (credentialId) => {
     setError(null);
+    setFhirConnecting(prev => ({ ...prev, [credentialId]: true }));
+    setFhirRefreshResult(prev => ({ ...prev, [credentialId]: null }));
     try {
       const { authUrl } = await api.getFhirAuthorizeUrl(credentialId);
       // Open in browser: works in both Electron (shell.openExternal) and web
@@ -97,12 +100,17 @@ export default function PortalManager() {
           const status = await api.getFhirStatus(credentialId);
           if (status?.authorized && status?.valid) {
             clearInterval(pollInterval);
+            setFhirConnecting(prev => ({ ...prev, [credentialId]: false }));
             setFhirStatus(prev => ({ ...prev, [credentialId]: { ...status, loading: false, error: null } }));
           }
         } catch (_e) { /* swallow — will retry */ }
-        if (attempts >= maxAttempts) clearInterval(pollInterval);
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          setFhirConnecting(prev => ({ ...prev, [credentialId]: false }));
+        }
       }, 5000);
     } catch (err) {
+      setFhirConnecting(prev => ({ ...prev, [credentialId]: false }));
       setError('FHIR connect failed: ' + err.message);
     }
   };
@@ -781,6 +789,20 @@ export default function PortalManager() {
                       <div style={{ color: '#6b7280' }}>Not connected — click "Connect" to authorize via Epic</div>
                     )}
 
+                    {fhirConnecting[cred.id] && (
+                      <div style={{
+                        marginTop: '0.5rem',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '4px',
+                        fontSize: '0.82em',
+                        backgroundColor: '#dbeafe',
+                        color: '#1d4ed8',
+                        border: '1px solid #93c5fd',
+                      }}>
+                        ⏳ Waiting for Epic authorization in your browser… this screen will update automatically when the callback completes.
+                      </div>
+                    )}
+
                     {fs?.error && (
                       <div style={{ color: '#b91c1c' }}>Error: {fs.error}</div>
                     )}
@@ -806,9 +828,21 @@ export default function PortalManager() {
                       {(!fs?.authorized || (!fs?.valid && fhirRefreshResult[cred.id]?.requiresAuth)) && fhirConfigured && (
                         <button
                           onClick={() => handleFhirConnect(cred.id)}
-                          style={{ fontSize: '0.85em', backgroundColor: '#3730a3', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}
+                          disabled={fhirConnecting[cred.id]}
+                          style={{
+                            fontSize: '0.85em',
+                            backgroundColor: fhirConnecting[cred.id] ? '#a5b4fc' : '#3730a3',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px 12px',
+                            cursor: fhirConnecting[cred.id] ? 'wait' : 'pointer',
+                            opacity: fhirConnecting[cred.id] ? 0.8 : 1,
+                          }}
                         >
-                          🔗 {fs?.authorized ? 'Reconnect Epic' : 'Connect Epic MyChart'}
+                          {fhirConnecting[cred.id]
+                            ? '⏳ Waiting for Epic…'
+                            : `🔗 ${fs?.authorized ? 'Reconnect Epic' : 'Connect Epic MyChart'}`}
                         </button>
                       )}
                       {fs?.authorized && fs?.valid && (
