@@ -29,7 +29,7 @@ export default defineConfig({
   projects: [
     {
       name: 'api-tests',
-      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/fhir-auth-contracts.spec.js', '**/fhir-security.spec.js', '**/fhir-sync-lifecycle.spec.js', '**/fhir-refresh-contracts.spec.js', '**/portal-sync.spec.js', '**/portal-ingestion-contracts.spec.js', '**/genomics.spec.js', '**/api-extended.spec.js', '**/api-crud.spec.js', '**/api-coverage.spec.js', '**/medications-extended.spec.js', '**/organ-health-nutrition.spec.js', '**/api-crud-extended.spec.js', '**/subscriptions.spec.js', '**/core-health-crud.spec.js', '**/analytics.spec.js', '**/nutrition-extended.spec.js', '**/cancer-profiles.spec.js', '**/clinical-data-crud.spec.js', '**/genomics-extended.spec.js', '**/data-quality-contracts.spec.js'],
+      testMatch: ['**/api.spec.js', '**/fhir.spec.js', '**/fhir-auth-contracts.spec.js', '**/fhir-security.spec.js', '**/fhir-sync-lifecycle.spec.js', '**/fhir-refresh-contracts.spec.js', '**/portal-sync.spec.js', '**/portal-ingestion-contracts.spec.js', '**/genomics.spec.js', '**/api-extended.spec.js', '**/api-crud.spec.js', '**/api-coverage.spec.js', '**/medications-extended.spec.js', '**/organ-health-nutrition.spec.js', '**/api-crud-extended.spec.js', '**/subscriptions.spec.js', '**/core-health-crud.spec.js', '**/analytics.spec.js', '**/nutrition-extended.spec.js', '**/cancer-profiles.spec.js', '**/clinical-data-crud.spec.js', '**/genomics-extended.spec.js', '**/data-quality-contracts.spec.js', '**/auth-contracts.spec.js', '**/fhir-token-lifecycle.spec.js'],
       use: { baseURL: API_BASE },
     },
     // IPC module smoke tests — no HTTP server or browser needed
