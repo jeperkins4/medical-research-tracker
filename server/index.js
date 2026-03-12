@@ -1431,6 +1431,202 @@ app.post('/api/genomics/import-mutations', requireAuth, (req, res) => {
   }
 });
 
+// ── GET /api/genomics/therapy-suggestions ─────────────────────────────────────
+// Returns ranked therapy suggestions based on patient mutations.
+//
+// Query params (all optional):
+//   ?genes=FGFR3,ARID1A,PIK3CA          – comma-separated gene filter
+//   ?cancer_profile=urothelial_carcinoma – focus suggestions for this profile
+//   ?min_evidence=A                      – filter by evidence level (A,B,C,D)
+//
+// Sources merged in priority order:
+//   1. DB rows from mutation_therapies joined to genomic_mutations
+//   2. Static knowledge base for known actionable mutations
+//
+// Deduplication: suggestions are keyed on gene+drug_name; DB rows win over static.
+// Response:
+//   { suggestions: [...], summary: { total, actionable, fda_approved, db_sourced } }
+// ──────────────────────────────────────────────────────────────────────────────
+
+const THERAPY_STATIC_KB = [
+  // FGFR3 — urothelial / bladder
+  { gene: 'FGFR3', drug_name: 'Erdafitinib',   therapy_type: 'targeted',       mechanism: 'FGFR3 kinase inhibitor',          evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma'] },
+  { gene: 'FGFR3', drug_name: 'Infigratinib',  therapy_type: 'targeted',       mechanism: 'FGFR1-3 kinase inhibitor',         evidence_level: 'B', approval_status: 'Clinical trial',    cancer_profiles: ['urothelial_carcinoma'] },
+  { gene: 'FGFR3', drug_name: 'Pemigatinib',   therapy_type: 'targeted',       mechanism: 'FGFR1-3 selective inhibitor',      evidence_level: 'B', approval_status: 'Clinical trial',    cancer_profiles: ['urothelial_carcinoma'] },
+  { gene: 'FGFR3', drug_name: 'Futibatinib',   therapy_type: 'targeted',       mechanism: 'Covalent FGFR1-4 inhibitor',       evidence_level: 'B', approval_status: 'Investigational',  cancer_profiles: ['urothelial_carcinoma'] },
+  // PIK3CA — multi-cancer
+  { gene: 'PIK3CA', drug_name: 'Alpelisib',    therapy_type: 'targeted',       mechanism: 'PI3Kα selective inhibitor',        evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['breast_cancer', 'urothelial_carcinoma'] },
+  { gene: 'PIK3CA', drug_name: 'Copanlisib',   therapy_type: 'targeted',       mechanism: 'Pan-class I PI3K inhibitor',       evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma', 'ovarian_cancer'] },
+  { gene: 'PIK3CA', drug_name: 'Everolimus',   therapy_type: 'targeted',       mechanism: 'mTOR inhibitor (downstream PI3K)', evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma', 'breast_cancer'] },
+  // ARID1A — SWI/SNF loss → checkpoint sensitivity
+  { gene: 'ARID1A', drug_name: 'Pembrolizumab', therapy_type: 'immunotherapy', mechanism: 'PD-1 checkpoint inhibitor (ARID1A deficiency → ICI sensitivity)', evidence_level: 'B', approval_status: 'FDA-approved', cancer_profiles: ['urothelial_carcinoma'] },
+  { gene: 'ARID1A', drug_name: 'Atezolizumab',  therapy_type: 'immunotherapy', mechanism: 'PD-L1 checkpoint inhibitor',       evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma'] },
+  { gene: 'ARID1A', drug_name: 'Tazemetostat',  therapy_type: 'targeted',      mechanism: 'EZH2 inhibitor (ARID1A synthetic lethality)', evidence_level: 'C', approval_status: 'Investigational', cancer_profiles: ['urothelial_carcinoma', 'ovarian_cancer'] },
+  // ERBB2 / HER2
+  { gene: 'ERBB2',  drug_name: 'Trastuzumab',   therapy_type: 'targeted',      mechanism: 'HER2-targeted monoclonal antibody', evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma', 'breast_cancer'] },
+  { gene: 'ERBB2',  drug_name: 'Pertuzumab',    therapy_type: 'targeted',      mechanism: 'HER2 dimerization inhibitor',       evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['breast_cancer'] },
+  { gene: 'ERBB2',  drug_name: 'T-DM1',         therapy_type: 'targeted',      mechanism: 'HER2-directed ADC',                 evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['breast_cancer'] },
+  { gene: 'HER2',   drug_name: 'Trastuzumab',   therapy_type: 'targeted',      mechanism: 'HER2-targeted monoclonal antibody', evidence_level: 'B', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma', 'breast_cancer'] },
+  // NECTIN4 — bladder-specific ADC target
+  { gene: 'NECTIN4', drug_name: 'Enfortumab Vedotin', therapy_type: 'adc',    mechanism: 'NECTIN4-directed ADC (EV)',         evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['urothelial_carcinoma'] },
+  // BRCA1/2 — PARP inhibitors
+  { gene: 'BRCA1',  drug_name: 'Olaparib',      therapy_type: 'targeted',      mechanism: 'PARP1/2 inhibitor (HRD synthetic lethality)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: ['ovarian_cancer', 'breast_cancer', 'prostate_cancer', 'pancreatic_cancer'] },
+  { gene: 'BRCA2',  drug_name: 'Olaparib',      therapy_type: 'targeted',      mechanism: 'PARP1/2 inhibitor (HRD synthetic lethality)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: ['ovarian_cancer', 'breast_cancer', 'prostate_cancer', 'pancreatic_cancer'] },
+  { gene: 'BRCA1',  drug_name: 'Rucaparib',     therapy_type: 'targeted',      mechanism: 'PARP inhibitor',                    evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['ovarian_cancer'] },
+  { gene: 'BRCA2',  drug_name: 'Rucaparib',     therapy_type: 'targeted',      mechanism: 'PARP inhibitor',                    evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['ovarian_cancer'] },
+  // TMB-High — tumor mutational burden
+  { gene: 'TMB',    drug_name: 'Pembrolizumab', therapy_type: 'immunotherapy', mechanism: 'PD-1 checkpoint inhibitor (TMB-H pan-tumor)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: null },
+  // MSI-High / dMMR
+  { gene: 'MSI',    drug_name: 'Pembrolizumab', therapy_type: 'immunotherapy', mechanism: 'PD-1 checkpoint inhibitor (MSI-H/dMMR pan-tumor)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: null },
+  // BRAF V600E — multi-cancer
+  { gene: 'BRAF',   drug_name: 'Dabrafenib + Trametinib', therapy_type: 'targeted', mechanism: 'BRAF V600E + MEK inhibitor combo', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: ['melanoma', 'lung_nsclc', 'colorectal_cancer'] },
+  { gene: 'BRAF',   drug_name: 'Vemurafenib',  therapy_type: 'targeted',       mechanism: 'BRAF V600E inhibitor',              evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['melanoma'] },
+  // EGFR — lung NSCLC
+  { gene: 'EGFR',   drug_name: 'Osimertinib',  therapy_type: 'targeted',       mechanism: '3rd-gen EGFR TKI',                  evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['lung_nsclc'] },
+  { gene: 'EGFR',   drug_name: 'Erlotinib',    therapy_type: 'targeted',       mechanism: 'EGFR TKI',                          evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['lung_nsclc'] },
+  // KRAS G12C
+  { gene: 'KRAS',   drug_name: 'Sotorasib',    therapy_type: 'targeted',       mechanism: 'KRAS G12C covalent inhibitor',      evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['lung_nsclc', 'colorectal_cancer'] },
+  { gene: 'KRAS',   drug_name: 'Adagrasib',    therapy_type: 'targeted',       mechanism: 'KRAS G12C covalent inhibitor',      evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['lung_nsclc', 'colorectal_cancer'] },
+  // AR — prostate
+  { gene: 'AR',     drug_name: 'Enzalutamide', therapy_type: 'hormonal',       mechanism: 'Androgen receptor antagonist',      evidence_level: 'A', approval_status: 'FDA-approved',     cancer_profiles: ['prostate_cancer'] },
+  { gene: 'AR',     drug_name: 'Abiraterone',  therapy_type: 'hormonal',       mechanism: 'CYP17A1 inhibitor (androgen synthesis)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: ['prostate_cancer'] },
+  // ESR1 — breast
+  { gene: 'ESR1',   drug_name: 'Elacestrant',  therapy_type: 'hormonal',       mechanism: 'SERD (selective estrogen receptor degrader)', evidence_level: 'A', approval_status: 'FDA-approved', cancer_profiles: ['breast_cancer'] },
+];
+
+const EVIDENCE_RANK = { A: 0, B: 1, C: 2, D: 3 };
+
+app.get('/api/genomics/therapy-suggestions', requireAuth, (req, res) => {
+  try {
+    const { genes: genesParam, cancer_profile, min_evidence } = req.query;
+
+    // Parse gene filter
+    const geneFilter = genesParam
+      ? genesParam.split(',').map(g => g.trim().toUpperCase()).filter(Boolean)
+      : null;
+
+    // Validate cancer_profile if provided
+    const validProfiles = [
+      'urothelial_carcinoma','breast_cancer','lung_nsclc','colorectal_cancer',
+      'prostate_cancer','ovarian_cancer','pancreatic_cancer','melanoma',
+    ];
+    if (cancer_profile && !validProfiles.includes(cancer_profile)) {
+      return res.status(400).json({ error: 'Invalid cancer_profile value', valid: validProfiles });
+    }
+
+    // Validate min_evidence
+    const validEvidence = ['A', 'B', 'C', 'D'];
+    if (min_evidence && !validEvidence.includes(min_evidence.toUpperCase())) {
+      return res.status(400).json({ error: 'Invalid min_evidence value. Use A, B, C, or D.' });
+    }
+    const minEvidenceRank = min_evidence ? EVIDENCE_RANK[min_evidence.toUpperCase()] : 3;
+
+    // ── Step 1: Pull DB-sourced suggestions ───────────────────────────────────
+    let dbGeneClause = '';
+    let dbGeneParams = [];
+    if (geneFilter && geneFilter.length > 0) {
+      dbGeneClause = `AND UPPER(gm.gene) IN (${geneFilter.map(() => '?').join(',')})`;
+      dbGeneParams = geneFilter;
+    }
+
+    let dbRows = [];
+    try {
+      dbRows = query(`
+        SELECT
+          gm.gene,
+          gm.alteration,
+          gm.clinical_significance,
+          mt.drug_name,
+          mt.therapy_type,
+          mt.mechanism,
+          mt.evidence_level,
+          mt.approval_status,
+          mt.clinical_trial,
+          mt.notes,
+          'db' AS suggestion_source
+        FROM mutation_therapies mt
+        JOIN genomic_mutations gm ON mt.mutation_id = gm.id
+        WHERE 1=1
+        ${dbGeneClause}
+        ORDER BY mt.evidence_level ASC, gm.gene ASC
+      `, dbGeneParams);
+    } catch (_dbErr) {
+      // Table may not exist yet (fresh DB) — fall through to static KB only
+      dbRows = [];
+    }
+
+    // ── Step 2: Merge static KB ────────────────────────────────────────────────
+    // Build dedup key set from DB rows
+    const dbKeys = new Set(dbRows.map(r => `${(r.gene||'').toUpperCase()}|${(r.drug_name||'').toLowerCase()}`));
+
+    // Filter static KB
+    const staticRows = THERAPY_STATIC_KB
+      .filter(kb => {
+        if (geneFilter && !geneFilter.includes(kb.gene.toUpperCase())) return false;
+        if (cancer_profile && kb.cancer_profiles !== null && !kb.cancer_profiles.includes(cancer_profile)) return false;
+        const key = `${kb.gene.toUpperCase()}|${kb.drug_name.toLowerCase()}`;
+        return !dbKeys.has(key); // don't duplicate DB rows
+      })
+      .map(kb => ({
+        gene:             kb.gene,
+        alteration:       null,
+        clinical_significance: null,
+        drug_name:        kb.drug_name,
+        therapy_type:     kb.therapy_type,
+        mechanism:        kb.mechanism,
+        evidence_level:   kb.evidence_level,
+        approval_status:  kb.approval_status,
+        clinical_trial:   null,
+        notes:            null,
+        suggestion_source: 'static_kb',
+      }));
+
+    // Merge and sort
+    const allSuggestions = [...dbRows, ...staticRows]
+      .filter(s => {
+        const rank = EVIDENCE_RANK[s.evidence_level?.toUpperCase()] ?? 3;
+        return rank <= minEvidenceRank;
+      })
+      .sort((a, b) => {
+        const ar = EVIDENCE_RANK[a.evidence_level?.toUpperCase()] ?? 3;
+        const br = EVIDENCE_RANK[b.evidence_level?.toUpperCase()] ?? 3;
+        if (ar !== br) return ar - br;
+        return (a.gene || '').localeCompare(b.gene || '');
+      });
+
+    // ── Step 3: Summary stats ─────────────────────────────────────────────────
+    const fdaApproved = allSuggestions.filter(s =>
+      s.approval_status?.toLowerCase().includes('fda-approved') ||
+      s.approval_status?.toLowerCase().includes('fda approved')
+    ).length;
+
+    const dbSourced = allSuggestions.filter(s => s.suggestion_source === 'db').length;
+
+    const actionable = allSuggestions.filter(s => {
+      const rank = EVIDENCE_RANK[s.evidence_level?.toUpperCase()] ?? 3;
+      return rank <= 1; // A or B
+    }).length;
+
+    return res.json({
+      suggestions: allSuggestions,
+      summary: {
+        total:       allSuggestions.length,
+        actionable,
+        fda_approved: fdaApproved,
+        db_sourced:  dbSourced,
+        filters_applied: {
+          genes:          geneFilter || 'all',
+          cancer_profile: cancer_profile || null,
+          min_evidence:   min_evidence?.toUpperCase() || 'D',
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[GET /api/genomics/therapy-suggestions] error:', err.message);
+    return res.status(500).json({ error: 'Failed to retrieve therapy suggestions', message: err.message });
+  }
+});
+
 // Get VUS variants
 app.get('/api/genomics/vus', requireAuth, (req, res) => {
   const vusVariants = query('SELECT * FROM vus_variants ORDER BY gene');

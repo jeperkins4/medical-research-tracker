@@ -1,13 +1,13 @@
 # STATE.md — MyTreatmentPath (medical-research-tracker)
 <!-- Read this before touching any code. Update it after every session. -->
 
-Last updated: 2026-03-06
+Last updated: 2026-03-12
 
 ## Current Version
-**v0.1.85** — stable, all tests passing
+**v0.1.86** — stable, all tests passing (1175 passed, 1 skipped)
 
 ## Current Branch
-`main`
+`main` (2 commits ahead of origin)
 
 ## What's Working Right Now
 
@@ -19,8 +19,16 @@ Last updated: 2026-03-06
 - App correctly detects dev/prod via `app.isPackaged` (not NODE_ENV)
 
 ### API & Tests
-- **353 tests passing, 0 failing, 1 intentionally skipped**
-- Test command: `vitest run && playwright test --project=api-tests`
+- **Full test suite green: 1175 passed, 1 skipped, 0 failed**
+- Test command: `npm test` (= vitest run && playwright test --project=api-tests)
+- FHIR auth integration complete:
+  - OAuth state parameter lifecycle (invalid/expired/replay protection)
+  - Token status contracts (authorized, valid, expiresAt, patientId, scope)
+  - Token refresh + revoke flows
+  - Auth guards on all FHIR endpoints (401 without cookie)
+  - Error response shape consistency (JSON, never HTML)
+- Portal sync ingestion contracts + sync-history safety
+- Genomic therapy suggestions API shipped with static KB (30+ targeted therapies)
 - Medications PUT: merge-on-update fixed (no NOT NULL constraint errors)
 - JWT uniqueness: `jti: randomUUID()` prevents token collision flakiness
 - Portal credential CRUD: all endpoints tested
@@ -28,16 +36,24 @@ Last updated: 2026-03-06
 
 ### Features Shipped
 - Genomics integration (ARID1A/FGFR3/PIK3CA parsing)
+- **NEW: `/api/genomics/therapy-suggestions` endpoint** — ranked therapy suggestions by gene/cancer_profile/evidence_level
 - Portal sync (Epic, CareSpace — no live credentials in test env)
 - Biomarker cross-reference endpoint
 - Clinical notes seeding
 - Bone health analysis
 - PDF parsing (Foundation One CDx scanned PDFs via Claude document block)
 
+### New Test Coverage (v0.1.86)
+- `tests/unit/fhirTokenUtils.vitest.js` — token lifecycle, expiry classification, scope parsing, patient ID normalization
+- `tests/unit/portalManagerFhirUX.vitest.js` — PortalManager button visibility rules, status text derivation, loading/error states
+- `tests/e2e/fhir-oauth-state.spec.js` — OAuth state parameter lifecycle (15 tests: invalid/expired/replay/auth-guards)
+- `tests/e2e/auth-check-contracts.spec.js` — authentication contract tests
+- `tests/e2e/therapy-suggestions.spec.js` — therapy suggestions API contracts
+
 ## What's In Progress
-- FHIR OAuth state persistence hardening (in-memory state = restart risk)
-- Portal credential update UI (backend exists, not yet wired to PortalManager UI)
-- Genomic variant → therapy suggestion endpoint (planned)
+- PortalManager UX polish for FHIR connect/reconnect messaging + sync-result surfacing (unit tests written, UI integration pending)
+- Genomic therapy suggestions UI integration (API complete, frontend wiring needed)
+- Test result artifact cleanup (test-results/ directories accumulating)
 
 ## Hard Rules — Never Violate
 - **`npmRebuild: true` in `electron-builder.yml`** — never remove. Node v25 = MODULE_VERSION 141; Electron 40 = 143. Must rebuild.

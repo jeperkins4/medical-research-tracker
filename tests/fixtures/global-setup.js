@@ -116,6 +116,19 @@ function createTestDatabase(dir) {
       created_at          TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS mutation_therapies (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      mutation_id     INTEGER NOT NULL,
+      drug_name       TEXT NOT NULL,
+      therapy_type    TEXT,
+      mechanism       TEXT,
+      evidence_level  TEXT,
+      approval_status TEXT,
+      clinical_trial  TEXT,
+      notes           TEXT,
+      created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS mutation_pathway_map (
       mutation_id INTEGER NOT NULL,
       pathway_id  INTEGER NOT NULL,
@@ -293,15 +306,68 @@ function createTestDatabase(dir) {
     VALUES (?, ?, ?, ?, ?)
   `).run(97, 'CareSpace Portal', 'carespace', 'https://carespace.example.org', 'never');
 
-  // ── Seed: genomic mutation ─────────────────────────────────────────────────
-  db.prepare(`
-    INSERT OR IGNORE INTO genomic_mutations
+  // ── Seed: genomic mutations + therapy links ───────────────────────────────
+  const reportDate = new Date().toISOString().split('T')[0];
+  const insertMutation = db.prepare(`
+    INSERT INTO genomic_mutations
       (gene, gene_name, mutation_type, mutation_detail, alteration,
        vaf, variant_allele_frequency, clinical_significance, report_source, report_date)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run('ARID1A', 'ARID1A', 'Short Variant', 'p.Q456*', 'p.Q456*',
-         35.2, 35.2, 'pathogenic',
-         'FoundationOne CDx', new Date().toISOString().split('T')[0]);
+  `);
+
+  const arid1a = insertMutation.run(
+    'ARID1A', 'ARID1A', 'Short Variant', 'p.Q456*', 'p.Q456*',
+    35.2, 35.2, 'pathogenic', 'FoundationOne CDx', reportDate
+  );
+
+  const fgfr3 = insertMutation.run(
+    'FGFR3', 'FGFR3', 'Short Variant', 'p.S249C', 'p.S249C',
+    18.4, 18.4, 'pathogenic', 'FoundationOne CDx', reportDate
+  );
+
+  const pik3ca = insertMutation.run(
+    'PIK3CA', 'PIK3CA', 'Short Variant', 'p.E545K', 'p.E545K',
+    22.1, 22.1, 'pathogenic', 'FoundationOne CDx', reportDate
+  );
+
+  const insertTherapy = db.prepare(`
+    INSERT INTO mutation_therapies
+      (mutation_id, drug_name, therapy_type, mechanism, evidence_level, approval_status, clinical_trial, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertTherapy.run(
+    arid1a.lastInsertRowid,
+    'Pembrolizumab',
+    'immunotherapy',
+    'PD-1 checkpoint inhibitor',
+    'B',
+    'FDA-approved',
+    null,
+    'ARID1A deficiency may increase immunotherapy sensitivity'
+  );
+
+  insertTherapy.run(
+    fgfr3.lastInsertRowid,
+    'Erdafitinib',
+    'targeted',
+    'FGFR3 kinase inhibitor',
+    'A',
+    'FDA-approved',
+    null,
+    'Actionable FGFR3 alteration'
+  );
+
+  insertTherapy.run(
+    pik3ca.lastInsertRowid,
+    'Everolimus',
+    'targeted',
+    'mTOR inhibitor downstream of PI3K pathway',
+    'B',
+    'FDA-approved',
+    null,
+    'PI3K pathway-directed therapy candidate'
+  );
 
   db.close();
   return dbPath;
@@ -483,6 +549,12 @@ export default async function globalSetup() {
           treatment_type TEXT, target_pathway_id INTEGER,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS mutation_therapies (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, mutation_id INTEGER NOT NULL,
+          drug_name TEXT NOT NULL, therapy_type TEXT, mechanism TEXT,
+          evidence_level TEXT, approval_status TEXT, clinical_trial TEXT,
+          notes TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS mutation_pathway_map (
           mutation_id INTEGER NOT NULL, pathway_id INTEGER NOT NULL,
           PRIMARY KEY (mutation_id, pathway_id)
@@ -535,6 +607,78 @@ export default async function globalSetup() {
         serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN variant_allele_frequency REAL`);
       if (!gmCols.includes('is_confirmed'))
         serverDb.exec(`ALTER TABLE genomic_mutations ADD COLUMN is_confirmed INTEGER DEFAULT 1`);
+
+      // Seed DB-backed therapy suggestions for genomics API tests
+      const insertServerMutation = serverDb.prepare(`
+        INSERT INTO genomic_mutations
+          (gene, gene_name, mutation_type, mutation_detail, alteration,
+           vaf, variant_allele_frequency, clinical_significance, report_source, report_date, is_confirmed)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `);
+      const findMutationId = serverDb.prepare(`SELECT id FROM genomic_mutations WHERE gene = ? ORDER BY id LIMIT 1`);
+      const ensureMutationId = (gene, detail, vaf) => {
+        const existing = findMutationId.get(gene);
+        if (existing?.id) return existing.id;
+        const inserted = insertServerMutation.run(
+          gene, gene, 'Short Variant', detail, detail,
+          vaf, vaf, 'pathogenic', 'FoundationOne CDx', new Date().toISOString().split('T')[0]
+        );
+        return Number(inserted.lastInsertRowid);
+      };
+      const insertMutationTherapy = serverDb.prepare(`
+        INSERT INTO mutation_therapies
+          (mutation_id, drug_name, therapy_type, mechanism, evidence_level, approval_status, clinical_trial, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const hasTherapy = serverDb.prepare(`
+        SELECT id FROM mutation_therapies WHERE mutation_id = ? AND drug_name = ? LIMIT 1
+      `);
+      const insertTherapyIfMissing = (mutationId, drugName, therapyType, mechanism, evidenceLevel, approvalStatus, notes) => {
+        if (!mutationId) return;
+        if (hasTherapy.get(mutationId, drugName)?.id) return;
+        insertMutationTherapy.run(
+          mutationId,
+          drugName,
+          therapyType,
+          mechanism,
+          evidenceLevel,
+          approvalStatus,
+          null,
+          notes
+        );
+      };
+
+      const arid1aMutationId = ensureMutationId('ARID1A', 'p.Q456*', 35.2);
+      const fgfr3MutationId = ensureMutationId('FGFR3', 'p.S249C', 18.4);
+      const pik3caMutationId = ensureMutationId('PIK3CA', 'p.E545K', 22.1);
+
+      insertTherapyIfMissing(
+        arid1aMutationId,
+        'Pembrolizumab',
+        'immunotherapy',
+        'PD-1 checkpoint inhibitor',
+        'B',
+        'FDA-approved',
+        'ARID1A deficiency may increase immunotherapy sensitivity'
+      );
+      insertTherapyIfMissing(
+        fgfr3MutationId,
+        'Erdafitinib',
+        'targeted',
+        'FGFR3 kinase inhibitor',
+        'A',
+        'FDA-approved',
+        'Actionable FGFR3 alteration'
+      );
+      insertTherapyIfMissing(
+        pik3caMutationId,
+        'Everolimus',
+        'targeted',
+        'mTOR inhibitor downstream of PI3K pathway',
+        'B',
+        'FDA-approved',
+        'PI3K pathway-directed therapy candidate'
+      );
 
       // Ensure clinical_notes table exists and seed test notes
       serverDb.exec(`
