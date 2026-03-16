@@ -10,8 +10,13 @@ export async function syncPortal(credentialId) {
   const startTime = new Date().toISOString();
 
   // Normalize to integer for queries + logging
-  const id = parseInt(String(credentialId), 10);
-  if (!Number.isFinite(id)) {
+  const normalizedId = String(credentialId);
+  if (!/^\d+$/.test(normalizedId)) {
+    throw new Error('Invalid credential id');
+  }
+
+  const id = Number(normalizedId);
+  if (!Number.isSafeInteger(id) || id <= 0) {
     throw new Error('Invalid credential id');
   }
 

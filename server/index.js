@@ -1,3 +1,12 @@
+function parsePositiveIntegerParam(value) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 // Load environment variables in development (Electron sets them in production)
 if (process.env.NODE_ENV !== 'production') {
   try {
@@ -1848,12 +1857,12 @@ app.get('/api/portals/credentials/:id/sync-history', requireAuth, (req, res) => 
 
 // Manual sync trigger
 app.post('/api/portals/credentials/:id/sync', requireAuth, async (req, res) => {
-  const credId = parseInt(req.params.id, 10);
-  if (isNaN(credId) || credId <= 0) {
+  const credId = parsePositiveIntegerParam(req.params.id);
+  if (!credId) {
     return res.status(400).json({ error: 'Invalid credential id — must be a positive integer' });
   }
   try {
-    const result = await syncPortal(req.params.id);
+    const result = await syncPortal(credId);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });

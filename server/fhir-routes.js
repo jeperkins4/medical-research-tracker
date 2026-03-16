@@ -9,6 +9,15 @@ import { getCredential } from './portal-credentials.js';
 import { query, run } from './db-secure.js';
 import { listCancerProfiles, getCancerProfile, searchProfilesByBiomarker } from '../src/models/cancerProfiles.js';
 
+function parsePositiveIntegerParam(value) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 /**
  * Register FHIR routes with Express app
  * 
@@ -106,8 +115,8 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.get('/api/fhir/status/:credentialId', requireAuth, (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId, 10);
-      if (!Number.isFinite(credentialId)) {
+      const credentialId = parsePositiveIntegerParam(req.params.credentialId);
+      if (!credentialId) {
         return res.status(400).json({ error: 'Invalid credential id' });
       }
 
@@ -158,8 +167,8 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.delete('/api/fhir/revoke/:credentialId', requireAuth, (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId, 10);
-      if (!Number.isFinite(credentialId)) {
+      const credentialId = parsePositiveIntegerParam(req.params.credentialId);
+      if (!credentialId) {
         return res.status(400).json({ error: 'Invalid credential id' });
       }
 
@@ -186,8 +195,8 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.post('/api/fhir/sync/:credentialId', requireAuth, async (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId, 10);
-      if (!Number.isFinite(credentialId)) {
+      const credentialId = parsePositiveIntegerParam(req.params.credentialId);
+      if (!credentialId) {
         return res.status(400).json({ error: 'Invalid credential id' });
       }
 
@@ -297,8 +306,8 @@ export function registerFHIRRoutes(app, requireAuth) {
    */
   app.post('/api/fhir/refresh/:credentialId', requireAuth, async (req, res) => {
     try {
-      const credentialId = parseInt(req.params.credentialId, 10);
-      if (!Number.isFinite(credentialId)) {
+      const credentialId = parsePositiveIntegerParam(req.params.credentialId);
+      if (!credentialId) {
         return res.status(400).json({ error: 'Invalid credential id' });
       }
 
