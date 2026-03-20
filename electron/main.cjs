@@ -28,6 +28,7 @@ try {
 } catch {}
 const db = require('./db-ipc.cjs');
 const vault = require('./vault-ipc.cjs');
+const { initializeAnalyticsJob, stopAnalyticsJob } = require('./analytics-job.cjs');
 // Use app.isPackaged (not NODE_ENV) — .env bundled in extraResources sets NODE_ENV=development
 // which would cause the packaged app to load localhost:5173 instead of its own UI.
 const isDev = !app.isPackaged;
@@ -162,6 +163,14 @@ app.whenReady().then(async () => {
 
   createWindow();
 
+  // Start analytics aggregation job (startup + every 6h)
+  try {
+    await initializeAnalyticsJob();
+  } catch (err) {
+    console.error('[Electron] Failed to initialize analytics job:', err.message);
+    // Non-fatal — app continues
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -177,6 +186,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  stopAnalyticsJob();
   db.closeDatabase();
 });
 
