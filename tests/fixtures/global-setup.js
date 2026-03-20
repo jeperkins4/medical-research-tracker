@@ -239,6 +239,37 @@ function createTestDatabase(dir) {
       notes                 TEXT,
       created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS papers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pubmed_id TEXT UNIQUE,
+      title TEXT NOT NULL,
+      authors TEXT,
+      journal TEXT,
+      publication_date TEXT,
+      abstract TEXT,
+      url TEXT,
+      type TEXT DEFAULT 'conventional',
+      saved_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS medical_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_type TEXT,
+      name TEXT,
+      file_path TEXT,
+      upload_date TEXT,
+      date TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      diagnoses TEXT DEFAULT '[]',
+      referrals TEXT DEFAULT '[]',
+      recommendations TEXT DEFAULT '[]',
+      critical_findings TEXT DEFAULT '[]',
+      medications_mentioned TEXT DEFAULT '[]',
+      labs_ordered TEXT DEFAULT '[]',
+      imaging_ordered TEXT DEFAULT '[]',
+      tags TEXT DEFAULT '[]'
+    );
   `);
 
   // ── Seed: test user ────────────────────────────────────────────────────────
@@ -367,6 +398,83 @@ function createTestDatabase(dir) {
     'FDA-approved',
     null,
     'PI3K pathway-directed therapy candidate'
+  );
+
+  // ── Seed Documents for GET /api/documents tests ─────────────────────────────────
+  const insertDoc = db.prepare(`
+    INSERT INTO medical_documents
+      (document_type, name, file_path, upload_date, date, diagnoses, tags)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  insertDoc.run(
+    'lab',
+    'Foundation One CDx Report.pdf',
+    '/test/doc1.pdf',
+    '2026-03-01',
+    '2026-03-01',
+    JSON.stringify(['Bladder Cancer']),
+    JSON.stringify(['genomic', 'report'])
+  );
+
+  insertDoc.run(
+    'imaging',
+    'CT Scan Results.pdf',
+    '/test/doc2.pdf',
+    '2026-02-28',
+    '2026-02-28',
+    JSON.stringify(['Metastatic Disease']),
+    JSON.stringify(['imaging', 'staging'])
+  );
+
+  insertDoc.run(
+    'clinical_note',
+    'Oncology Consultation.pdf',
+    '/test/doc3.pdf',
+    '2026-03-10',
+    '2026-03-10',
+    JSON.stringify(['Bladder Cancer']),
+    JSON.stringify(['clinical', 'consultation'])
+  );
+
+  // ── Seed Papers for GET /api/papers tests ────────────────────────────────────────
+  const insertPaper = db.prepare(`
+    INSERT INTO papers
+      (pubmed_id, title, authors, journal, publication_date, abstract, url, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertPaper.run(
+    'PUBMED001',
+    'Erdafitinib for FGFR3-altered Urothelial Carcinoma',
+    'Loriot Y, Soria JC, et al.',
+    'Nature Medicine',
+    '2024-03-15',
+    'Phase 3 trial of erdafitinib in patients with FGFR3-mutant non-muscle-invasive bladder cancer. Strong efficacy signals observed.',
+    'https://www.nature.com/articles/s41591-024-01234-z',
+    'clinical-trial'
+  );
+
+  insertPaper.run(
+    'PUBMED002',
+    'Immunotherapy in Advanced Bladder Cancer: Current Evidence',
+    'Smith JD, Johnson K, et al.',
+    'Journal of Urology',
+    '2024-02-01',
+    'A comprehensive review of checkpoint inhibitor therapies in advanced urothelial carcinoma including pembrolizumab and atezolizumab.',
+    'https://journals.lww.com/jurology/article/full',
+    'review'
+  );
+
+  insertPaper.run(
+    'PUBMED003',
+    'Novel Biomarkers Predicting Response to Neoadjuvant Chemotherapy',
+    'Chen X, Wang Y, et al.',
+    'Cancer Research',
+    '2024-01-10',
+    'Investigation of genomic and protein biomarkers that predict response to NAC in muscle-invasive bladder cancer patients.',
+    'https://cancerres.aacrjournals.org/article',
+    'research'
   );
 
   db.close();
