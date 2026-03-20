@@ -29,6 +29,10 @@ npm-debug.log*
 *.swo
 *~
 
+# Test Artifacts
+test-results/
+tests/playwright-report/data/
+
 # OS
 .DS_Store
 Thumbs.db
