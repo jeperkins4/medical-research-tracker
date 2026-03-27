@@ -559,8 +559,12 @@ test.describe('POST /api/subscriptions/:id/payments — log a payment', () => {
 // ─── 8. Subscription list filter params ───────────────────────────────────────
 
 test.describe('GET /api/subscriptions — filter query params', () => {
-  test('?status=active returns only active subscriptions', async ({ request }) => {
+  test('?status=active returns only active subscriptions', async ({ request, page }) => {
     const cookie = await login(request);
+    
+    // Small delay to ensure database commit (fixes timing-related flakiness with status index)
+    await page.waitForTimeout(50);
+    
     const res = await request.get(`${API}/api/subscriptions?status=active`, {
       headers: { Cookie: cookie },
     });

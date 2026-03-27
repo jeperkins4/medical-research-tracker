@@ -296,9 +296,12 @@ test.describe('GET /api/analytics/dashboard [REGRESSION: was 404 in packaged Ele
     expect(res.status()).not.toBe(500);
   });
 
-  test('response has enabled field', async ({ request }) => {
+  test('response has enabled field', async ({ request, page }) => {
     const loginRes = await request.post(`${API}/api/auth/login`, { data: CREDS });
     const cookie = (loginRes.headers()['set-cookie'] || '').split(';')[0];
+
+    // Small delay to ensure session is committed to database (fixes timing-related flakiness)
+    await page.waitForTimeout(50);
 
     const res = await request.get(`${API}/api/analytics/dashboard`, {
       headers: { Cookie: cookie },

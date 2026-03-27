@@ -358,6 +358,41 @@ const initDb = () => {
   runMigration('genomic_mutations',  'protein_change',      'TEXT');
   // --- End migrations ---
 
+  // --- Create performance indexes (idempotent) ---
+  // These indexes are critical for analytics dashboard and subscription filtering queries
+  const createIndexIfNotExists = (indexName, tableName, columns) => {
+    try {
+      db.exec(`CREATE INDEX IF NOT EXISTS ${indexName} ON ${tableName}(${columns})`);
+      console.log(`✅ Index created: ${indexName}`);
+    } catch (e) {
+      // Index likely already exists; safe to ignore
+    }
+  };
+
+  // Analytics dashboard: COUNT(*) queries on conditions, medications, test_results, vitals
+  createIndexIfNotExists('idx_conditions_id', 'conditions', 'id');
+  createIndexIfNotExists('idx_medications_id', 'medications', 'id');
+  createIndexIfNotExists('idx_test_results_date', 'test_results', 'date DESC');
+  createIndexIfNotExists('idx_vitals_date', 'vitals', 'date DESC');
+  
+  // Subscription filtering by status
+  createIndexIfNotExists('idx_subscriptions_status', 'subscriptions', 'status');
+  
+  // Portal sync and session tracking
+  createIndexIfNotExists('idx_portal_sync_log_portal_id', 'portal_sync_log', 'portal_id');
+  createIndexIfNotExists('idx_portal_sync_log_status', 'portal_sync_log', 'status');
+  
+  // Foreign key lookups
+  createIndexIfNotExists('idx_condition_vitals_condition_id', 'condition_vitals', 'condition_id');
+  createIndexIfNotExists('idx_condition_vitals_vital_id', 'condition_vitals', 'vital_id');
+  
+  // Query by user_id if present (common in multi-user scenarios)
+  const usersHaveId = db.prepare(`PRAGMA table_info(users)`).all().some(c => c.name === 'id');
+  if (usersHaveId) {
+    createIndexIfNotExists('idx_users_id', 'users', 'id');
+  }
+  // --- End indexes ---
+
   return db;
 };
 
