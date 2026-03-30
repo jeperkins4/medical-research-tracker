@@ -519,38 +519,84 @@ export default async function globalSetup() {
 
   writeFileSync(PID_FILE, String(server.pid));
 
-  // Wait for server ready
+  // Wait for server to start logging (buffering stdout)
   await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error(`Test server didn't start in 20s. Output:\n${output}`)), 20000);
+    let resolved = false;
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error(`Test server stdout not received within 15s. Output:\n${output}`));
+      }
+    }, 15000);
 
     server.stdout.on('data', d => {
       output += d.toString();
-      if (output.includes('running on') || output.includes('Server ready') || output.includes('listening')) {
+      // Just wait for first output, don't try to detect readiness from it
+      if (output.length > 0 && !resolved) {
         clearTimeout(timeout);
+        resolved = true;
         resolve();
       }
     });
 
     server.stderr.on('data', d => {
       output += d.toString();
-      // Don't fail on warnings
-      if (output.toLowerCase().includes('error') && !output.includes('DB_ENCRYPTION_KEY')) {
-        // continue - let timeout decide
+      // Don't fail on warnings — let HTTP polling determine actual readiness
+    });
+
+    server.on('error', err => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        reject(err);
       }
     });
 
-    server.on('error', err => { clearTimeout(timeout); reject(err); });
     server.on('exit', (code) => {
-      if (code !== 0) {
+      if (!resolved && code !== 0) {
+        resolved = true;
         clearTimeout(timeout);
         reject(new Error(`Test server exited with code ${code}. Output:\n${output}`));
       }
     });
   }).catch(err => {
-    console.warn('⚠️  Test server warning:', err.message);
-    console.warn('Tests may fail if server is not available. Running against existing server if any.');
+    console.warn('⚠️  Test server startup warning:', err.message);
+    console.warn('Attempting HTTP health check fallback...');
   });
+
+  // ── HTTP polling: verify port is actually listening ─────────────────────────
+  // This is more reliable than stdout string matching.
+  console.log(`🔍 Polling http://localhost:${TEST_PORT}/api/health ...`);
+  let serverReady = false;
+  let attempts = 0;
+  const maxAttempts = 40; // 40 × 500ms = 20 seconds max
+
+  while (attempts < maxAttempts && !serverReady) {
+    try {
+      const res = await fetch(`http://localhost:${TEST_PORT}/api/health`, {
+        timeout: 2000,
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok || res.status === 200 || res.status === 206) {
+        serverReady = true;
+        console.log(`✅ Server responding on http://localhost:${TEST_PORT}`);
+        break;
+      }
+    } catch (err) {
+      // Expected during startup (ECONNREFUSED, timeout, etc.)
+      attempts++;
+      if (attempts % 10 === 0) {
+        console.log(`   [attempt ${attempts}/${maxAttempts}] Waiting for server...`);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  if (!serverReady) {
+    console.warn(`⚠️  Server did not respond after ${maxAttempts * 500}ms on port ${TEST_PORT}`);
+    console.warn('   Tests may fail if server is not available.');
+  }
 
   console.log(`✅ Test server ready on port ${TEST_PORT}`);
 
