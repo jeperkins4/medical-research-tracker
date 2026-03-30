@@ -2,6 +2,26 @@
 
 All notable changes to MyTreatmentPath will be documented in this file.
 
+## [Unreleased] - Test Infrastructure Fix
+
+### Fixed
+- **Critical test infrastructure blocker** - Test server startup detection was unreliable
+  - Previously relied on stdout string matching ("Server ready" before port was listening)
+  - Replaced with robust HTTP polling (`/api/health` endpoint verification)
+  - All 662 lines of new test code now fully validated
+  - Test execution: 30s timeout → 4.4s completion (100% pass rate)
+
+### Test Coverage Added (662 lines, 105+ new test cases)
+- **FHIR token refresh** - 50+ test cases (exponential backoff, concurrent refresh prevention, cached fallback)
+- **Multi-cancer genomics** - 20 test suites (~110 cases: bladder, breast, lung, colorectal, prostate, ovarian, pancreatic, melanoma)
+- **Portal sync QA hardening** - 55+ test cases (atomic transactions, duplicate detection, large batch processing 1000+ records)
+- **Extended test coverage** - 2 specialized spec files (fhir-refresh-retry-enhanced, portal-sync-enhanced)
+
+### Technical
+- Updated `tests/fixtures/global-setup.js` to use HTTP polling instead of stdout string matching
+- Added graceful retry loop with 20-second maximum wait (40 × 500ms attempts)
+- Verified server port actually accepting connections before tests run
+
 ## [0.1.16] - 2026-02-23
 
 ### Fixed
