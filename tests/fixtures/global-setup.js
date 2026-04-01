@@ -239,6 +239,37 @@ function createTestDatabase(dir) {
       notes                 TEXT,
       created_at            TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS papers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pubmed_id TEXT UNIQUE,
+      title TEXT NOT NULL,
+      authors TEXT,
+      journal TEXT,
+      publication_date TEXT,
+      abstract TEXT,
+      url TEXT,
+      type TEXT DEFAULT 'conventional',
+      saved_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS medical_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_type TEXT,
+      name TEXT,
+      file_path TEXT,
+      upload_date TEXT,
+      date TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      diagnoses TEXT DEFAULT '[]',
+      referrals TEXT DEFAULT '[]',
+      recommendations TEXT DEFAULT '[]',
+      critical_findings TEXT DEFAULT '[]',
+      medications_mentioned TEXT DEFAULT '[]',
+      labs_ordered TEXT DEFAULT '[]',
+      imaging_ordered TEXT DEFAULT '[]',
+      tags TEXT DEFAULT '[]'
+    );
   `);
 
   // ── Seed: test user ────────────────────────────────────────────────────────
@@ -369,6 +400,83 @@ function createTestDatabase(dir) {
     'PI3K pathway-directed therapy candidate'
   );
 
+  // ── Seed Documents for GET /api/documents tests ─────────────────────────────────
+  const insertDoc = db.prepare(`
+    INSERT INTO medical_documents
+      (document_type, name, file_path, upload_date, date, diagnoses, tags)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  insertDoc.run(
+    'lab',
+    'Foundation One CDx Report.pdf',
+    '/test/doc1.pdf',
+    '2026-03-01',
+    '2026-03-01',
+    JSON.stringify(['Bladder Cancer']),
+    JSON.stringify(['genomic', 'report'])
+  );
+
+  insertDoc.run(
+    'imaging',
+    'CT Scan Results.pdf',
+    '/test/doc2.pdf',
+    '2026-02-28',
+    '2026-02-28',
+    JSON.stringify(['Metastatic Disease']),
+    JSON.stringify(['imaging', 'staging'])
+  );
+
+  insertDoc.run(
+    'clinical_note',
+    'Oncology Consultation.pdf',
+    '/test/doc3.pdf',
+    '2026-03-10',
+    '2026-03-10',
+    JSON.stringify(['Bladder Cancer']),
+    JSON.stringify(['clinical', 'consultation'])
+  );
+
+  // ── Seed Papers for GET /api/papers tests ────────────────────────────────────────
+  const insertPaper = db.prepare(`
+    INSERT INTO papers
+      (pubmed_id, title, authors, journal, publication_date, abstract, url, type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertPaper.run(
+    'PUBMED001',
+    'Erdafitinib for FGFR3-altered Urothelial Carcinoma',
+    'Loriot Y, Soria JC, et al.',
+    'Nature Medicine',
+    '2024-03-15',
+    'Phase 3 trial of erdafitinib in patients with FGFR3-mutant non-muscle-invasive bladder cancer. Strong efficacy signals observed.',
+    'https://www.nature.com/articles/s41591-024-01234-z',
+    'clinical-trial'
+  );
+
+  insertPaper.run(
+    'PUBMED002',
+    'Immunotherapy in Advanced Bladder Cancer: Current Evidence',
+    'Smith JD, Johnson K, et al.',
+    'Journal of Urology',
+    '2024-02-01',
+    'A comprehensive review of checkpoint inhibitor therapies in advanced urothelial carcinoma including pembrolizumab and atezolizumab.',
+    'https://journals.lww.com/jurology/article/full',
+    'review'
+  );
+
+  insertPaper.run(
+    'PUBMED003',
+    'Novel Biomarkers Predicting Response to Neoadjuvant Chemotherapy',
+    'Chen X, Wang Y, et al.',
+    'Cancer Research',
+    '2024-01-10',
+    'Investigation of genomic and protein biomarkers that predict response to NAC in muscle-invasive bladder cancer patients.',
+    'https://cancerres.aacrjournals.org/article',
+    'research'
+  );
+
   db.close();
   return dbPath;
 }
@@ -411,38 +519,84 @@ export default async function globalSetup() {
 
   writeFileSync(PID_FILE, String(server.pid));
 
-  // Wait for server ready
+  // Wait for server to start logging (buffering stdout)
   await new Promise((resolve, reject) => {
     let output = '';
-    const timeout = setTimeout(() => reject(new Error(`Test server didn't start in 20s. Output:\n${output}`)), 20000);
+    let resolved = false;
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        reject(new Error(`Test server stdout not received within 15s. Output:\n${output}`));
+      }
+    }, 15000);
 
     server.stdout.on('data', d => {
       output += d.toString();
-      if (output.includes('running on') || output.includes('Server ready') || output.includes('listening')) {
+      // Just wait for first output, don't try to detect readiness from it
+      if (output.length > 0 && !resolved) {
         clearTimeout(timeout);
+        resolved = true;
         resolve();
       }
     });
 
     server.stderr.on('data', d => {
       output += d.toString();
-      // Don't fail on warnings
-      if (output.toLowerCase().includes('error') && !output.includes('DB_ENCRYPTION_KEY')) {
-        // continue - let timeout decide
+      // Don't fail on warnings — let HTTP polling determine actual readiness
+    });
+
+    server.on('error', err => {
+      if (!resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        reject(err);
       }
     });
 
-    server.on('error', err => { clearTimeout(timeout); reject(err); });
     server.on('exit', (code) => {
-      if (code !== 0) {
+      if (!resolved && code !== 0) {
+        resolved = true;
         clearTimeout(timeout);
         reject(new Error(`Test server exited with code ${code}. Output:\n${output}`));
       }
     });
   }).catch(err => {
-    console.warn('⚠️  Test server warning:', err.message);
-    console.warn('Tests may fail if server is not available. Running against existing server if any.');
+    console.warn('⚠️  Test server startup warning:', err.message);
+    console.warn('Attempting HTTP health check fallback...');
   });
+
+  // ── HTTP polling: verify port is actually listening ─────────────────────────
+  // This is more reliable than stdout string matching.
+  console.log(`🔍 Polling http://localhost:${TEST_PORT}/api/health ...`);
+  let serverReady = false;
+  let attempts = 0;
+  const maxAttempts = 40; // 40 × 500ms = 20 seconds max
+
+  while (attempts < maxAttempts && !serverReady) {
+    try {
+      const res = await fetch(`http://localhost:${TEST_PORT}/api/health`, {
+        timeout: 2000,
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok || res.status === 200 || res.status === 206) {
+        serverReady = true;
+        console.log(`✅ Server responding on http://localhost:${TEST_PORT}`);
+        break;
+      }
+    } catch (err) {
+      // Expected during startup (ECONNREFUSED, timeout, etc.)
+      attempts++;
+      if (attempts % 10 === 0) {
+        console.log(`   [attempt ${attempts}/${maxAttempts}] Waiting for server...`);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  if (!serverReady) {
+    console.warn(`⚠️  Server did not respond after ${maxAttempts * 500}ms on port ${TEST_PORT}`);
+    console.warn('   Tests may fail if server is not available.');
+  }
 
   console.log(`✅ Test server ready on port ${TEST_PORT}`);
 
@@ -990,7 +1144,8 @@ export default async function globalSetup() {
     console.warn('⚠️  Could not seed server DB:', seedErr.message);
   }
 
-  // Store for tests
+  // Store for tests (use TEST_API_PORT to match playwright.config.js)
+  process.env.TEST_API_PORT = String(TEST_PORT);
   process.env.TEST_SERVER_PORT = String(TEST_PORT);
   process.env.TEST_DB_PATH = dbPath;
 }

@@ -29,6 +29,18 @@ npm-debug.log*
 *.swo
 *~
 
+# Test Artifacts
+test-results/
+tests/playwright-report/
+
+# Progress/scan reports
+NIGHT-SHIFT-PROGRESS-*.md
+SCAN_REPORT_*.txt
+
+# Database WAL/SHM files
+data/*.db-shm
+data/*.db-wal
+
 # OS
 .DS_Store
 Thumbs.db
