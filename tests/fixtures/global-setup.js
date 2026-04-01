@@ -1144,7 +1144,8 @@ export default async function globalSetup() {
     console.warn('⚠️  Could not seed server DB:', seedErr.message);
   }
 
-  // Store for tests
+  // Store for tests (use TEST_API_PORT to match playwright.config.js)
+  process.env.TEST_API_PORT = String(TEST_PORT);
   process.env.TEST_SERVER_PORT = String(TEST_PORT);
   process.env.TEST_DB_PATH = dbPath;
 }
