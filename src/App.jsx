@@ -6,6 +6,7 @@ import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
+import RadiologyViewer from './components/RadiologyViewer';
 
 // Helper to make authenticated API calls
 const apiFetch = (url, options = {}) => {
@@ -154,7 +155,13 @@ function App() {
         >
           🦴 Bone Health
         </button>
-        <button 
+        <button
+          className={activeTab === 'radiology' ? 'active' : ''}
+          onClick={() => setActiveTab('radiology')}
+        >
+          Radiology
+        </button>
+        <button
           className={activeTab === 'profile' ? 'active' : ''}
           onClick={() => setActiveTab('profile')}
         >
@@ -181,6 +188,7 @@ function App() {
         {activeTab === 'portals' && <PortalManager />}
         {activeTab === 'tests' && <TestResultsView />}
         {activeTab === 'bonehealth' && <BoneHealthTracker />}
+        {activeTab === 'radiology' && <RadiologyViewer />}
         {activeTab === 'profile' && <ProfileView />}
         {activeTab === 'research' && <ResearchView />}
         {activeTab === 'library' && <LibraryView />}
