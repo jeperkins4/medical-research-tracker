@@ -8,6 +8,7 @@ import * as vault from './vault.js';
 import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
+import * as radiology from './radiology.js';
 
 const app = express();
 const PORT = 3000;
@@ -1086,6 +1087,106 @@ app.get('/api/bone-health/actions', requireAuth, (req, res) => {
   try {
     const actions = getBoneHealthActions();
     res.json(actions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Radiology Imaging API
+app.get('/api/radiology/studies', requireAuth, (req, res) => {
+  try {
+    const studies = radiology.getStudies();
+    res.json(studies);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/radiology/studies/:id', requireAuth, (req, res) => {
+  try {
+    const study = radiology.getStudy(req.params.id);
+    if (!study) return res.status(404).json({ error: 'Study not found' });
+    res.json(study);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/radiology/studies', requireAuth, (req, res) => {
+  try {
+    const { study_date, modality, body_region } = req.body;
+    if (!study_date || !modality || !body_region) {
+      return res.status(400).json({ error: 'study_date, modality, and body_region are required' });
+    }
+    const study = radiology.createStudy(req.body);
+    res.status(201).json(study);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/radiology/studies/:id', requireAuth, (req, res) => {
+  try {
+    const study = radiology.updateStudy(req.params.id, req.body);
+    if (!study) return res.status(404).json({ error: 'Study not found' });
+    res.json(study);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/radiology/studies/:id', requireAuth, (req, res) => {
+  try {
+    radiology.deleteStudy(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/radiology/studies/:id/annotations', requireAuth, (req, res) => {
+  try {
+    const { label } = req.body;
+    if (!label) return res.status(400).json({ error: 'label is required' });
+    const annotation = radiology.addAnnotation(req.params.id, req.body);
+    res.status(201).json(annotation);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/radiology/annotations/:id', requireAuth, (req, res) => {
+  try {
+    radiology.deleteAnnotation(req.params.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/radiology/timeline', requireAuth, (req, res) => {
+  try {
+    const timeline = radiology.getStudyTimeline(req.query.body_region);
+    res.json(timeline);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/radiology/filters', requireAuth, (req, res) => {
+  try {
+    const filters = radiology.getFilterOptions();
+    res.json(filters);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/radiology/studies/:id/volume', requireAuth, (req, res) => {
+  try {
+    const volume = radiology.generateDemoVolume(req.params.id);
+    if (!volume) return res.status(404).json({ error: 'Study not found' });
+    res.json(volume);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

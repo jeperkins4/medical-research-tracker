@@ -230,6 +230,53 @@ const initDb = () => {
       FOREIGN KEY (paper_id) REFERENCES papers(id),
       FOREIGN KEY (tag_id) REFERENCES tags(id)
     );
+
+    -- Radiology imaging studies
+    CREATE TABLE IF NOT EXISTS radiology_studies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      study_date TEXT NOT NULL,
+      modality TEXT NOT NULL,
+      body_region TEXT NOT NULL,
+      description TEXT,
+      facility TEXT,
+      ordering_physician TEXT,
+      status TEXT DEFAULT 'completed',
+      findings TEXT,
+      impression TEXT,
+      comparison_notes TEXT,
+      file_path TEXT,
+      thumbnail_path TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Individual series within a radiology study
+    CREATE TABLE IF NOT EXISTS radiology_series (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      study_id INTEGER NOT NULL,
+      series_number INTEGER,
+      description TEXT,
+      modality TEXT,
+      slice_count INTEGER DEFAULT 0,
+      file_path TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (study_id) REFERENCES radiology_studies(id) ON DELETE CASCADE
+    );
+
+    -- Annotations/bookmarks on radiology studies
+    CREATE TABLE IF NOT EXISTS radiology_annotations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      study_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      description TEXT,
+      position_x REAL,
+      position_y REAL,
+      position_z REAL,
+      slice_index INTEGER,
+      plane TEXT DEFAULT 'axial',
+      color TEXT DEFAULT '#ff6b6b',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (study_id) REFERENCES radiology_studies(id) ON DELETE CASCADE
+    );
   `);
 
   // Run migrations for columns added after initial schema
