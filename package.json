@@ -27,7 +27,8 @@
     "playwright": "^1.58.2",
     "react-cytoscapejs": "^2.0.0",
     "reactflow": "^11.11.4",
-    "recharts": "^3.7.0"
+    "recharts": "^3.7.0",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
