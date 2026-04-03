@@ -9,6 +9,7 @@ import * as portalCreds from './portal-credentials.js';
 import { syncPortal } from './portal-sync.js';
 import { getBoneHealthData, getBoneHealthMetrics, getBoneHealthActions } from './bone-health.js';
 import * as radiology from './radiology.js';
+import * as fhirAuth from './fhir-auth.js';
 
 const app = express();
 const PORT = 3000;
@@ -30,6 +31,10 @@ app.use(cookieParser());
 
 // Initialize database before setting up routes
 init();
+
+// ============================================================================
+// Core Routes
+// ============================================================================
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -1194,6 +1199,139 @@ app.get('/api/radiology/studies/:id/volume', requireAuth, (req, res) => {
 
 // Initialize database
 init();
+
+// ============================================================================
+// FHIR OAuth2 Authentication Routes
+// ============================================================================
+
+/**
+ * POST /api/fhir/auth/init
+ * Initialize OAuth flow for a FHIR server
+ * Body: { credentialId, fhirServerUrl, clientId, redirectUri }
+ * Returns: { authorizationUrl, codeVerifier, state }
+ */
+app.post('/api/fhir/auth/init', requireAuth, (req, res) => {
+  try {
+    const { credentialId, fhirServerUrl, clientId, redirectUri } = req.body;
+    
+    if (!credentialId || !fhirServerUrl || !clientId || !redirectUri) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const result = fhirAuth.initAuthFlow(credentialId, fhirServerUrl, clientId, redirectUri);
+    
+    res.json({
+      authorizationUrl: result.authorizationUrl,
+      codeVerifier: result.codeVerifier,
+      state: result.state
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/fhir/auth/callback
+ * Handle OAuth callback from FHIR server
+ * Query: { code, state, credentialId }
+ * (client must send codeVerifier, fhirServerUrl, clientId, clientSecret, redirectUri in body or store locally)
+ */
+app.get('/api/fhir/auth/callback', requireAuth, (req, res) => {
+  try {
+    // In a real app, you'd retrieve these from a session store keyed by state
+    // For now, expect them to be sent as query params (INSECURE - for testing only)
+    const { code, state, credentialId } = req.query;
+    
+    if (!code || !state || !credentialId) {
+      return res.status(400).json({ error: 'Missing code, state, or credentialId' });
+    }
+
+    // TODO: Verify state matches stored state for CSRF protection
+    // TODO: Retrieve codeVerifier, fhirServerUrl, clientId, clientSecret from secure session store
+    // For now, return instructions
+    res.json({
+      status: 'callback-received',
+      message: 'Callback handling requires secure session storage (Redis/JWT)',
+      code,
+      credentialId
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/fhir/token/refresh
+ * Refresh FHIR access token
+ * Body: { credentialId }
+ * Returns: { accessToken, expiresIn }
+ */
+app.post('/api/fhir/token/refresh', requireAuth, async (req, res) => {
+  try {
+    const { credentialId } = req.body;
+    
+    if (!credentialId) {
+      return res.status(400).json({ error: 'credentialId required' });
+    }
+
+    const result = await fhirAuth.refreshFHIRToken(credentialId);
+    
+    res.json({
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn,
+      refreshedAt: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/fhir/status
+ * Get FHIR auth status for a credential
+ * Query: { credentialId }
+ * Returns: { service, status, expiresAt, isExpired }
+ */
+app.get('/api/fhir/status', requireAuth, (req, res) => {
+  try {
+    const { credentialId } = req.query;
+    
+    if (!credentialId) {
+      return res.status(400).json({ error: 'credentialId required' });
+    }
+
+    const status = fhirAuth.getAuthStatus(credentialId);
+    
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/fhir/token/validate
+ * Check if token is valid and refresh if needed
+ * Body: { credentialId }
+ * Returns: { accessToken, expiresIn }
+ */
+app.post('/api/fhir/token/validate', requireAuth, async (req, res) => {
+  try {
+    const { credentialId } = req.body;
+    
+    if (!credentialId) {
+      return res.status(400).json({ error: 'credentialId required' });
+    }
+
+    const result = await fhirAuth.ensureValidToken(credentialId);
+    
+    res.json({
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
