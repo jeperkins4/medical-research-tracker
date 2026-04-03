@@ -1,0 +1,807 @@
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+
+// ── Playwright browser path ────────────────────────────────────────────────
+// Must be set BEFORE playwright is required anywhere.
+// Points browsers to user data dir (writable, outside the app bundle).
+// This avoids bundling Chromium in the DMG and codesign failures on locale.pak files.
+{
+  const userDataPath = app.getPath('userData');
+  const browsersPath = path.join(userDataPath, 'browsers');
+  if (!fs.existsSync(browsersPath)) fs.mkdirSync(browsersPath, { recursive: true });
+  process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
+}
+
+// Load .env — works in dev mode and from extraResources in packaged app
+try {
+  const dotenv = require('dotenv');
+  const envPaths = [
+    path.join(__dirname, '../.env'),                  // dev: project root
+    path.join(process.resourcesPath || '', '.env'),   // packaged: extraResources
+    path.join(app.getPath('userData'), '.env'),        // user-writable config
+  ];
+  for (const p of envPaths) {
+    if (fs.existsSync(p)) { dotenv.config({ path: p }); break; }
+  }
+} catch {}
+const db = require('./db-ipc.cjs');
+const vault = require('./vault-ipc.cjs');
+const { initializeAnalyticsJob, stopAnalyticsJob } = require('./analytics-job.cjs');
+// Use app.isPackaged (not NODE_ENV) — .env bundled in extraResources sets NODE_ENV=development
+// which would cause the packaged app to load localhost:5173 instead of its own UI.
+const isDev = !app.isPackaged;
+
+let mainWindow;
+let currentUserId = null;
+let currentSessionPassword = null; // In-memory only, cleared on logout
+const VITE_PORT = 5173;
+
+// Get or generate app secrets
+function getAppSecrets() {
+  const userDataPath = app.getPath('userData');
+  const secretsPath = path.join(userDataPath, '.app-secrets.json');
+  
+  // Try to load existing secrets
+  if (fs.existsSync(secretsPath)) {
+    try {
+      const secrets = JSON.parse(fs.readFileSync(secretsPath, 'utf8'));
+      console.log('[Electron] Loaded existing app secrets');
+      return secrets;
+    } catch (err) {
+      console.error('[Electron] Failed to load secrets, generating new ones:', err);
+    }
+  }
+  
+  // Generate new secrets
+  console.log('[Electron] Generating new app secrets');
+  const secrets = {
+    JWT_SECRET: crypto.randomBytes(64).toString('base64'),
+    DB_ENCRYPTION_KEY: crypto.randomBytes(32).toString('hex'),
+    BACKUP_ENCRYPTION_KEY: crypto.randomBytes(32).toString('hex')
+  };
+  
+  // Save for future runs
+  try {
+    fs.writeFileSync(secretsPath, JSON.stringify(secrets, null, 2), { mode: 0o600 });
+    console.log('[Electron] Saved app secrets to:', secretsPath);
+  } catch (err) {
+    console.error('[Electron] Failed to save secrets:', err);
+  }
+  
+  return secrets;
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
+    titleBarStyle: 'hiddenInset',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    },
+    icon: path.join(__dirname, '../build/icon.png')
+  });
+
+  // Remove menu bar
+  mainWindow.setMenuBarVisibility(false);
+
+  // Load the app
+  if (isDev) {
+    // Development: use Vite dev server
+    mainWindow.loadURL(`http://localhost:${VITE_PORT}`);
+    mainWindow.webContents.openDevTools();
+  } else {
+    // Production: load built files from the app resources
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+    
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('[Electron] Failed to load frontend:', err);
+      dialog.showErrorBox(
+        'Frontend Load Error',
+        `Failed to load UI: ${err.message}\n\nPath: ${indexPath}`
+      );
+    });
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// Initialize database
+function initializeDatabase() {
+  const userDataPath = app.getPath('userData');
+  console.log('[Electron] Initializing database at:', userDataPath);
+  
+  try {
+    db.initDatabase(userDataPath);
+    console.log('[Electron] Database initialized successfully');
+    return true;
+  } catch (err) {
+    console.error('[Electron] Database initialization failed:', err);
+
+    // Detect native module ABI mismatch (NODE_MODULE_VERSION conflict)
+    const isABIMismatch = err.message && (
+      err.message.includes('NODE_MODULE_VERSION') ||
+      err.message.includes('was compiled against a different') ||
+      err.message.includes('please try re-compiling')
+    );
+
+    if (isABIMismatch) {
+      dialog.showErrorBox(
+        'Native Module Version Mismatch',
+        `MyTreatmentPath needs to update a system component before it can start.\n\n` +
+        `This is a one-time fix. Please:\n\n` +
+        `1. Download the latest version from:\n` +
+        `   https://github.com/jeperkins4/medical-research-tracker/releases\n\n` +
+        `2. Replace the existing app and relaunch.\n\n` +
+        `Technical detail: ${err.message}`
+      );
+    } else {
+      dialog.showErrorBox(
+        'Database Error',
+        `Failed to initialize database: ${err.message}`
+      );
+    }
+    return false;
+  }
+}
+
+// App lifecycle
+app.whenReady().then(async () => {
+  if (!initializeDatabase()) {
+    app.quit();
+    return;
+  }
+
+  createWindow();
+
+  // Start analytics aggregation job (startup + every 6h)
+  try {
+    await initializeAnalyticsJob();
+  } catch (err) {
+    console.error('[Electron] Failed to initialize analytics job:', err.message);
+    // Non-fatal — app continues
+  }
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  db.closeDatabase();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  stopAnalyticsJob();
+  db.closeDatabase();
+});
+
+// IPC handlers
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
+});
+
+ipcMain.handle('get-app-path', () => {
+  return app.getPath('userData');
+});
+
+// Database IPC handlers
+ipcMain.handle('db:needs-setup', () => {
+  return db.needsSetup();
+});
+
+ipcMain.handle('db:create-user', async (event, username, password) => {
+  const result = db.createUser(username, password);
+  if (result.success) {
+    currentUserId = result.userId;
+    currentSessionPassword = password; // Store for vault auto-unlock retries
+    const unlockResult = vault.autoUnlockVault(password);
+    console.log('[Main] Vault auto-unlock on create-user:', unlockResult);
+  }
+  return result;
+});
+
+ipcMain.handle('db:verify-user', async (event, username, password) => {
+  const result = db.verifyUser(username, password);
+  if (result.success) {
+    currentUserId = result.userId;
+    currentSessionPassword = password; // Store for vault auto-unlock retries
+    const unlockResult = vault.autoUnlockVault(password);
+    console.log('[Main] Vault auto-unlock on verify-user:', unlockResult);
+  }
+  return result;
+});
+
+ipcMain.handle('db:get-profile', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getProfile(currentUserId);
+});
+
+ipcMain.handle('db:update-profile', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.updateProfile(currentUserId, data);
+});
+
+ipcMain.handle('db:get-conditions', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getConditions(currentUserId);
+});
+
+ipcMain.handle('db:add-condition', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addCondition(currentUserId, data);
+});
+
+ipcMain.handle('db:get-medications', () => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getMedications(currentUserId);
+});
+
+ipcMain.handle('db:add-medication', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addMedication(currentUserId, data);
+});
+
+ipcMain.handle('db:update-medication', (event, id, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.updateMedication(id, data);
+});
+
+ipcMain.handle('db:delete-medication', (event, id) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.deleteMedication(id);
+});
+
+ipcMain.handle('db:get-medication-research', (event, medicationId) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getMedicationResearch(medicationId);
+});
+
+ipcMain.handle('db:add-medication-research', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addMedicationResearch(data);
+});
+
+ipcMain.handle('db:delete-medication-research', (event, id) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.deleteMedicationResearch(id);
+});
+
+ipcMain.handle('db:get-vitals', (event, limit) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.getVitals(currentUserId, limit || 10);
+});
+
+ipcMain.handle('db:add-vitals', (event, data) => {
+  if (!currentUserId) return { success: false, error: 'Not authenticated' };
+  return db.addVitals(currentUserId, data);
+});
+
+ipcMain.handle('db:logout', () => {
+  currentUserId = null;
+  currentSessionPassword = null; // Clear session password
+  vault.lockVault();             // Lock vault on logout
+  return { success: true };
+});
+
+// Vault IPC handlers
+ipcMain.handle('vault:status', () => {
+  return vault.getVaultStatus();
+});
+
+ipcMain.handle('vault:setup', async (event, password) => {
+  return vault.setupMasterPassword(password);
+});
+
+ipcMain.handle('vault:unlock', async (event, password) => {
+  return vault.unlockVault(password);
+});
+
+ipcMain.handle('vault:lock', () => {
+  return vault.lockVault();
+});
+
+ipcMain.handle('vault:get-credentials', () => {
+  // If vault is locked but we have a session password, try to auto-unlock first
+  if (!vault.isVaultUnlocked() && currentSessionPassword) {
+    console.log('[Main] vault:get-credentials — vault locked, attempting auto-unlock with session password');
+    const unlockResult = vault.autoUnlockVault(currentSessionPassword);
+    console.log('[Main] Retry auto-unlock result:', unlockResult);
+  }
+  return vault.getPortalCredentials();
+});
+
+ipcMain.handle('vault:save-credential', (event, data) => {
+  return vault.savePortalCredential(data);
+});
+
+ipcMain.handle('vault:delete-credential', (event, id) => {
+  return vault.deletePortalCredential(id);
+});
+
+// Portal sync IPC handlers
+const portalSync = require('./portal-sync-ipc.cjs');
+
+// Ensure Playwright Chromium is installed before syncing
+async function ensurePlaywrightBrowser() {
+  const { execFile } = require('child_process');
+  const { promisify } = require('util');
+  const execFileAsync = promisify(execFile);
+  try {
+    const { chromium } = require('playwright');
+    chromium.executablePath(); // throws if not installed
+    console.log('[Playwright] Browser already installed');
+  } catch {
+    console.log('[Playwright] Installing Chromium browser...');
+    try {
+      await execFileAsync(process.execPath, [
+        path.join(__dirname, '../node_modules/playwright/cli.js'),
+        'install', 'chromium'
+      ], { env: { ...process.env }, timeout: 120000 });
+      console.log('[Playwright] Chromium installed successfully');
+    } catch (e) {
+      console.error('[Playwright] Install failed:', e.message);
+      throw new Error('Chromium browser could not be installed. Check your internet connection.');
+    }
+  }
+}
+
+ipcMain.handle('portal:sync', async (event, credentialId) => {
+  try {
+    await ensurePlaywrightBrowser();
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    const result = await portalSync.syncPortal(credentialId, dbPath);
+    return result;
+  } catch (error) {
+    console.error('[Electron] Portal sync error:', error);
+    return {
+      success: false,
+      recordsImported: 0,
+      summary: {
+        connector: 'Portal Sync',
+        status: 'Failed',
+        message: error.message,
+        details: {},
+        errors: [error.message]
+      }
+    };
+  }
+});
+
+// AI-powered genomic report parser (lazy-loaded to prevent startup crash if module fails)
+ipcMain.handle('genomics:parse-foundation-one', async (event, filePath) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { success: false, error: 'ANTHROPIC_API_KEY not configured. Add it to your .env file.' };
+    }
+    const { parseGenomicReportWithAI } = require('./ai-genomics-parser.cjs');
+    const result = await parseGenomicReportWithAI(filePath, apiKey);
+    return {
+      success:      true,
+      mutations:    result.mutations,
+      reportSource: result.reportSource,
+      reportDate:   result.mutations[0]?.report_date || new Date().toISOString().split('T')[0],
+      rawTextLen:   result.rawText.length,
+    };
+  } catch (err) {
+    console.error('[Main] AI genomic parse failed:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('genomics:import-mutations', (event, mutations, replaceExisting) => {
+  return db.importFoundationOneMutations(mutations, replaceExisting || false);
+});
+
+// ── Analytics dashboard ───────────────────────────────────────────────────
+
+ipcMain.handle('analytics:dashboard', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, message: 'Database not ready' };
+
+    const run = (sql, params = []) => {
+      try { return db_.prepare(sql).all(...(params || [])); } catch { return []; }
+    };
+    const get1 = (sql, params = []) => {
+      try { return db_.prepare(sql).get(...(params || [])); } catch { return null; }
+    };
+
+    // ── User Metrics (derived from real tables) ───────────────────────────
+    const condCount    = get1(`SELECT COUNT(*) as c FROM conditions`)?.c || 0;
+    const medCount     = get1(`SELECT COUNT(*) as c FROM medications`)?.c || 0;
+    const labCount     = get1(`SELECT COUNT(*) as c FROM test_results`)?.c || 0;
+    const vitalsCount  = get1(`SELECT COUNT(*) as c FROM vitals`)?.c || 0;
+    const mutCount     = get1(`SELECT COUNT(*) as c FROM genomic_mutations`)?.c || 0;
+    const paperCount   = get1(`SELECT COUNT(*) as c FROM papers`)?.c || 0;
+    const latestVital  = get1(`SELECT date FROM vitals ORDER BY date DESC LIMIT 1`);
+    const latestLab    = get1(`SELECT date FROM test_results ORDER BY date DESC LIMIT 1`);
+
+    const userMetrics = {
+      total_conditions:  condCount,
+      total_medications: medCount,
+      total_lab_results: labCount,
+      total_vitals:      vitalsCount,
+      total_mutations:   mutCount,
+      total_papers:      paperCount,
+      last_lab_date:     latestLab?.date || null,
+      last_vital_date:   latestVital?.date || null,
+      metric_date:       new Date().toISOString().slice(0, 10),
+    };
+
+    // ── Diagnoses (from conditions) ───────────────────────────────────────
+    const diagnoses = run(`
+      SELECT name as diagnosis_name, status, diagnosed_date,
+             1 as patient_count
+      FROM conditions
+      ORDER BY diagnosed_date DESC
+    `);
+
+    // ── Mutations (from genomic_mutations) ────────────────────────────────
+    const mutations = run(`
+      SELECT gene as gene_name,
+             variant_type,
+             pathogenicity,
+             protein_change,
+             1 as patient_count
+      FROM genomic_mutations
+      ORDER BY gene_name ASC
+    `);
+
+    // ── Treatments (from medications) ─────────────────────────────────────
+    const treatments = run(`
+      SELECT name as treatment_name,
+             dosage,
+             frequency,
+             started_date,
+             stopped_date,
+             CASE WHEN stopped_date IS NULL THEN 'active' ELSE 'stopped' END as status,
+             1 as patient_count
+      FROM medications
+      ORDER BY CASE WHEN stopped_date IS NULL THEN 0 ELSE 1 END, started_date DESC
+    `);
+
+    // ── Lab Trends (last 12 readings of key markers) ──────────────────────
+    const labTrends = {};
+    const keyMarkers = [
+      { key: 'psa',      patterns: ['PSA', '%Prostate%'] },
+      { key: 'alkPhos',  patterns: ['%Alk%Phos%', '%Alkaline%Phosphatase%'] },
+      { key: 'creatinine', patterns: ['Creatinine'] },
+      { key: 'wbc',      patterns: ['WBC', '%White Blood%'] },
+      { key: 'hemoglobin', patterns: ['Hemoglobin', 'Hgb'] },
+    ];
+    for (const { key, patterns } of keyMarkers) {
+      const whereClauses = patterns.map(() => `test_name LIKE ?`).join(' OR ');
+      const rows = run(
+        `SELECT date, result FROM test_results WHERE (${whereClauses})
+         AND result IS NOT NULL ORDER BY date ASC LIMIT 24`,
+        patterns
+      );
+      if (rows.length > 0) labTrends[key] = rows;
+    }
+
+    // ── Vitals Trends ─────────────────────────────────────────────────────
+    const vitalsTrend = run(`
+      SELECT date, weight_lbs, systolic, diastolic, heart_rate, pain_level
+      FROM vitals ORDER BY date ASC LIMIT 30
+    `);
+
+    return {
+      enabled: true,
+      userMetrics,
+      diagnoses,
+      mutations,
+      treatments,
+      demographics: [],   // single-user app
+      labTrends,
+      vitalsTrend,
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch (err) {
+    console.error('[Main] analytics:dashboard failed:', err.message);
+    return { error: err.message };
+  }
+});
+
+// ── Organ Health IPC (kidney, liver, lung, bone) ──────────────────────────
+
+ipcMain.handle('organ-health:kidney', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getKidneyHealthData } = require('./organ-health-ipc.cjs');
+    return getKidneyHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:kidney failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:liver', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getLiverHealthData } = require('./organ-health-ipc.cjs');
+    return getLiverHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:liver failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:lung', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getLungHealthData } = require('./organ-health-ipc.cjs');
+    return getLungHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:lung failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+ipcMain.handle('organ-health:bone', (_event) => {
+  try {
+    const db_ = db._rawDb();
+    if (!db_) return { enabled: false, error: 'Database not ready' };
+    const run = (sql, params = []) => { try { return db_.prepare(sql).all(...(params || [])); } catch { return []; } };
+    const { getBoneHealthData } = require('./organ-health-ipc.cjs');
+    return getBoneHealthData(run);
+  } catch (err) {
+    console.error('[Main] organ-health:bone failed:', err.message);
+    return { enabled: false, error: err.message };
+  }
+});
+
+// ── AI Analysis (healthcare summary + meal analysis) ──────────────────────
+// Lazy-loaded so startup never fails if the module has an issue.
+
+ipcMain.handle('ai:healthcare-summary', async (_event) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { error: 'ANTHROPIC_API_KEY not configured', message: 'Add ANTHROPIC_API_KEY to your .env file.' };
+    }
+    const { generateHealthcareSummary } = require('./ai-analysis-ipc.cjs');
+    return await generateHealthcareSummary(apiKey);
+  } catch (err) {
+    console.error('[Main] ai:healthcare-summary failed:', err.message);
+    return { error: err.message };
+  }
+});
+
+ipcMain.handle('ai:analyze-meal', async (_event, mealDescription, mealData = {}) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return { error: 'ANTHROPIC_API_KEY not configured', message: 'Add ANTHROPIC_API_KEY to your .env file.' };
+    }
+    const { analyzeMeal } = require('./ai-analysis-ipc.cjs');
+    return await analyzeMeal(apiKey, mealDescription, mealData);
+  } catch (err) {
+    console.error('[Main] ai:analyze-meal failed:', err.message);
+    return { error: err.message };
+  }
+});
+
+// Print-to-PDF (for Healthcare Strategy Summary and any printable content)
+ipcMain.handle('dialog:save-pdf', async (event, htmlContent, filename) => {
+  try {
+    const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+      title:       'Save as PDF',
+      defaultPath: filename || 'HealthcareStrategySummary.pdf',
+      filters:     [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    // Create a hidden window, load the HTML, then print to PDF
+    const pdfWin = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+
+    await pdfWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+
+    const pdfBuffer = await pdfWin.webContents.printToPDF({
+      marginsType:        1,          // 1 = minimum margins
+      pageSize:           'Letter',
+      printBackground:    true,
+      printSelectionOnly: false,
+      landscape:          false,
+    });
+
+    pdfWin.destroy();
+
+    const fs = require('fs');
+    fs.writeFileSync(filePath, pdfBuffer);
+
+    return { success: true, filePath };
+  } catch (err) {
+    console.error('[Main] dialog:save-pdf failed:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+// File dialog for report upload
+ipcMain.handle('dialog:open-file', async (event, options) => {
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(mainWindow, options || {
+    title: 'Open Foundation One Report',
+    filters: [{ name: 'PDF Files', extensions: ['pdf'] }],
+    properties: ['openFile'],
+  });
+  return result;
+});
+
+// Subscription IPC handlers
+
+// Genomics IPC handlers (authentication gated at UI login, not IPC level)
+ipcMain.handle('genomics:get-dashboard', () => {
+  return db.getGenomicDashboard();
+});
+
+ipcMain.handle('genomics:get-mutation', (event, mutationId) => {
+  return db.getMutationDetails(mutationId);
+});
+
+ipcMain.handle('genomics:add-mutation', (event, data) => {
+  return db.addGenomicMutation(data);
+});
+
+ipcMain.handle('genomics:add-therapy', (event, data) => {
+  return db.addMutationTherapy(data);
+});
+
+// Genomics: clinical trials linked to mutations
+ipcMain.handle('genomics:get-clinical-trials', () => {
+  return db.getClinicalTrialsForMutations();
+});
+
+// Lab Results: get all test results
+ipcMain.handle('labs:get-results', () => {
+  return db.getTestResults();
+});
+
+// Lab Results: import parsed results
+ipcMain.handle('labs:import-results', (event, results, replaceExisting) => {
+  return db.importLabResults(results, replaceExisting || false);
+});
+
+// Lab Results: parse PDF with Claude AI
+ipcMain.handle('labs:parse-pdf', async (event, filePath) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) return { success: false, error: 'ANTHROPIC_API_KEY not configured' };
+    const { parseLabReportWithAI } = require('./lab-pdf-parser.cjs');
+    const result = await parseLabReportWithAI(filePath, apiKey);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Lab parse error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ── Medical Documents (Radiology + Doctor's Notes) ────────────────────────
+ipcMain.handle('docs:parse-document', async (event, filePath, docType) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) return { success: false, error: 'ANTHROPIC_API_KEY not configured' };
+    const { parseMedicalDocumentWithAI } = require('./medical-doc-parser.cjs');
+    const result = await parseMedicalDocumentWithAI(filePath, docType, apiKey);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Medical doc parse error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('docs:save-document', (event, data) => {
+  try {
+    const { addMedicalDocument } = require('./db-ipc.cjs');
+    return addMedicalDocument(data);
+  } catch (error) {
+    console.error('[Electron] Save document error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('docs:get-documents', (event, docType) => {
+  try {
+    const { getMedicalDocuments } = require('./db-ipc.cjs');
+    const docs = getMedicalDocuments(docType || null);
+    return { success: true, documents: docs };
+  } catch (error) {
+    console.error('[Electron] Get documents error:', error);
+    return { success: false, error: error.message, documents: [] };
+  }
+});
+
+ipcMain.handle('docs:delete-document', (event, id) => {
+  try {
+    const { deleteMedicalDocument } = require('./db-ipc.cjs');
+    return deleteMedicalDocument(id);
+  } catch (error) {
+    console.error('[Electron] Delete document error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('docs:update-markers', (event, id, markers) => {
+  try {
+    const { updateMedicalDocumentMarkers } = require('./db-ipc.cjs');
+    return updateMedicalDocumentMarkers(id, markers);
+  } catch (error) {
+    console.error('[Electron] Update markers error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Genomics: mutation-drug-pathway network (Electron IPC mode for Network tab)
+ipcMain.handle('genomics:get-mutation-network', () => {
+  try {
+    const { buildMutationNetwork } = require('./genomics-network-ipc.cjs');
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    return buildMutationNetwork(dbPath);
+  } catch (error) {
+    console.error('[Electron] Network build error:', error);
+    return { nodes: [], edges: [], error: error.message };
+  }
+});
+
+// Genomics: search clinical trials for a list of mutations
+ipcMain.handle('genomics:search-trials', async (event, mutations) => {
+  try {
+    const { searchTrialsForMutations } = require('./genomics-trials-search.cjs');
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'data', 'health-secure.db');
+    const braveApiKey = process.env.BRAVE_API_KEY || null;
+    const result = await searchTrialsForMutations(mutations, dbPath, braveApiKey);
+    console.log(`[Electron] Trial search complete: ${result.trialsFound} trials for ${result.mutationsSearched} genes`);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[Electron] Trial search error:', error);
+    return { success: false, error: error.message, trialsFound: 0, mutationsSearched: 0 };
+  }
+});
+
+// ─── Exercise & Pain Tracker IPC ──────────────────────────────────────────────
+const trackerIpc = require('./tracker-ipc.cjs');
+
+ipcMain.handle('tracker:exercise:get',        (_e, opts)    => trackerIpc.getExerciseLogs(app, opts));
+ipcMain.handle('tracker:exercise:add',        (_e, data)    => trackerIpc.addExerciseLog(app, data));
+ipcMain.handle('tracker:exercise:update',     (_e, id, d)   => trackerIpc.updateExerciseLog(app, id, d));
+ipcMain.handle('tracker:exercise:delete',     (_e, id)      => trackerIpc.deleteExerciseLog(app, id));
+ipcMain.handle('tracker:exercise:stats',      (_e)          => trackerIpc.getExerciseStats(app));
+ipcMain.handle('tracker:pain:get',            (_e, opts)    => trackerIpc.getPainLogs(app, opts));
+ipcMain.handle('tracker:pain:add',            (_e, data)    => trackerIpc.addPainLog(app, data));
+ipcMain.handle('tracker:pain:update',         (_e, id, d)   => trackerIpc.updatePainLog(app, id, d));
+ipcMain.handle('tracker:pain:delete',         (_e, id)      => trackerIpc.deletePainLog(app, id));
+ipcMain.handle('tracker:pain:stats',          (_e)          => trackerIpc.getPainStats(app));
+
+// Error handling
+process.on('uncaughtException', (error) => {
+  console.error('[Electron] Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('[Electron] Unhandled rejection:', error);
+});

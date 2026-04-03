@@ -14,7 +14,7 @@
     "electron:dev": "concurrently -k \"cross-env NODE_ENV=development npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && node build-server.js && electron-builder",
     "electron:build:mac": "npm run build && node build-server.js && electron-builder --mac",
-    "postinstall": "npx @electron/rebuild -f -m ./node_modules/sqlite3"
+    "postinstall": "echo 'postinstall: dependencies installed'"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -22,6 +22,7 @@
     "@mui/icons-material": "^7.3.8",
     "@mui/material": "^7.3.8",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "cytoscape": "^3.33.1",
@@ -32,7 +33,6 @@
     "react-cytoscapejs": "^2.0.0",
     "reactflow": "^11.11.4",
     "recharts": "^3.7.0",
-    "sqlite3": "^6.0.1",
     "three": "^0.183.2"
   },
   "devDependencies": {

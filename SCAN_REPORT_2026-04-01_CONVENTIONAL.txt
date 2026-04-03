@@ -1,0 +1,154 @@
+═══════════════════════════════════════════════════════════════════════════════
+  MEDICAL RESEARCH SCANNER - CONVENTIONAL TREATMENTS REPORT
+  Date: Wednesday, April 1, 2026 | 2:00 AM EST (2026-04-01 06:00 UTC)
+═══════════════════════════════════════════════════════════════════════════════
+
+CATEGORY: Conventional Immunotherapy for Bladder Cancer (Urothelial Carcinoma)
+
+SEARCHES COMPLETED: 3
+  ✓ Search 1: "Keytruda pembrolizumab bladder cancer"
+  ✓ Search 2: "Padcev enfortumab vedotin urothelial cancer"  
+  ✓ Search 3: "pembrolizumab enfortumab combination bladder"
+
+ARTICLES PROCESSED: 15 total | All 15 inserted (score > 0)
+
+DATABASE LOCATION: /Users/perkins/.openclaw/workspace/medical-research-tracker/data/health.db
+TABLE: news_feed (title, url, snippet, source, published_date, search_term, relevance_score)
+
+───────────────────────────────────────────────────────────────────────────────
+BREAKDOWN BY SEARCH TERM
+───────────────────────────────────────────────────────────────────────────────
+
+Search 1: "Keytruda pembrolizumab bladder cancer"
+  Articles Found: 5
+  New Articles Added: 5
+  Average Relevance Score: 4.3/10
+  Status: FDA-approved single-agent & combination therapy
+
+Search 2: "Padcev enfortumab vedotin urothelial cancer"
+  Articles Found: 5
+  New Articles Added: 5
+  Average Relevance Score: 5.0/10
+  Status: ADC agent approved, breakthrough designation
+
+Search 3: "pembrolizumab enfortumab combination bladder"
+  Articles Found: 5
+  New Articles Added: 5
+  Average Relevance Score: 5.9/10
+  Status: Standard of care for treatment-naïve advanced disease
+
+───────────────────────────────────────────────────────────────────────────────
+TOP FINDINGS (Highest Relevance Scores)
+───────────────────────────────────────────────────────────────────────────────
+
+[Score 9] Enfortumab vedotin plus pembrolizumab effective in patients with 
+          resectable bladder cancer
+          Source: www.nature.com
+          Finding: Improves outcomes of patients with advanced-stage bladder cancer
+
+[Score 8] KEYTRUDA plus Padcev Significantly Improved Event-Free and Overall 
+          Survival and Pathologic Complete Response Rate for Muscle-Invasive 
+          Bladder Cancer When Given Before and After Surgery
+          Source: www.merck.com | Published: August 12, 2025
+          Finding: Statistically significant improvement in EFS (perioperative setting)
+
+[Score 8] Bladder Cancer Therapy Enfortumab Vedotin (Padcev) Approved by FDA 
+          for More Patients
+          Source: www.mskcc.org | Published: December 15, 2025
+          Finding: New approval allows EV + pembrolizumab before/after surgery 
+                   to reduce recurrence risk
+
+[Score 8] Enfortumab vedotin and pembrolizumab: Redefining the Standard of 
+          Care for Previously Untreated Advanced Urothelial Cancer
+          Source: pmc.ncbi.nlm.nih.gov
+          Finding: Combination is now standard of care for treatment-naïve 
+                   locally advanced or metastatic UC
+
+[Score 8] Enfortumab Vedotin Plus Pembrolizumab in Previously Untreated 
+          Advanced Urothelial Cancer
+          Source: www.nejm.org
+          Finding: Survival benefit over platinum-based chemotherapy in 
+                   1L treatment (cisplatin-eligible & ineligible patients)
+
+───────────────────────────────────────────────────────────────────────────────
+CLINICAL SIGNIFICANCE
+───────────────────────────────────────────────────────────────────────────────
+
+✓ KEYTRUDA (Pembrolizumab)
+  - FDA-approved for NMIBC and advanced/metastatic urothelial cancer
+  - Mechanism: PD-1 checkpoint inhibitor
+  - Used: Single agent or combination with enfortumab vedotin
+  - Role in ARID1A-deficient disease: Potential benefit from immunotherapy
+
+✓ PADCEV (Enfortumab Vedotin)
+  - FDA-approved antibody-drug conjugate (ADC)
+  - Target: Nectin-4
+  - FDA Breakthrough Designation: Yes (in combination)
+  - Mechanism: Antibody-drug conjugate targeting nectin-4 on bladder cancer cells
+
+✓ COMBINATION (Pembrolizumab + Enfortumab Vedotin)
+  - NEW STANDARD OF CARE for treatment-naïve advanced/metastatic UC
+  - Recent approvals: 2023 (initial), 2025 (perioperative)
+  - Phase 3 data shows: Superior OS vs platinum-based chemotherapy
+  - Applicable to: Cisplatin-eligible AND cisplatin-ineligible patients
+  - Setting: 1L advanced disease + muscle-invasive (perioperative)
+
+───────────────────────────────────────────────────────────────────────────────
+PERSONALIZED RELEVANCE FOR JOHN
+───────────────────────────────────────────────────────────────────────────────
+
+Disease Profile:
+  - Bladder cancer (ARID1A-deficient, FGFR3 mutation, PIK3CA activation)
+  - High-risk metastatic disease
+  - Requires precision medicine approach
+
+Key Takeaways:
+  1. Pembrolizumab + Enfortumab Vedotin is current standard of care for 
+     treatment-naïve advanced/metastatic urothelial cancer
+  
+  2. Combination shows superior overall survival vs traditional platinum-based 
+     chemotherapy in multiple phases (1L, perioperative)
+  
+  3. Recent FDA approvals (2025): Perioperative use (before & after surgery)
+     for muscle-invasive disease with pathologic complete response benefit
+  
+  4. ARID1A-deficient tumors: May respond favorably to immunotherapy;
+     enfortumab vedotin targets nectin-4 (upregulated in some UC)
+  
+  5. Both cisplatin-eligible and ineligible patients benefit from combination
+  
+  6. Ongoing trials: EV-302/KN-A39 (1L unselected), EV-303/KN-905, 
+     EV-304/KN-B15 (muscle-invasive disease)
+
+Next Steps:
+  - Discuss current trial eligibility with oncology team
+  - Assess mutation profile vs specific trial protocols
+  - Consider genomic response prediction (if available)
+  - Timeline: Rapidly changing landscape (2025-2026 approvals)
+
+───────────────────────────────────────────────────────────────────────────────
+RESEARCH NOTES
+───────────────────────────────────────────────────────────────────────────────
+
+Relevance Scoring Methodology:
+  • High priority (+3): Phase 3, FDA approval, breakthrough, survival benefit
+  • Medium priority (+2): Phase 2, clinical trial, efficacy
+  • Conditions (+2): Bladder cancer, urothelial cancer
+  • Recency (+3 for 2025/2026; +1 for 2024)
+
+Sources Tracked:
+  - FDA/pharma websites (Keytruda.com, Padcev.com, Pfizer, Merck)
+  - Peer-reviewed journals (NEJM, JCO, Nature Reviews Oncology)
+  - Cancer research institutes (NCI, Memorial Sloan Kettering)
+  - PubMed/PMC databases
+
+───────────────────────────────────────────────────────────────────────────────
+SCAN COMPLETION
+───────────────────────────────────────────────────────────────────────────────
+
+Timestamp: 2026-04-01 06:00:00 UTC (2:00 AM EST)
+Database: health.db (updated, 15 new records)
+Integrity: All 15 articles with score > 0 inserted successfully
+Status: ✓ COMPLETE
+
+Next Scheduled Scan: Per cron job configuration

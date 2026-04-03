@@ -55,16 +55,13 @@ mac:
     - dmg
     - zip
   icon: build/icon.icns
-  hardenedRuntime: true
+  hardenedRuntime: false
   gatekeeperAssess: false
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  identity: "DA7B788C70B5FD6A1507950B3F31B7ACC32EDA1B"
-  notarize: true
-  timestamp: "http://timestamp.apple.com/ts01"
+  identity: null
+  sign: false
 
 dmg:
-  sign: true
+  sign: false
   title: MyTreatmentPath ${version}
   
 win:

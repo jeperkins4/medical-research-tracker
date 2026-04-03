@@ -28,8 +28,8 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Initialize database before starting server
-await init();
+// Initialize database before setting up routes
+init();
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -1192,6 +1192,10 @@ app.get('/api/radiology/studies/:id/volume', requireAuth, (req, res) => {
   }
 });
 
+// Initialize database
+init();
+
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏥 Medical Research Tracker API running on http://0.0.0.0:${PORT}`);
   console.log(`   Access from network at http://<your-mac-ip>:${PORT}`);

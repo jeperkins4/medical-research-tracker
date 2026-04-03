@@ -287,6 +287,14 @@ const initDb = () => {
     `ALTER TABLE portal_credentials ADD COLUMN sync_day_of_month INTEGER`,
     `ALTER TABLE portal_credentials ADD COLUMN auto_sync_on_open INTEGER DEFAULT 0`,
     `ALTER TABLE portal_credentials ADD COLUMN notify_on_sync INTEGER DEFAULT 1`,
+    // FHIR OAuth token storage
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_access_token TEXT`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_refresh_token TEXT`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_token_expires_at TEXT`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_token_type TEXT DEFAULT 'Bearer'`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_server_url TEXT`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_client_id TEXT`,
+    `ALTER TABLE portal_credentials ADD COLUMN fhir_auth_status TEXT DEFAULT 'not-authenticated'`,
   ];
 
   for (const migration of migrations) {
