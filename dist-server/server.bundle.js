@@ -19950,14 +19950,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto3.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22849,11 +22849,11 @@ var require_request = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" !== typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -22862,7 +22862,7 @@ var require_cookie_signature = __commonJS({
       return sha1(mac) == sha1(val) ? str2 : false;
     };
     function sha1(str2) {
-      return crypto3.createHash("sha1").update(str2).digest("hex");
+      return crypto4.createHash("sha1").update(str2).digest("hex");
     }
   }
 });
@@ -24111,11 +24111,11 @@ var require_lib3 = __commonJS({
 // node_modules/cookie-parser/node_modules/cookie-signature/index.js
 var require_cookie_signature2 = __commonJS({
   "node_modules/cookie-parser/node_modules/cookie-signature/index.js"(exports) {
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if ("string" != typeof secret) throw new TypeError("Secret string must be provided.");
-      return val + "." + crypto3.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Signed cookie string must be provided.");
@@ -24124,7 +24124,7 @@ var require_cookie_signature2 = __commonJS({
       return sha1(mac) == sha1(val) ? str2 : false;
     };
     function sha1(str2) {
-      return crypto3.createHash("sha1").update(str2).digest("hex");
+      return crypto4.createHash("sha1").update(str2).digest("hex");
     }
   }
 });
@@ -25243,14 +25243,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer2 = require_safe_buffer().Buffer;
-    var crypto3 = __require("crypto");
+    var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto3.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto4.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -25340,17 +25340,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto3.createHmac("sha" + bits, secret);
+        var hmac = crypto4.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto3 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto4 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto3.timingSafeEqual(a, b);
+      return crypto4.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -25367,7 +25367,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto3.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -25377,7 +25377,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto3.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -25386,11 +25386,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto3.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -25400,12 +25400,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto3.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto3.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto3.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -30772,13 +30772,13 @@ function __classPrivateFieldGet(receiver, state, kind, f) {
 
 // node_modules/openai/internal/utils/uuid.mjs
 var uuid4 = function() {
-  const { crypto: crypto3 } = globalThis;
-  if (crypto3?.randomUUID) {
-    uuid4 = crypto3.randomUUID.bind(crypto3);
-    return crypto3.randomUUID();
+  const { crypto: crypto4 } = globalThis;
+  if (crypto4?.randomUUID) {
+    uuid4 = crypto4.randomUUID.bind(crypto4);
+    return crypto4.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto3 ? () => crypto3.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto4 ? () => crypto4.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
@@ -39419,6 +39419,120 @@ function generateDemoVolume(studyId) {
   };
 }
 
+// server/fhir-auth.js
+import crypto3 from "crypto";
+var generatePKCEChallenge = () => {
+  const codeVerifier = crypto3.randomBytes(32).toString("base64url");
+  const codeChallenge = crypto3.createHash("sha256").update(codeVerifier).digest("base64url");
+  return { codeVerifier, codeChallenge };
+};
+var initAuthFlow = (credentialId, fhirServerUrl, clientId, redirectUri) => {
+  const { codeVerifier, codeChallenge } = generatePKCEChallenge();
+  const state = crypto3.randomBytes(16).toString("hex");
+  const authUrl = new URL(`${fhirServerUrl}/oauth2/authorize`);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", clientId);
+  authUrl.searchParams.set("redirect_uri", redirectUri);
+  authUrl.searchParams.set("scope", "launch/patient patient/*.read openid fhirUser offline_access");
+  authUrl.searchParams.set("state", state);
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  return {
+    authorizationUrl: authUrl.toString(),
+    codeVerifier,
+    state
+  };
+};
+var refreshFHIRToken = async (credentialId) => {
+  try {
+    const cred = query(
+      `SELECT fhir_refresh_token, fhir_server_url, fhir_client_id, fhir_client_secret 
+       FROM portal_credentials WHERE id = ?`,
+      [credentialId]
+    )[0];
+    if (!cred || !cred.fhir_refresh_token) {
+      throw new Error("No refresh token available");
+    }
+    const tokenUrl = `${cred.fhir_server_url}/oauth2/token`;
+    const response = await fetch(tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: cred.fhir_refresh_token,
+        client_id: cred.fhir_client_id,
+        client_secret: cred.fhir_client_secret
+      }).toString()
+    });
+    if (!response.ok) {
+      throw new Error(`Token refresh failed: ${response.status}`);
+    }
+    const tokenData = await response.json();
+    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1e3).toISOString();
+    run(
+      `UPDATE portal_credentials 
+       SET fhir_access_token = ?,
+           fhir_token_expires_at = ?,
+           updated_at = ?
+       WHERE id = ?`,
+      [
+        tokenData.access_token,
+        expiresAt,
+        (/* @__PURE__ */ new Date()).toISOString(),
+        credentialId
+      ]
+    );
+    return {
+      accessToken: tokenData.access_token,
+      expiresIn: tokenData.expires_in
+    };
+  } catch (error) {
+    run(
+      `UPDATE portal_credentials 
+       SET fhir_auth_status = ?, updated_at = ?
+       WHERE id = ?`,
+      ["token-refresh-failed", (/* @__PURE__ */ new Date()).toISOString(), credentialId]
+    );
+    throw error;
+  }
+};
+var ensureValidToken = async (credentialId) => {
+  const cred = query(
+    `SELECT fhir_access_token, fhir_token_expires_at FROM portal_credentials WHERE id = ?`,
+    [credentialId]
+  )[0];
+  if (!cred?.fhir_access_token) {
+    throw new Error("No FHIR token available");
+  }
+  const expiresAt = new Date(cred.fhir_token_expires_at);
+  const now = /* @__PURE__ */ new Date();
+  if (expiresAt.getTime() - now.getTime() < 5 * 60 * 1e3) {
+    return refreshFHIRToken(credentialId);
+  }
+  return {
+    accessToken: cred.fhir_access_token,
+    expiresIn: Math.floor((expiresAt.getTime() - now.getTime()) / 1e3)
+  };
+};
+var getAuthStatus = (credentialId) => {
+  const cred = query(
+    `SELECT fhir_auth_status, fhir_token_expires_at, service_name 
+     FROM portal_credentials WHERE id = ?`,
+    [credentialId]
+  )[0];
+  if (!cred) {
+    return { status: "not-found" };
+  }
+  return {
+    service: cred.service_name,
+    status: cred.fhir_auth_status,
+    expiresAt: cred.fhir_token_expires_at,
+    isExpired: cred.fhir_token_expires_at ? new Date(cred.fhir_token_expires_at) < /* @__PURE__ */ new Date() : true
+  };
+};
+
 // server/index.js
 var app = (0, import_express.default)();
 var PORT = 3e3;
@@ -39434,7 +39548,7 @@ app.use((0, import_cors.default)({
 }));
 app.use(import_express.default.json());
 app.use((0, import_cookie_parser.default)());
-await init();
+init();
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
 });
@@ -40429,6 +40543,82 @@ app.get("/api/radiology/studies/:id/volume", requireAuth, (req, res) => {
     const volume = generateDemoVolume(req.params.id);
     if (!volume) return res.status(404).json({ error: "Study not found" });
     res.json(volume);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+init();
+app.post("/api/fhir/auth/init", requireAuth, (req, res) => {
+  try {
+    const { credentialId, fhirServerUrl, clientId, redirectUri } = req.body;
+    if (!credentialId || !fhirServerUrl || !clientId || !redirectUri) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    const result = initAuthFlow(credentialId, fhirServerUrl, clientId, redirectUri);
+    res.json({
+      authorizationUrl: result.authorizationUrl,
+      codeVerifier: result.codeVerifier,
+      state: result.state
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/fhir/auth/callback", requireAuth, (req, res) => {
+  try {
+    const { code, state, credentialId } = req.query;
+    if (!code || !state || !credentialId) {
+      return res.status(400).json({ error: "Missing code, state, or credentialId" });
+    }
+    res.json({
+      status: "callback-received",
+      message: "Callback handling requires secure session storage (Redis/JWT)",
+      code,
+      credentialId
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/fhir/token/refresh", requireAuth, async (req, res) => {
+  try {
+    const { credentialId } = req.body;
+    if (!credentialId) {
+      return res.status(400).json({ error: "credentialId required" });
+    }
+    const result = await refreshFHIRToken(credentialId);
+    res.json({
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn,
+      refreshedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.get("/api/fhir/status", requireAuth, (req, res) => {
+  try {
+    const { credentialId } = req.query;
+    if (!credentialId) {
+      return res.status(400).json({ error: "credentialId required" });
+    }
+    const status = getAuthStatus(credentialId);
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.post("/api/fhir/token/validate", requireAuth, async (req, res) => {
+  try {
+    const { credentialId } = req.body;
+    if (!credentialId) {
+      return res.status(400).json({ error: "credentialId required" });
+    }
+    const result = await ensureValidToken(credentialId);
+    res.json({
+      accessToken: result.accessToken,
+      expiresIn: result.expiresIn
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

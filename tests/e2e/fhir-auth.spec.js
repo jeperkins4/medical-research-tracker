@@ -9,10 +9,33 @@ test.describe('FHIR OAuth2 Authentication', () => {
   let authToken;
   let credentialId;
 
-  test.beforeAll(async () => {
+  test.beforeEach(async ({ request }) => {
     // Setup: login first (auth required for FHIR routes)
-    // In a real scenario, we'd set up a test user
-    // For now, this is a placeholder
+    // Ensure a test user exists
+    const setupRes = await request.post('/api/auth/setup', {
+      data: {
+        username: 'testuser',
+        password: 'testpass123'
+      }
+    });
+    
+    // If setup fails (user already exists), login instead
+    if (!setupRes.ok()) {
+      const loginRes = await request.post('/api/auth/login', {
+        data: {
+          username: 'testuser',
+          password: 'testpass123'
+        }
+      });
+      
+      if (loginRes.ok()) {
+        const loginData = await loginRes.json();
+        authToken = loginData.token; // Store for context if needed
+      }
+    } else {
+      const setupData = await setupRes.json();
+      authToken = setupData.token; // Store for context if needed
+    }
   });
 
   test('POST /api/fhir/auth/init should initiate OAuth flow', async ({ request }) => {
