@@ -53,6 +53,7 @@ mac:
   category: public.app-category.medical
   target:
     - zip
+    - dmg
   icon: build/icon.icns
   hardenedRuntime: false
   gatekeeperAssess: false
