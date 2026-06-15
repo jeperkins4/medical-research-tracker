@@ -1,5 +1,5 @@
 import { getCredential, updateSyncStatus } from './portal-credentials.js';
-import { query, run } from './db.js';
+import { query, run } from './db-secure.js';
 import { syncCareSpace } from './connectors/carespace.js';
 
 /**

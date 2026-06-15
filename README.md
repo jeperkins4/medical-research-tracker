@@ -1,4 +1,9 @@
-# Medical Research Tracker
+# Medical Research Tracker - Desktop App
+
+**Electron desktop application** for personal health tracking and medical research discovery.
+
+> **🌐 Marketing Website:** See [mytreatmentpath-landing](https://github.com/jeperkins4/mytreatmentpath-landing) repo  
+> **📥 Download App:** See [Releases](https://github.com/jeperkins4/medical-research-tracker/releases)
 
 Personal health records and medical research discovery tool. Track conditions, discover relevant research papers, find clinical trials, and evaluate both conventional and alternative treatments.
 
