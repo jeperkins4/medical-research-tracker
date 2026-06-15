@@ -39,3 +39,12 @@ coverage/
 
 # Misc
 .cache/
+
+# Personal health data - never commit these
+import-labs*.js
+import-doctor*.js
+import-providers*.js
+import-foundation*.js
+foundation-one-report*.txt
+DR-DO-*.md
+add-angiostop*.js

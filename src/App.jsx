@@ -7,18 +7,7 @@ import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
 import RadiologyViewer from './components/RadiologyViewer';
-
-// Helper to make authenticated API calls
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-};
+import { apiFetch } from './apiFetch';
 
 function App() {
   const [health, setHealth] = useState(null);

@@ -59,16 +59,7 @@ const BODY_REGIONS = [
   'Spine', 'Extremity', 'Whole Body', 'Brain', 'Breast'
 ];
 
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-};
+import { apiFetch } from '../apiFetch';
 
 // ─── 3D Volume Renderer ─────────────────────────────────────────────
 function VolumeRenderer({ volumeData, annotations, onSliceChange }) {
@@ -143,10 +134,6 @@ function VolumeRenderer({ volumeData, annotations, onSliceChange }) {
   const buildVolumeMesh = (scene, data) => {
     const [sizeX, sizeY, sizeZ] = data.size;
     const group = new THREE.Group();
-
-    // Create isosurface-like rendering using layered transparent planes
-    // and a central volume representation
-    const geometry = new THREE.BoxGeometry(1.2, 1.2, 1.2);
 
     // Body volume — semi-transparent outer shell
     const bodyMaterial = new THREE.MeshPhongMaterial({
