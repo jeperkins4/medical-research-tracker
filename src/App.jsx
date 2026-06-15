@@ -6,21 +6,11 @@ import ResearchSearch from './components/ResearchSearch';
 import HealthcareSummary from './components/HealthcareSummary';
 import PortalManager from './components/PortalManager';
 import BoneHealthTracker from './components/BoneHealthTracker';
+import RadiologyViewer from './components/RadiologyViewer';
 import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import medicationEvidence from './medicationEvidence';
-
-// Helper to make authenticated API calls
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-};
+import { apiFetch } from './apiFetch';
 
 function App() {
   const [health, setHealth] = useState(null);
@@ -155,6 +145,30 @@ function App() {
         >
           💊 Treatment
         </button>
+        <button
+          className={activeTab === 'tests' ? 'active' : ''}
+          onClick={() => setActiveTab('tests')}
+        >
+          Lab Results
+        </button>
+        <button
+          className={activeTab === 'bonehealth' ? 'active' : ''}
+          onClick={() => setActiveTab('bonehealth')}
+        >
+          🦴 Bone Health
+        </button>
+        <button
+          className={activeTab === 'radiology' ? 'active' : ''}
+          onClick={() => setActiveTab('radiology')}
+        >
+          Radiology
+        </button>
+        <button
+          className={activeTab === 'portals' ? 'active' : ''}
+          onClick={() => setActiveTab('portals')}
+        >
+          🔐 Portals
+        </button>
         <button 
           className={activeTab === 'research' ? 'active' : ''}
           onClick={() => setActiveTab('research')}
@@ -179,6 +193,10 @@ function App() {
         {activeTab === 'profile' && <OverviewView />}
         {activeTab === 'genomics' && <PrecisionMedicineDashboard />}
         {activeTab === 'treatment' && <TreatmentView />}
+        {activeTab === 'tests' && <TestResultsView />}
+        {activeTab === 'bonehealth' && <BoneHealthTracker />}
+        {activeTab === 'radiology' && <RadiologyViewer />}
+        {activeTab === 'portals' && <PortalManager />}
         {activeTab === 'research' && <ResearchView />}
         {activeTab === 'summary' && <HealthcareSummary />}
         {activeTab === 'portals' && <PortalManager />}
