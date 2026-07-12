@@ -865,8 +865,9 @@ export default function RadiologyViewer() {
   const fetchStudies = async () => {
     try {
       const response = await apiFetch('/api/radiology/studies');
+      if (!response.ok) { setStudies([]); return; }
       const data = await response.json();
-      setStudies(data);
+      setStudies(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching radiology studies:', error);
     } finally {
