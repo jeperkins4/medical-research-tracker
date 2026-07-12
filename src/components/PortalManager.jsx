@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const apiFetch = (url, options = {}) => {
-  return fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
-};
+import { apiFetch } from '../apiFetch';
 
 export default function PortalManager() {
   const [vaultStatus, setVaultStatus] = useState({ initialized: false, unlocked: false });

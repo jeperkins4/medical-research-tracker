@@ -176,17 +176,11 @@ function App() {
         >
           📚 Research
         </button>
-        <button 
+        <button
           className={activeTab === 'summary' ? 'active' : ''}
           onClick={() => setActiveTab('summary')}
         >
           🧠 Strategy
-        </button>
-        <button 
-          className={activeTab === 'portals' ? 'active' : ''}
-          onClick={() => setActiveTab('portals')}
-        >
-          🔐 Portals
         </button>
       </nav>
 
@@ -200,7 +194,6 @@ function App() {
         {activeTab === 'portals' && <ErrorBoundary resetKey={activeTab}><PortalManager /></ErrorBoundary>}
         {activeTab === 'research' && <ErrorBoundary resetKey={activeTab}><ResearchView /></ErrorBoundary>}
         {activeTab === 'summary' && <ErrorBoundary resetKey={activeTab}><HealthcareSummary /></ErrorBoundary>}
-        {activeTab === 'portals' && <ErrorBoundary resetKey={activeTab}><PortalManager /></ErrorBoundary>}
       </main>
     </div>
   );
