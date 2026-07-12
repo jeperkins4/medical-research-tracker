@@ -209,7 +209,7 @@ input[type="search"] {
 }
 
 .empty {
-  color: #9ca3af;
+  color: #6b7280;
   font-style: italic;
   padding: 20px;
   text-align: center;
@@ -217,7 +217,7 @@ input[type="search"] {
 
 .coming-soon {
   text-align: center;
-  color: #9ca3af;
+  color: #6b7280;
   padding: 40px;
   font-size: 18px;
 }

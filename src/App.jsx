@@ -11,6 +11,7 @@ import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch } from './apiFetch';
+import { ErrorBoundary } from './ErrorBoundary';
 
 function App() {
   const [health, setHealth] = useState(null);
@@ -175,31 +176,24 @@ function App() {
         >
           📚 Research
         </button>
-        <button 
+        <button
           className={activeTab === 'summary' ? 'active' : ''}
           onClick={() => setActiveTab('summary')}
         >
           🧠 Strategy
         </button>
-        <button 
-          className={activeTab === 'portals' ? 'active' : ''}
-          onClick={() => setActiveTab('portals')}
-        >
-          🔐 Portals
-        </button>
       </nav>
 
       <main>
-        {activeTab === 'profile' && <OverviewView />}
-        {activeTab === 'genomics' && <PrecisionMedicineDashboard />}
-        {activeTab === 'treatment' && <TreatmentView />}
-        {activeTab === 'tests' && <TestResultsView />}
-        {activeTab === 'bonehealth' && <BoneHealthTracker />}
-        {activeTab === 'radiology' && <RadiologyViewer />}
-        {activeTab === 'portals' && <PortalManager />}
-        {activeTab === 'research' && <ResearchView />}
-        {activeTab === 'summary' && <HealthcareSummary />}
-        {activeTab === 'portals' && <PortalManager />}
+        {activeTab === 'profile' && <ErrorBoundary resetKey={activeTab}><OverviewView /></ErrorBoundary>}
+        {activeTab === 'genomics' && <ErrorBoundary resetKey={activeTab}><PrecisionMedicineDashboard /></ErrorBoundary>}
+        {activeTab === 'treatment' && <ErrorBoundary resetKey={activeTab}><TreatmentView /></ErrorBoundary>}
+        {activeTab === 'tests' && <ErrorBoundary resetKey={activeTab}><TestResultsView /></ErrorBoundary>}
+        {activeTab === 'bonehealth' && <ErrorBoundary resetKey={activeTab}><BoneHealthTracker /></ErrorBoundary>}
+        {activeTab === 'radiology' && <ErrorBoundary resetKey={activeTab}><RadiologyViewer /></ErrorBoundary>}
+        {activeTab === 'portals' && <ErrorBoundary resetKey={activeTab}><PortalManager /></ErrorBoundary>}
+        {activeTab === 'research' && <ErrorBoundary resetKey={activeTab}><ResearchView /></ErrorBoundary>}
+        {activeTab === 'summary' && <ErrorBoundary resetKey={activeTab}><HealthcareSummary /></ErrorBoundary>}
       </main>
     </div>
   );
