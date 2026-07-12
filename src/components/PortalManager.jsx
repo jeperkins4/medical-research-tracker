@@ -446,30 +446,10 @@ export default function PortalManager() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {vaultStatus.unlocked ? (
-            <>
-              <button onClick={() => setShowAddForm(true)}>+ Add Portal</button>
-              <button onClick={handleLockVault} style={{ minWidth: '100px' }}>🔒 Lock Vault</button>
-            </>
-          ) : (
-            <button onClick={() => window.location.reload()} className="primary" style={{ minWidth: '120px' }}>
-              🔓 Unlock Vault
-            </button>
-          )}
+          <button onClick={() => setShowAddForm(true)}>+ Add Portal</button>
+          <button onClick={handleLockVault} style={{ minWidth: '100px' }}>🔒 Lock Vault</button>
         </div>
       </div>
-
-      {!vaultStatus.unlocked && (
-        <div className="alert error" style={{
-          padding: '1rem',
-          backgroundColor: '#fee',
-          border: '1px solid #fcc',
-          borderRadius: '4px',
-          marginBottom: '1rem'
-        }}>
-          Vault is locked. Click "🔓 Unlock Vault" to enter your master password.
-        </div>
-      )}
 
       {error && (
         <div className="alert error" style={{
@@ -667,13 +647,14 @@ export default function PortalManager() {
                 </div>
 
                 <div className="form-group">
-                  <label className="checkbox-label">
+                  <label className="checkbox-label" style={{ opacity: 0.6 }}>
                     <input
                       type="checkbox"
-                      checked={formData.notify_on_sync}
-                      onChange={(e) => setFormData({ ...formData, notify_on_sync: e.target.checked })}
+                      checked={false}
+                      disabled
+                      onChange={() => {}}
                     />
-                    Send Telegram notification on sync completion
+                    Send Telegram notification on sync completion (coming soon — not yet implemented)
                   </label>
                 </div>
               </fieldset>
