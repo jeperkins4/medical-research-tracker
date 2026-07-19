@@ -90,7 +90,7 @@ export async function analyzeMeal(mealDescription, mealData = {}) {
     `);
     
     // Build analysis prompt
-    const prompt = `You are a genomics-driven nutrition AI analyzing a meal for a bladder cancer patient.
+    const prompt = `You are a genomics-driven nutrition AI analyzing a meal for a cancer patient.
 
 **Patient Context:**
 
@@ -148,7 +148,7 @@ Rate this meal (0-100) based on:
   "summary": "2-3 sentence overall assessment"
 }
 
-Be specific about which foods in the meal support which pathways. Reference the patient's mutations when relevant (e.g., "Turmeric supports ARID1A pathway through HIF-1α inhibition").`;
+Be specific about which foods in the meal support which pathways. Reference the patient's mutations and pathways listed above when relevant.`;
 
     // Call Claude (Anthropic)
     const systemPrompt = 'You are a genomics and nutrition expert specializing in precision oncology nutrition. Analyze meals for cancer patients based on their genomic profile and treatment phase. Be specific, evidence-based, and actionable. Always respond with valid JSON only.';
@@ -204,7 +204,7 @@ export async function getMealSuggestions(treatmentPhase = 'maintenance') {
       JOIN genomic_mutations gm ON mpm.mutation_id = gm.id
     `);
     
-    const prompt = `Generate 3 meal ideas for a bladder cancer patient in ${treatmentPhase} phase.
+    const prompt = `Generate 3 meal ideas for a cancer patient in ${treatmentPhase} phase.
 
 **Active Pathways to Support:**
 ${pathways.map(p => `- ${p.pathway_name}`).join('\n')}

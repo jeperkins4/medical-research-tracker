@@ -6,12 +6,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Username and new password must be supplied on the command line, e.g.:
+//   node reset-password.js <username> <new-password>
+const username = process.argv[2];
+const newPassword = process.argv[3];
+
+if (!username || !newPassword) {
+  console.error('Usage: node reset-password.js <username> <new-password>');
+  process.exit(1);
+}
+
 const dbPath = path.join(__dirname, 'data', 'health.db');
 const db = new Database(dbPath);
-
-// Reset password for jeperkins4
-const username = 'jeperkins4';
-const newPassword = 'health2024';
 
 const hashedPassword = bcrypt.hashSync(newPassword, 10);
 

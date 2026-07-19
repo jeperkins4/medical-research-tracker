@@ -46,7 +46,7 @@
 ### Option 1: Manual Entry via Web Interface (EASIEST)
 
 1. **Open Medical Research Tracker:** http://localhost:5173 (or Tailscale)
-2. **Login:** jeperkins4 / health2024
+2. **Login:** your username / your password
 3. **Go to:** Vitals & Records tab
 4. **Scroll to:** Medications section
 5. **Click:** "+ Add Medication"
@@ -153,21 +153,21 @@ Before adding supplements, check these labs:
 - [ ] **Liver Function (LFTs)** - Important for curcumin, berberine, fenbendazole, ivermectin
 - [ ] **Kidney Function (BUN/Cr)** - Important for high-dose Vitamin C continuation
 - [ ] **G6PD Status** - Rule out deficiency before continuing IV Vitamin C, methylene blue
-- [ ] **HbA1c** - Current 5.8%, monitor with berberine addition (may drop further)
+- [ ] **HbA1c** - Monitor with berberine addition (may drop further)
 - [ ] **Complete Blood Count (CBC)** - Baseline before adding new supplements
 
 ---
 
 ## 🤝 NEXT STEPS - DISCUSS WITH HEALTHCARE TEAM
 
-### Dr. Do (Oncologist) - Monday appointment?
+### Your Oncologist
 - [ ] Review SUPPLEMENT-ANALYSIS.md
 - [ ] Discuss curcumin (HIF-1α inhibition for ARID1A)
 - [ ] Discuss EGCG (PI3K/AKT inhibition for PIK3CA)
 - [ ] Discuss berberine (MDR reversal for Padcev enhancement)
 - [ ] Request lab panel (Vitamin D, LFTs, kidney function, G6PD)
 
-### Dr. Gildea (Integrative Oncology)
+### Your Integrative Oncology Consultant
 - [ ] Review genomic alignment of new supplements
 - [ ] Dosing optimization based on your specific mutations
 - [ ] Discuss phased addition timeline
@@ -179,7 +179,7 @@ Before adding supplements, check these labs:
 
 | **Your Mutation** | **Pathway Activated** | **Recommended Supplement** | **Mechanism** |
 |-------------------|----------------------|----------------------------|---------------|
-| **ARID1A** (Y1281*) | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** ⭐ | Inhibits HIF-1α by degrading ARNT |
+| **ARID1A** | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** ⭐ | Inhibits HIF-1α by degrading ARNT |
 | **PIK3CA** | PI3K/AKT/mTOR → Tumor Growth | **EGCG (Green Tea)** ⭐ | Dual PI3K/mTOR inhibitor |
 | **PIK3CA** → P-gp | Multi-Drug Resistance | **Berberine** ⭐ | Inhibits P-glycoprotein efflux |
 
@@ -213,7 +213,7 @@ Before adding supplements, check these labs:
 **If you want to add them to the app RIGHT NOW:**
 
 1. Open browser: http://localhost:5173
-2. Login: jeperkins4 / health2024
+2. Login: your username / your password
 3. Vitals & Records → Medications → + Add Medication
 4. Copy/paste the entries from "Option 1" above (takes 5 minutes)
 5. Click "📚 Evidence" on each to verify
@@ -230,11 +230,11 @@ Before adding supplements, check these labs:
 - **2:15 AM** - Verify evidence modals working
 - **2:30 AM** - Create shopping list / order supplements
 - **3:00 AM** - Review SUPPLEMENT-ANALYSIS.md with full context
-- **4:00 AM** - (Optional) Set up reminder to discuss with Dr. Do/Gildea
+- **4:00 AM** - (Optional) Set up reminder to discuss with your care team
 - **5:00 AM** - DEADLINE ✅
 
 **Current Status: On track. Evidence code complete. Ready for database entry.**
 
 ---
 
-*All supplement additions are evidence-based with peer-reviewed research and aligned to your specific genomic mutations (ARID1A, PIK3CA, FGFR3, CDKN1A, TERT).*
+*All supplement additions are evidence-based with peer-reviewed research and aligned to your specific genomic mutations.*

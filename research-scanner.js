@@ -8,6 +8,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { SEARCH_TERMS, RELEVANCE_CONDITIONS } from './scanner-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,48 +16,8 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'data', 'health.db');
 const db = new Database(dbPath);
 
-// Search terms organized by category
-const SEARCH_TERMS = {
-  // Current Conventional Treatments
-  conventional: [
-    'Keytruda pembrolizumab bladder cancer',
-    'Padcev enfortumab vedotin urothelial cancer',
-    'pembrolizumab enfortumab combination bladder',
-  ],
-  
-  // Pipeline Drugs
-  pipeline: [
-    'BT8009 zelenectide pevedotin nectin-4',
-    'ETx-22 nectin-4 bladder cancer',
-    'nectin-4 ADC urothelial cancer trial',
-  ],
-  
-  // Integrative Supplements
-  integrative: [
-    'low dose naltrexone LDN bladder cancer',
-    'IV vitamin C urothelial cancer',
-    'Angiostop sea cucumber cancer',
-    'fenbendazole cancer clinical',
-    'ivermectin cancer research',
-    'methylene blue cancer mitochondrial',
-  ],
-  
-  // Clinical Trials
-  trials: [
-    'bladder cancer clinical trial 2025',
-    'urothelial carcinoma immunotherapy trial',
-    'nectin-4 targeted therapy trial',
-    'stage IV bladder cancer new treatment',
-  ],
-  
-  // Mechanisms & Research
-  research: [
-    'nectin-4 expression bladder cancer',
-    'checkpoint inhibitor bladder cancer',
-    'OGF-OGFr axis cancer',
-    'angiogenesis inhibition bladder cancer',
-  ],
-};
+// Search terms and relevance conditions come from ./scanner-config.js
+// (customizable via SCANNER_SEARCH_TERMS / SCANNER_CONDITIONS env vars).
 
 // Calculate relevance score based on keywords
 function calculateRelevance(title, snippet, searchTerm) {
@@ -66,11 +27,11 @@ function calculateRelevance(title, snippet, searchTerm) {
   // High priority keywords
   const highPriority = ['phase 3', 'phase iii', 'fda approval', 'breakthrough', 'complete response', 'survival benefit'];
   const mediumPriority = ['phase 2', 'phase ii', 'clinical trial', 'efficacy', 'safety'];
-  const conditions = ['bladder cancer', 'urothelial cancer', 'urothelial carcinoma'];
-  
+  const conditions = RELEVANCE_CONDITIONS;
+
   highPriority.forEach(kw => { if (text.includes(kw)) score += 3; });
   mediumPriority.forEach(kw => { if (text.includes(kw)) score += 2; });
-  conditions.forEach(kw => { if (text.includes(kw)) score += 2; });
+  conditions.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 2; });
   
   // Recent dates boost score
   const year2025 = text.includes('2025') || text.includes('2026');

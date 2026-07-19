@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Personal health records and medical research discovery tool",
-  "author": "John Perkins <john@mytreatmentpath.com>",
+  "author": "MyTreatmentPath <support@mytreatmentpath.com>",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {

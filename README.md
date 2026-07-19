@@ -96,7 +96,7 @@ This tool is designed for personal use. All health data stays local. No external
 - [x] Save & annotate research papers (with unlimited custom tagging)
 - [x] Foundation One CDx genomic integration
 - [x] Precision Medicine Dashboard (mutations → pathways → treatments → trials)
-- [x] Treatment-genomic correlation tracking (Dr. Gildea protocol)
+- [x] Treatment-genomic correlation tracking (genomic protocol)
 - [x] AI Healthcare Strategy Summary
 - [x] Dietary habits tracking
 - [x] Automated research scanner with Telegram notifications

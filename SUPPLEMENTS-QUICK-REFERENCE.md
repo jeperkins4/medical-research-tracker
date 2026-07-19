@@ -10,7 +10,7 @@
 ### In the Medical Research Tracker App:
 
 1. **Open:** http://localhost:5173 (or http://100.97.186.72:5173 via Tailscale)
-2. **Login:** jeperkins4 / health2024
+2. **Login:** your username / your password
 3. **Click:** "Vitals & Records" tab (in the navigation bar)
 4. **Scroll down** to "Medications" section (at the bottom of the page)
 5. **See:** Complete list of 22 active supplements/medications
@@ -117,7 +117,7 @@
 - **📚 Evidence Available:** YES - Click button for modal
 - **Strength:** FDA Approved
 - **Targets:** Thyroid Hormone Replacement
-- **Note:** TSH 0.43 (within normal range), missing doses causes 3 AM awakening
+- **Note:** Dose is titrated to keep TSH within the normal reference range; take consistently
 
 ---
 
@@ -150,7 +150,7 @@
 - **Strength:** Supporting
 - **Targets:** Glucose Metabolism, Gut Microbiome
 - **Research:** BMJ published clinical trial - reduces A1C by 0.6 points
-- **Current HbA1c:** 5.8% (pre-diabetic range)
+- **Monitor:** HbA1c trend
 - **Synergy:** Works with Berberine for glucose control
 
 #### 17. **Angiostop** - Standard dose, Daily
@@ -242,7 +242,7 @@
 
 | Your Mutation | Pathway | Supplement(s) Targeting It | Evidence Strength |
 |---------------|---------|---------------------------|-------------------|
-| **ARID1A** Y1281* | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** ⭐ NEW | 4 studies, Nature pub |
+| **ARID1A** | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** ⭐ NEW | 4 studies, Nature pub |
 | **ARID1A** | Immune Escape/PD-L1 | Turkey Tail, IV Vitamin C, Keytruda | Multiple studies |
 | **PIK3CA** | PI3K/AKT/mTOR → Tumor Growth | **EGCG** ⭐ NEW | 4 bladder studies |
 | **PIK3CA** → P-gp | Multi-Drug Resistance | **Berberine** ⭐ NEW | 4 MDR studies |
@@ -258,7 +258,7 @@
 ### Step-by-Step:
 
 1. **Open Medical Research Tracker:** http://localhost:5173
-2. **Login:** jeperkins4 / health2024
+2. **Login:** your username / your password
 3. **Click:** "Vitals & Records" tab (top navigation)
 4. **Scroll down** to "Medications" section (bottom of page)
 5. **Look for:** "📚 Evidence" button next to each supplement
@@ -315,11 +315,11 @@
 - [ ] Liver Function (LFTs) - for curcumin, berberine
 - [ ] Kidney Function - for continued IV Vitamin C
 - [ ] G6PD Status - rule out deficiency (IV Vitamin C, methylene blue)
-- [ ] HbA1c - current 5.8%, may drop with berberine
+- [ ] HbA1c - may drop with berberine
 
 ### Discuss with Healthcare Team:
-- [ ] Dr. Do (Oncologist) - Review new supplement additions
-- [ ] Dr. Gildea (Integrative Oncology) - Optimize dosing for your mutations
+- [ ] Your oncologist - Review new supplement additions
+- [ ] Your integrative oncology consultant - Optimize dosing for your mutations
 
 ### Phased Addition Protocol:
 - **Week 1-2:** Curcumin only (1000mg → 2000mg)

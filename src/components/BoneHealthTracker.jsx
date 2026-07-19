@@ -125,7 +125,7 @@ export default function BoneHealthTracker() {
             <strong>above normal range ({latestValue} U/L, normal: 39-147)</strong>.
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            <strong>Action Required:</strong> Schedule appointment with Dr. Do to discuss bone scan and bisphosphonates/denosumab therapy.
+            <strong>Action Required:</strong> Schedule an appointment with your oncologist to discuss a bone scan and bisphosphonate/denosumab therapy.
           </Typography>
         </Alert>
       )}
@@ -248,7 +248,7 @@ export default function BoneHealthTracker() {
                   <TableCell>
                     <Chip label="URGENT" color="error" size="small" />
                   </TableCell>
-                  <TableCell>Schedule appointment with Dr. Do to discuss rising Alk Phos</TableCell>
+                  <TableCell>Schedule an appointment with your oncologist to discuss rising Alk Phos</TableCell>
                   <TableCell>
                     <Button size="small" variant="outlined" color="error">
                       Schedule Now

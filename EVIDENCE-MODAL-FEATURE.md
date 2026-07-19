@@ -55,7 +55,7 @@
 ### 💊 FDA Approved
 6. **Keytruda** (Pembrolizumab) - PD-1 checkpoint inhibitor
 7. **Padcev** (Enfortumab vedotin) - Antibody-drug conjugate
-8. **Eliquis** (Apixaban) - Factor Xa inhibitor (DVT prophylaxis)
+8. **Eliquis** (Apixaban) - Factor Xa inhibitor (anticoagulation)
 9. **Synthroid** (Levothyroxine) - Thyroid hormone replacement
 
 ### 🔬 Supporting (Metabolic/Mitochondrial)
@@ -130,7 +130,7 @@ When you click "📚 Evidence" on Fenbendazole, you'll see:
    - Liver function (for fenbendazole, ivermectin, methylene blue)
    - G6PD status (for IV Vitamin C, methylene blue)
 
-3. **Share with Dr. Do and Dr. Gildea**
+3. **Share with your oncologist and integrative oncology consultant**
    - Review supplement additions
    - Discuss dosing optimizations
    - Monitor for interactions

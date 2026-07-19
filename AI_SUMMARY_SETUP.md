@@ -5,7 +5,7 @@
 Analyzes your complete healthcare data and generates a strategic synthesis:
 
 - **Strategy Overview** → How your genomics, diet, supplements, and research work together
-- **Alignment Analysis** → ARID1A/CDKN1A/MLL2/TERT → pathways → treatments → diet connections  
+- **Alignment Analysis** → your mutations → pathways → treatments → diet connections  
 - **Coverage Gaps** → Pathways or mutations not adequately addressed
 - **Research Opportunities** → Specific search terms, clinical trial categories to explore
 - **Data Quality** → Missing vitals/labs/biomarkers that would strengthen optimization
@@ -90,7 +90,7 @@ From your database:
 - ✅ 6 affected pathways
 - ✅ 13+ genomic treatment opportunities
 - ✅ 19 current medications/supplements
-- ✅ Treatment-genomic correlations (Dr. Gildea's protocol)
+- ✅ Treatment-genomic correlations (genomic protocol)
 - ✅ Dietary habits (philosophy + routines)
 - ✅ Research library (recent 20 papers with tags)
 - ✅ Recent vitals (last 10 readings)

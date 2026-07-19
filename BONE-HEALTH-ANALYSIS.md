@@ -93,7 +93,7 @@
 - Lower ALP levels when successful
 - TUGAMO study showed efficacy in bladder cancer
 
-**Recommendation:** **URGENT - Discuss with Dr. Do at next appointment**
+**Recommendation:** **URGENT - Discuss with your oncologist at next appointment**
 
 ### 5. **Boron - MISSING**
 **Needed:** 3-6 mg daily
@@ -127,7 +127,7 @@
 ## Monitoring Plan
 
 ### Immediate Actions
-1. **Schedule appointment with Dr. Do** - discuss rising Alk Phos
+1. **Schedule an appointment with your oncologist** - discuss rising Alk Phos
 2. **Order bone scan** - rule out current metastases
 3. **Check serum 25-OH Vitamin D** - optimize dosing
 4. **Discuss bisphosphonates/denosumab** - evidence-based prevention
@@ -173,7 +173,7 @@
 
 ## Action Items
 
-- [ ] Schedule appointment with Dr. Do (URGENT)
+- [ ] Schedule appointment with your oncologist (URGENT)
 - [ ] Request bone scan
 - [ ] Labs: Alk Phos, Calcium, 25-OH Vitamin D, PTH, CTX
 - [ ] Discuss Zoledronic acid or Denosumab

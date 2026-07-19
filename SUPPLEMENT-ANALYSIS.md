@@ -1,6 +1,6 @@
 # Supplement Analysis & Recommendations
 **Date:** February 14, 2026  
-**Patient:** John Perkins - Stage IV Bladder Cancer  
+**Patient:** [redacted]  
 **Current Treatment:** Keytruda + Padcev (Day 1, 8 schedule)
 
 ---
@@ -289,7 +289,7 @@
 ---
 
 **Next Steps:**
-1. Review with Dr. Do (oncologist) and Dr. Gildea (integrative oncology)
+1. Review with your oncologist and integrative oncology consultant
 2. Check labs: Vitamin D, liver function, kidney function, G6PD
 3. Add supplements in phases to monitor tolerance
 4. Track symptoms and side effects in Medical Research Tracker app

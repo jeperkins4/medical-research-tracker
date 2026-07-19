@@ -35,8 +35,8 @@ export const medicationEvidence = {
       }
     ],
     dosing: "RECOMMENDED: 1000-2000mg daily with BioPerine (black pepper extract) for 20x better absorption. Take with meals containing fat for optimal absorption. Start with 1000mg for 1 week, increase to 2000mg if well-tolerated.",
-    precautions: "Mild blood-thinning effect - monitor if taking Eliquis (anticoagulant). May cause mild GI upset initially. Reduce dose if digestive discomfort occurs. Turmeric/curcumin supplements should contain piperine (BioPerine) for bioavailability.",
-    genomicAlignment: "🎯 PERFECT FIT: Your ARID1A mutation causes HIF-1α pathway hyperactivation → cancer stem cells → treatment resistance. Curcumin directly blocks HIF-1α by degrading ARNT, targeting the root cause of your cancer stem cell population. This is THE most important supplement addition based on your genomic profile."
+    precautions: "Mild blood-thinning effect - monitor if taking an anticoagulant such as apixaban. May cause mild GI upset initially. Reduce dose if digestive discomfort occurs. Turmeric/curcumin supplements should contain piperine (BioPerine) for bioavailability.",
+    genomicAlignment: "Relevant for ARID1A loss: ARID1A mutation causes HIF-1α pathway hyperactivation → cancer stem cells → treatment resistance. Curcumin directly blocks HIF-1α by degrading ARNT, targeting the cancer stem cell population."
   },
 
   "Green Tea Extract (EGCG)": {
@@ -70,14 +70,14 @@ export const medicationEvidence = {
       }
     ],
     dosing: "RECOMMENDED: 400-800mg green tea extract daily (standardized to 45-60% EGCG). Take between meals on empty stomach for best absorption. Start with 400mg for 1 week, increase to 800mg if well-tolerated. Choose decaffeinated formula if caffeine-sensitive.",
-    precautions: "Contains caffeine (unless decaf formula chosen) - may affect sleep if taken late in day. Can bind iron - take 2+ hours apart from iron supplements. May enhance effects of blood thinners (monitor with Eliquis). High doses may affect liver function - monitor LFTs.",
-    genomicAlignment: "🎯 PERFECT FIT: Your PIK3CA mutation causes constitutive PI3K/AKT/mTOR activation → uncontrolled tumor growth. EGCG is a natural dual PI3K/mTOR inhibitor that directly counteracts this mutation. Multiple bladder cancer-specific studies confirm efficacy."
+    precautions: "Contains caffeine (unless decaf formula chosen) - may affect sleep if taken late in day. Can bind iron - take 2+ hours apart from iron supplements. May enhance effects of blood thinners (monitor if taking an anticoagulant such as apixaban). High doses may affect liver function - monitor LFTs.",
+    genomicAlignment: "Relevant for PIK3CA mutation: PIK3CA activating mutations cause constitutive PI3K/AKT/mTOR signaling → uncontrolled tumor growth. EGCG is a natural dual PI3K/mTOR inhibitor that counteracts this pathway. Multiple bladder cancer-specific studies report efficacy."
   },
 
   "Berberine": {
     strength: "Strongly Supported - HIGH PRIORITY",
     targetPathways: ["Multi-Drug Resistance (MDR)", "P-glycoprotein Inhibition", "Glucose Control"],
-    mechanism: "Berberine reverses multi-drug resistance by inhibiting P-glycoprotein (MDR1/ABCB1) expression and efflux activity. Your PIK3CA mutation activates PI3K/AKT, which upregulates P-glycoprotein → pumps chemotherapy drugs out of cancer cells. Berberine blocks this, enhancing Padcev effectiveness. Also improves glucose metabolism (synergy with Pendulum).",
+    mechanism: "Berberine reverses multi-drug resistance by inhibiting P-glycoprotein (MDR1/ABCB1) expression and efflux activity. PIK3CA activating mutations drive PI3K/AKT signaling, which upregulates P-glycoprotein → pumps chemotherapy drugs out of cancer cells. Berberine blocks this, which may enhance the effectiveness of chemotherapy and antibody-drug conjugates such as enfortumab vedotin. Also improves glucose metabolism (potential synergy with probiotic glucose-control formulas).",
     research: [
       {
         title: "Berberine Inhibits P-glycoprotein to Reverse Tumor MDR (PMC)",
@@ -105,8 +105,8 @@ export const medicationEvidence = {
       }
     ],
     dosing: "RECOMMENDED: 500mg 2-3 times daily with meals (total 1000-1500mg/day). Start with 500mg twice daily for 1 week to assess tolerance, increase to 500mg three times daily if well-tolerated. Take with meals to reduce GI side effects.",
-    precautions: "May enhance glucose-lowering effects (you're taking Pendulum) - monitor blood sugar, especially if HbA1c drops below 5.0%. Can cause GI upset (diarrhea, constipation, cramping) - start low dose. Monitor liver function. May interact with CYP3A4 substrates. Synergistic with metformin-like effects.",
-    genomicAlignment: "🎯 PERFECT FIT: Your PIK3CA mutation drives PI3K/AKT activation → upregulates MDR1/P-glycoprotein → Padcev gets pumped out of cancer cells. Berberine inhibits P-gp, keeping chemotherapy INSIDE cancer cells. This directly enhances your current treatment efficacy. Bonus: also helps with glucose control (HbA1c 5.8%)."
+    precautions: "May enhance the glucose-lowering effects of other agents (e.g. probiotic glucose-control formulas, antidiabetic drugs) - monitor blood sugar, especially if HbA1c drops below 5.0%. Can cause GI upset (diarrhea, constipation, cramping) - start low dose. Monitor liver function. May interact with CYP3A4 substrates. Synergistic with metformin-like effects.",
+    genomicAlignment: "Relevant for PIK3CA mutation: PIK3CA-driven PI3K/AKT activation upregulates MDR1/P-glycoprotein, which pumps cytotoxic agents out of cancer cells. Berberine inhibits P-gp, helping retain chemotherapy inside cancer cells, which may support the efficacy of concurrent cytotoxic therapy. Also supports glucose control."
   },
 
   "High-Dose IV Vitamin C": {
@@ -135,7 +135,7 @@ export const medicationEvidence = {
     ],
     dosing: "High-dose IV (dosage varies, typically 25-100 grams per infusion). Bi-weekly administration.",
     precautions: "Requires adequate kidney function. Contraindicated in G6PD deficiency. Must be administered by qualified healthcare provider.",
-    genomicAlignment: "Synergistic with Keytruda (PD-1 inhibitor). Supports immune function against PD-L1 pathway (ARID1A mutation-driven immune escape)."
+    genomicAlignment: "Synergistic with PD-1 inhibitors such as pembrolizumab. Supports immune function against the PD-L1 pathway (ARID1A mutation-driven immune escape)."
   },
 
   "Fenbendazole": {
@@ -193,7 +193,7 @@ export const medicationEvidence = {
     ],
     dosing: "36mg daily (continuous). Higher than typical antiparasitic dose for potential anti-cancer effects.",
     precautions: "Monitor liver function. Take with food for better absorption. Drug interactions possible (P-glycoprotein substrates).",
-    genomicAlignment: "May target PIK3CA-driven PI3K/AKT pathway hyperactivation. Potential synergy with Keytruda immunotherapy."
+    genomicAlignment: "May target PIK3CA-driven PI3K/AKT pathway hyperactivation. Potential synergy with checkpoint inhibitor immunotherapy such as pembrolizumab."
   },
 
   "Turkey Tail Mushroom Powder": {
@@ -222,7 +222,7 @@ export const medicationEvidence = {
     ],
     dosing: "Powder form, daily. Standardized PSK/PSP extracts typically range 1-3 grams daily.",
     precautions: "Generally well-tolerated. May interact with immunosuppressive drugs.",
-    genomicAlignment: "Directly supports Keytruda (pembrolizumab) efficacy. ARID1A loss is associated with PD-L1 upregulation - Turkey Tail enhances immune response against PD-L1+ tumors."
+    genomicAlignment: "May support the efficacy of PD-1 inhibitors such as pembrolizumab. ARID1A loss is associated with PD-L1 upregulation - Turkey Tail enhances immune response against PD-L1+ tumors."
   },
 
   "Low Dose Naltrexone (LDN)": {
@@ -239,7 +239,7 @@ export const medicationEvidence = {
     ],
     dosing: "Low dose (typically 1.5-4.5mg) at night. Much lower than standard naltrexone dosing (50mg for addiction).",
     precautions: "Should not be used with standard-dose opioid pain medications. Most common side effect: temporary sleep disturbances. Requires compounding pharmacy.",
-    genomicAlignment: "Immune support complements immunotherapy (Keytruda). May help with pain management and quality of life."
+    genomicAlignment: "Immune support may complement checkpoint inhibitor immunotherapy. May help with pain management and quality of life."
   },
 
   "Methylene Blue": {
@@ -273,7 +273,7 @@ export const medicationEvidence = {
     ],
     dosing: "100mg daily. Ubiquinol (reduced form) is more bioavailable than ubiquinone.",
     precautions: "Generally well-tolerated. Important for patients on statins or with heart conditions. Take with fat for better absorption.",
-    genomicAlignment: "Supports cellular energy during treatment. Cardiovascular protection relevant for DVT history and long-term Eliquis use."
+    genomicAlignment: "Supports cellular energy during treatment. Cardiovascular protection may be relevant where there is a history of venous thromboembolism or long-term anticoagulant use."
   },
 
   "Alpha-Ketoglutarate (AKG)": {
@@ -307,7 +307,7 @@ export const medicationEvidence = {
     ],
     dosing: "5 strain formula, daily.",
     precautions: "Generally well-tolerated probiotic.",
-    genomicAlignment: "Patient HgbA1C 5.8% (pre-diabetic range). Metabolic control important for cancer management. Works synergistically with dietary changes."
+    genomicAlignment: "Relevant where HbA1c is elevated or in the pre-diabetic range. Metabolic control is important for cancer management. Works synergistically with dietary changes."
   },
 
   "Angiostop": {
@@ -356,9 +356,9 @@ export const medicationEvidence = {
         year: 2019
       }
     ],
-    dosing: "50mg (personalized dose), Day 1, 8 schedule. On/off since April 2024.",
+    dosing: "Dosing per prescribing information on a Day 1, 8 schedule.",
     precautions: "Peripheral neuropathy (dose-limiting side effect). Skin reactions. Monitor blood glucose.",
-    genomicAlignment: "Targets cancer cells directly. Personalized dosing to manage neuropathy side effects."
+    genomicAlignment: "Targets Nectin-4-expressing urothelial cancer cells directly. Dose may be adjusted to manage neuropathy side effects."
   },
 
   "Eliquis": {
@@ -390,8 +390,8 @@ export const medicationEvidence = {
         year: 2023
       }
     ],
-    dosing: "200 mcg daily. TSH 0.43 (within normal range).",
-    precautions: "Take on empty stomach. Missing doses causes early morning awakening at 3 AM. Monitor TSH regularly.",
+    dosing: "Individualized daily dose titrated to TSH within the normal reference range.",
+    precautions: "Take on empty stomach. Missed doses may contribute to sleep disruption and early morning awakening. Monitor TSH regularly.",
     genomicAlignment: "Metabolic support during cancer treatment. Thyroid function important for energy and overall health."
   },
 
@@ -407,9 +407,9 @@ export const medicationEvidence = {
         year: 2023
       }
     ],
-    dosing: "2.5mg nightly before bed. Low, controlled dose.",
+    dosing: "Low, controlled dose (e.g. 2.5mg) nightly before bed.",
     precautions: "Legal status varies by state. Psychoactive effects. Coordinate with healthcare providers.",
-    genomicAlignment: "Quality of life support. Works synergistically with melatonin for sleep. Helps with 3 AM awakening related to cortisol disruption."
+    genomicAlignment: "Quality of life support. May work synergistically with melatonin for sleep, including early morning awakening related to cortisol disruption."
   },
 
   "Melatonin": {
@@ -424,9 +424,9 @@ export const medicationEvidence = {
         year: 2017
       }
     ],
-    dosing: "Powder form, nightly. Used with medical marijuana.",
+    dosing: "Powder or tablet form, nightly.",
     precautions: "Generally well-tolerated. May cause drowsiness.",
-    genomicAlignment: "Sleep support critical during cancer treatment. Synergy with THC for addressing early morning awakening."
+    genomicAlignment: "Sleep support is important during cancer treatment. Potential synergy with cannabinoids for addressing early morning awakening."
   },
 
   "Vitamin D3": {
@@ -441,9 +441,9 @@ export const medicationEvidence = {
         year: 2020
       }
     ],
-    dosing: "Current: 1000 IU daily. RECOMMENDED INCREASE: 4000-5000 IU daily.",
+    dosing: "Commonly 1000 IU daily for general supplementation; 4000-5000 IU daily is often used in oncology settings when levels are low.",
     precautions: "Monitor serum 25-OH Vitamin D level. Target: 50-70 ng/mL. Higher doses safe when monitored.",
-    genomicAlignment: "Immune support for Keytruda efficacy. Bone health for long-term Eliquis use. Current dose likely insufficient for cancer patient."
+    genomicAlignment: "Immune support may complement checkpoint inhibitor immunotherapy. Supports bone health, relevant with long-term anticoagulant use. General-population doses are often insufficient for cancer patients."
   },
 
   "Revivin": {
@@ -462,8 +462,8 @@ export const medicationEvidence = {
     mechanism: "Seaweed rich in minerals (iodine, potassium, calcium, magnesium). Contains polysaccharides and antioxidants. Traditional use for immune support and thyroid health.",
     research: [],
     dosing: "Supplement form, daily.",
-    precautions: "High iodine content - caution with thyroid medications (Synthroid). Monitor thyroid function.",
-    genomicAlignment: "Nutritional support. Patient preference for whole-food supplements."
+    precautions: "High iodine content - caution with thyroid medications such as levothyroxine. Monitor thyroid function.",
+    genomicAlignment: "Nutritional support. A whole-food source of trace minerals."
   }
 };
 

@@ -33,7 +33,7 @@ export async function collectPatientData() {
     WHERE mt.sensitivity_or_resistance = 'sensitivity'
   `);
   
-  // Treatment correlations (Dr. Gildea's protocol)
+  // Treatment correlations (genomic protocol)
   const treatmentCorrelations = query(`
     SELECT 
       tgc.*,
@@ -116,7 +116,7 @@ ${profile.sex ? `Sex: ${profile.sex}` : ''}
 ## ACTIVE CONDITIONS
 ${conditions.map(c => `- ${c.name}${c.diagnosed_date ? ` (diagnosed ${c.diagnosed_date})` : ''}${c.notes ? `: ${c.notes}` : ''}`).join('\n')}
 
-## GENOMIC PROFILE (Foundation One CDx)
+## GENOMIC PROFILE
 ### Confirmed Mutations
 ${mutations.map(m => `- ${m.gene} ${m.alteration} (VAF: ${m.variant_allele_frequency || 'N/A'}%)
   Clinical Significance: ${m.clinical_significance || 'Unknown'}
@@ -136,7 +136,7 @@ ${medications.map(m => `- ${m.name}${m.dosage ? ` ${m.dosage}` : ''}${m.frequenc
   ${m.reason ? `Reason: ${m.reason}` : ''}
   ${m.notes ? `Notes: ${m.notes}` : ''}`).join('\n')}
 
-### Genomic Correlations (Dr. Gildea's Protocol)
+### Genomic Correlations (Genomic Protocol)
 ${treatmentCorrelations.map(tc => `- ${tc.medication_name} → ${tc.gene || tc.pathway_name}
   Type: ${tc.correlation_type}
   Mechanism: ${tc.mechanism || 'Not specified'}
@@ -162,13 +162,13 @@ ${labs.length > 0 ? labs.slice(0, 5).map(l => `- ${l.date}: ${l.test_name}${l.re
 Provide a structured healthcare strategy summary with these sections:
 
 ### 1. STRATEGY OVERVIEW
-Synthesize the patient's current approach: genomic-targeted supplements, dietary modifications, research monitoring. Describe how these components work together.
+Synthesize the patient's current approach based on the data above (medications/supplements, dietary habits, research monitoring). Describe how these components work together.
 
 ### 2. ALIGNMENT ANALYSIS
 How well do the current medications/supplements align with:
-- Confirmed genomic mutations (ARID1A, CDKN1A, MLL2, TERT)
-- Affected pathways (Hypoxia/HIF1, MDR, PD-L1, etc.)
-- Dietary approach (anti-inflammatory, metabolic)
+- Confirmed genomic mutations listed above
+- Affected pathways listed above
+- Dietary approach described above
 
 ### 3. COVERAGE GAPS
 Identify pathways or mutations that may be under-addressed by the current protocol. Are there known therapeutic targets not being pursued?

@@ -170,7 +170,7 @@ ARID1A Y1281* is your **KEY ACTIONABLE MUTATION**:
 
 2. **Navigate to:**
    - Frontend: http://localhost:5173
-   - Login: jeperkins4 / health2024
+   - Login: your username / your password
    - Click **🧬 Genomics** tab
 
 3. **Explore:**

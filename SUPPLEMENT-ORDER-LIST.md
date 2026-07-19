@@ -231,7 +231,7 @@
 **MONDAY (Feb 16):**
 - Supplements arrive
 - Start full protocol
-- Schedule Dr. Do appointment
+- Schedule oncologist appointment
 
 **WEEK 1-2:**
 - Continue protocol daily
@@ -239,7 +239,7 @@
 
 **WEEK 3-4:**
 - Recheck Alk Phos
-- See Dr. Do
+- See your oncologist
 - Discuss bisphosphonates/denosumab
 - Review bone scan results
 

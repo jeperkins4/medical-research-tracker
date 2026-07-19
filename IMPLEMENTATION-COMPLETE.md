@@ -30,7 +30,7 @@ All high-priority supplements have been added to your Medical Research Tracker w
 ## 📱 HOW TO ACCESS
 
 1. **Open:** http://localhost:5173 (or via Tailscale)
-2. **Login:** jeperkins4 / health2024
+2. **Login:** your username / your password
 3. **Go to:** Vitals & Records tab
 4. **Scroll to:** Medications section (bottom)
 5. **Find:** 3 new supplements at the top (alphabetically: Berberine, Curcumin, Green Tea Extract)
@@ -79,7 +79,7 @@ All high-priority supplements have been added to your Medical Research Tracker w
 ### 💊 FDA-APPROVED TREATMENTS
 9. **Keytruda** (Pembrolizumab) - PD-1 checkpoint inhibitor
 10. **Padcev** (Enfortumab vedotin) - Antibody-drug conjugate
-11. **Eliquis** (Apixaban) - DVT prophylaxis
+11. **Eliquis** (Apixaban) - Anticoagulation
 12. **Synthroid** (Levothyroxine) - Thyroid hormone
 
 ### 🔋 METABOLIC/MITOCHONDRIAL SUPPORT
@@ -186,27 +186,27 @@ All high-priority supplements have been added to your Medical Research Tracker w
 
 ## 📋 PRE-SUPPLEMENT LABS (Recommended)
 
-Schedule with Dr. Do or primary care:
+Schedule with your oncologist or primary care:
 
 - [ ] **Vitamin D 25-OH** - Check current level (target 50-70 ng/mL)
 - [ ] **Liver Function (LFTs)** - AST, ALT, bilirubin (for curcumin, berberine)
 - [ ] **Kidney Function** - BUN, creatinine (for continued IV Vitamin C)
 - [ ] **G6PD Status** - Rule out deficiency (for methylene blue, IV Vitamin C)
-- [ ] **HbA1c** - Current 5.8%, may drop with berberine addition
+- [ ] **HbA1c** - May drop with berberine addition
 - [ ] **Complete Blood Count (CBC)** - Baseline before new supplements
 
 ---
 
 ## 🤝 DISCUSS WITH HEALTHCARE TEAM
 
-### Monday with Dr. Do (Oncologist)
+### With Your Oncologist
 - [ ] Review `SUPPLEMENT-ANALYSIS.md` document
 - [ ] Show evidence modals in app (click 📚 Evidence buttons)
 - [ ] Discuss genomic alignment (ARID1A → Curcumin, PIK3CA → EGCG)
 - [ ] Request lab panel
 - [ ] Get approval for phased addition
 
-### Follow-up with Dr. Gildea (Integrative Oncology)
+### Follow-up with Your Integrative Oncology Consultant
 - [ ] Review molecular mechanisms
 - [ ] Optimize dosing based on your specific mutations
 - [ ] Discuss timing with Keytruda/Padcev schedule
@@ -229,7 +229,7 @@ All files in: `~/.openclaw/workspace/medical-research-tracker/`
 
 | Your Mutation | Pathway Dysregulated | New Supplement | Evidence Strength |
 |---------------|---------------------|----------------|-------------------|
-| **ARID1A** Y1281* | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** | 4 studies, Nature pub |
+| **ARID1A** | Hypoxia/HIF-1α → Cancer Stem Cells | **Curcumin** | 4 studies, Nature pub |
 | **PIK3CA** | PI3K/AKT/mTOR → Tumor Growth | **EGCG** | 4 bladder-specific studies |
 | **PIK3CA** → P-gp | Multi-Drug Resistance | **Berberine** | 4 MDR reversal studies |
 | ARID1A → PD-L1 | Immune Escape | Turkey Tail ✅ | Already taking |
@@ -298,7 +298,7 @@ All files in: `~/.openclaw/workspace/medical-research-tracker/`
 3. Order supplements (Amazon/Fullscript/local)
 
 ### Monday:
-1. Discuss with Dr. Do
+1. Discuss with your oncologist
 2. Request lab panel
 3. Get approval for phased addition
 
@@ -326,4 +326,4 @@ All files in: `~/.openclaw/workspace/medical-research-tracker/`
 **Access Now:** http://localhost:5173  
 **Total Active Supplements:** 22 (19 existing + 3 new)  
 **Evidence Available:** Click 📚 on any supplement with research backing  
-**Next Step:** Review with Dr. Do and start phased addition protocol
+**Next Step:** Review with your oncologist and start phased addition protocol
