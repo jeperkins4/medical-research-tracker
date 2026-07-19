@@ -343,9 +343,6 @@ export default function BoneHealthTracker() {
             <br />
             <em>Bisphosphonates reduce SRE and lower ALP when effective.</em>
           </Typography>
-          <Button size="small" variant="text" href="/BONE-HEALTH-ANALYSIS.md" target="_blank">
-            View Full Analysis Document
-          </Button>
         </CardContent>
       </Card>
 

@@ -46,7 +46,7 @@ SUPPORTING EVIDENCE:
 • Pancreatic cancer (NCT00954525): IV vitamin C + gemcitabine ± erlotinib → unexpected stable disease & prolonged survival
 
 CLINICAL RELEVANCE:
-Validates bi-weekly IV vitamin C infusions combined with systemic therapy (Keytruda + Padcev). Patient's 12/10/2025 PET/CT shows stable disease + ECOG 0. Protocol aligns with emerging integrative oncology evidence.
+Supports bi-weekly IV vitamin C infusions combined with systemic therapy such as checkpoint inhibitors and antibody-drug conjugates. Protocol aligns with emerging integrative oncology evidence.
 
 MECHANISM:
 High-dose IV vitamin C acts as pro-oxidant in cancer cells via hydrogen peroxide generation. Selectively cytotoxic to cancer cells while enhancing chemotherapy sensitivity and reducing treatment toxicity.

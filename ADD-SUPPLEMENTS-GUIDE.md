@@ -161,7 +161,7 @@ Before adding supplements, check these labs:
 ## 🤝 NEXT STEPS - DISCUSS WITH HEALTHCARE TEAM
 
 ### Your Oncologist
-- [ ] Review SUPPLEMENT-ANALYSIS.md
+- [ ] Review your supplement analysis notes
 - [ ] Discuss curcumin (HIF-1α inhibition for ARID1A)
 - [ ] Discuss EGCG (PI3K/AKT inhibition for PIK3CA)
 - [ ] Discuss berberine (MDR reversal for Padcev enhancement)
@@ -199,7 +199,7 @@ Before adding supplements, check these labs:
    - Shows genomic alignment
    - Links to research
 
-3. **Analysis Document:** `SUPPLEMENT-ANALYSIS.md` ✅
+3. **Analysis Document:** kept privately, outside the repository ✅
    - Full rationale for additions
    - 17+ references
    - Pathway mapping
@@ -229,7 +229,7 @@ Before adding supplements, check these labs:
 - **2:00 AM** - (Optional) Add to database via web or direct insert
 - **2:15 AM** - Verify evidence modals working
 - **2:30 AM** - Create shopping list / order supplements
-- **3:00 AM** - Review SUPPLEMENT-ANALYSIS.md with full context
+- **3:00 AM** - Review your supplement analysis notes with full context
 - **4:00 AM** - (Optional) Set up reminder to discuss with your care team
 - **5:00 AM** - DEADLINE ✅
 

@@ -202,7 +202,7 @@ console.log(`   ${successCount} links created`);
 console.log(`   ${skippedCount} skipped (medication not found)`);
 
 console.log('\n📊 Genomic-Driven Treatment Rationale Summary:\n');
-console.log('ARID1A Y1281* Targets:');
+console.log('ARID1A Targets:');
 console.log('  • AKG 1000mg → Hypoxia/HIF1 pathway modulation');
 console.log('  • Ubiquinol 100mg → MDR reversal, mitochondrial support');
 console.log('  • Methylene Blue → Mitochondrial/hypoxia targeting');

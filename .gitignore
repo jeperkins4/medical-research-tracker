@@ -41,6 +41,7 @@ coverage/
 .cache/
 
 # Personal health data - never commit these
+private/
 import-labs*.js
 import-doctor*.js
 import-providers*.js

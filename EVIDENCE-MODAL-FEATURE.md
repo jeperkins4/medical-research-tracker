@@ -120,7 +120,7 @@ When you click "📚 Evidence" on Fenbendazole, you'll see:
 
 ## Next Steps (Optional)
 
-1. **Add 3 High-Priority Supplements** (from SUPPLEMENT-ANALYSIS.md):
+1. **Add 3 High-Priority Supplements:**
    - Curcumin (1000-2000mg daily with BioPerine)
    - Green Tea Extract/EGCG (400-800mg daily)
    - Berberine (500mg 2-3x daily)
