@@ -64,17 +64,17 @@ For cancer treatment protocols, supplement quality is **critical**. Look for:
 
 ## Specialty Sources
 
-### Longevity Supplements (Dr. Gildea's Protocol)
+### Longevity Supplements (Practitioner-Formulated Protocols)
 
-**RESTORE (Dr. Gildea's formulation):**
-- **Source:** Advance Wellness and Longevity
-- **Link:** Contact Dr. Gildea's office
+**Practitioner-compounded longevity blends:**
+- **Source:** Integrative oncology / longevity clinics
+- **Link:** Contact your integrative oncology consultant's office
 - **Quality:** Custom-formulated for cancer patients
-- **Contains:** Proprietary blend targeting ARID1A/FGFR3 pathways
+- **Contains:** Proprietary blends targeting specific mutation pathways
 
 **Mara-labs Products:**
 - **Source:** https://mara-labs.com (if available publicly)
-- **Quality:** Developed by Dr. Gildea
+- **Quality:** Practitioner-developed
 - **Focus:** Cancer-specific formulations
 
 ---

@@ -1,6 +1,6 @@
 # Automated Research Scanner Setup
 
-**Goal:** Automatically populate your Research Library every night with new bladder cancer research, tagged and categorized.
+**Goal:** Automatically populate your Research Library every night with new research relevant to your diagnosis, tagged and categorized.
 
 ---
 
@@ -9,11 +9,11 @@
 1. **Nightly Cron Job** (runs at 2 AM EST)
 2. **OpenClaw Agent** with web_search tool access
 3. **Searches 20+ terms** across categories:
-   - Conventional treatments (Keytruda, Padcev)
-   - Pipeline drugs (BT8009, ETx-22)
+   - Conventional treatments (immunotherapy, ADCs, chemotherapy)
+   - Pipeline drugs (investigational agents)
    - Integrative (LDN, IV Vitamin C, supplements)
    - Clinical trials
-   - Genomics (ARID1A, FGFR3, biomarkers)
+   - Genomics (mutations, biomarkers)
    - Research mechanisms
 
 4. **Smart Filtering:**
@@ -51,10 +51,10 @@ cron.add({
 
 Search these categories:
 - Conventional treatments
-- Pipeline drugs (BT8009, ETx-22)
-- Integrative (LDN, IV Vitamin C, Angiostop)
+- Pipeline drugs (investigational agents)
+- Integrative (LDN, IV Vitamin C, supplements)
 - Clinical trials
-- Genomics (ARID1A, FGFR3)
+- Genomics (mutations, biomarkers)
 - GU Oncology Now (specialist resource)
 
 Only save papers with relevance score ≥ 3 to Library.
@@ -128,76 +128,50 @@ Categories added:
 
 ## Search Terms (Customizable)
 
-Current searches (28 total):
+Search terms and relevance scoring live in `scanner-config.js`, **not** in the
+scanner scripts. The shipped defaults are intentionally generic oncology terms —
+they name no specific cancer type, no specific genes, and no brand-name drugs —
+organized into these categories:
 
-**Conventional Treatments (4)**
-- Keytruda pembrolizumab bladder cancer 2025 2026
-- Padcev enfortumab vedotin urothelial cancer
-- pembrolizumab enfortumab combination bladder
-- gemcitabine cisplatin bladder cancer
-
-**Pipeline Drugs (4)**
-- BT8009 zelenectide pevedotin nectin-4
-- ETx-22 nectin-4 bladder cancer
-- nectin-4 ADC urothelial cancer trial
-- FGFR inhibitor urothelial cancer
-
-**Integrative (8)**
-- low dose naltrexone LDN bladder cancer
-- IV vitamin C urothelial cancer cisplatin
-- Angiostop sea cucumber cancer
-- fenbendazole cancer clinical study
-- ivermectin cancer research bladder
-- methylene blue cancer mitochondrial
-- curcumin bladder cancer
-- sulforaphane cancer stem cells
-
-**Clinical Trials (4)**
-- bladder cancer clinical trial 2026 recruiting
-- urothelial carcinoma immunotherapy trial phase 2
-- nectin-4 targeted therapy trial enrollment
-- stage IV bladder cancer new treatment trial
-
-**Genomics (5)**
-- ARID1A mutation bladder cancer treatment
-- FGFR3 mutation urothelial cancer therapy
-- PIK3CA inhibitor bladder cancer
-- nectin-4 expression biomarker
-- tumor mutational burden bladder cancer
-
-**Research Mechanisms (6)**
-- OGF-OGFr axis cancer naltrexone
-- angiogenesis inhibition bladder cancer
-- hypoxia HIF-1 pathway cancer
-- PD-L1 immune checkpoint bladder
-- autophagy cancer treatment
-
-**GU Oncology Now - Expert Source (6)**
-- site:guoncologynow.com bladder cancer
-- site:guoncologynow.com urothelial cancer
-- site:guoncologynow.com nectin-4
-- site:guoncologynow.com immunotherapy bladder
-- site:guoncologynow.com clinical trial bladder
-- site:guoncologynow.com FGFR inhibitor
+| Category | Purpose |
+|---|---|
+| `conventional` | Established treatments (immunotherapy, ADCs, chemotherapy) |
+| `pipeline` | Investigational and pipeline agents |
+| `integrative` | Integrative/repurposed approaches (LDN, IV vitamin C, etc.) |
+| `trials` | Recruiting clinical trials |
+| `genomics` | Biomarkers, mutations, sequencing |
+| `research` | Mechanisms and pathways |
+| `guoncology` | Specialist oncology sources |
 
 ---
 
-## Adding Custom Search Terms
+## Customizing for Your Diagnosis
 
-Edit `research-scanner-enhanced.js`:
+You do **not** need to edit code. Both settings are overridable with environment
+variables holding JSON:
+
+```bash
+# Terms used to score how relevant a result is
+SCANNER_CONDITIONS='["<your cancer type>","<your histology>"]'
+
+# Full search-term set (same category keys as above)
+SCANNER_SEARCH_TERMS='{"conventional":["<drug> <your cancer type>"],"trials":["<your cancer type> trial recruiting"]}'
+```
+
+If a variable is unset or contains invalid JSON, the generic defaults apply.
+
+To add a new category permanently, edit `DEFAULT_SEARCH_TERMS` in
+`scanner-config.js` and add a matching entry to `TAG_MAP` in
+`research-scanner-enhanced.js`:
 
 ```javascript
-const SEARCH_TERMS = {
+// scanner-config.js
+const DEFAULT_SEARCH_TERMS = {
   // ... existing categories
-  
-  // Add your custom category
-  custom: [
-    'your search term bladder cancer',
-    'another topic urothelial cancer',
-  ],
+  custom: ['your search term', 'another topic'],
 };
 
-// Add tag mapping
+// research-scanner-enhanced.js
 const TAG_MAP = {
   // ... existing mappings
   custom: ['your-tag', 'another-tag'],

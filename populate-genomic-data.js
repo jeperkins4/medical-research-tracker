@@ -1,3 +1,14 @@
+/**
+ * SAMPLE genomic profile seed data.
+ *
+ * The mutations, pathways, and treatments below are ILLUSTRATIVE EXAMPLE DATA
+ * used to demonstrate the Precision Medicine Dashboard. They are NOT any real
+ * patient's genomic results, and they are not derived from a real test report.
+ * Do not interpret them as clinical findings for any individual.
+ *
+ * The gene/pathway biology descriptions are general published science.
+ */
+
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +20,7 @@ const __dirname = path.dirname(__filename);
 const dbPath = path.join(__dirname, 'data', 'health.db');
 const db = new Database(dbPath);
 
-console.log('Populating genomic profile data from Foundation One report...\n');
+console.log('Populating SAMPLE genomic profile data (example data for demonstration)...\n');
 
 // Apply schema
 const schema = fs.readFileSync(path.join(__dirname, 'add-genomic-schema.sql'), 'utf8');
@@ -22,14 +33,14 @@ statements.forEach(statement => {
 
 console.log('✓ Genomic schema created\n');
 
-// Insert confirmed mutations from Foundation One
+// Example mutation set (illustrative sample data, not a real patient report)
 const mutations = [
     {
         gene_name: 'ARID1A',
         mutation_type: 'Loss of function',
         clinical_significance: 'Pathogenic',
-        source_test: 'Foundation One',
-        test_date: '2025-06-01', // Approximate - will update with actual date
+        source_test: 'Example Genomic Panel',
+        test_date: '2025-06-01',
         is_confirmed: 1,
         notes: 'Key driver mutation. ARID1A is a chromatin remodeling gene; loss promotes cancer stem cell phenotype and hypoxia signaling.'
     },
@@ -37,7 +48,7 @@ const mutations = [
         gene_name: 'FGFR3',
         mutation_type: 'Activating mutation',
         clinical_significance: 'Pathogenic',
-        source_test: 'Foundation One',
+        source_test: 'Example Genomic Panel',
         test_date: '2025-06-01',
         is_confirmed: 1,
         notes: 'Fibroblast growth factor receptor 3. Common in bladder cancer; drives cell proliferation.'
@@ -46,7 +57,7 @@ const mutations = [
         gene_name: 'PIK3CA',
         mutation_type: 'Activating mutation',
         clinical_significance: 'Pathogenic',
-        source_test: 'Foundation One',
+        source_test: 'Example Genomic Panel',
         test_date: '2025-06-01',
         is_confirmed: 1,
         notes: 'PI3K pathway activation. Promotes cell survival and drug resistance.'
@@ -55,7 +66,7 @@ const mutations = [
         gene_name: 'PTEN',
         mutation_type: 'Wild-type',
         clinical_significance: 'Normal/Intact',
-        source_test: 'Foundation One',
+        source_test: 'Example Genomic Panel',
         test_date: '2025-06-01',
         is_confirmed: 0, // Confirmed NOT mutated
         notes: 'Confirmed intact/wild-type. PTEN loss would worsen PI3K pathway dysregulation.'
@@ -64,7 +75,7 @@ const mutations = [
         gene_name: 'KDM6A',
         mutation_type: 'Wild-type',
         clinical_significance: 'Normal/Intact',
-        source_test: 'Foundation One',
+        source_test: 'Example Genomic Panel',
         test_date: '2025-06-01',
         is_confirmed: 0,
         notes: 'Confirmed intact/wild-type. KDM6A is a histone demethylase frequently lost in bladder cancer.'
@@ -73,7 +84,7 @@ const mutations = [
         gene_name: 'TP53',
         mutation_type: 'Wild-type',
         clinical_significance: 'Normal/Intact',
-        source_test: 'Foundation One',
+        source_test: 'Example Genomic Panel',
         test_date: '2025-06-01',
         is_confirmed: 0,
         notes: 'Confirmed intact/wild-type. Intact TP53 is favorable - preserves some apoptotic capacity.'
@@ -289,7 +300,5 @@ const treatments = db.prepare(`
     LEFT JOIN genomic_pathways gp ON gt.target_pathway_id = gp.id
 `).all();
 treatments.forEach(t => console.log(`  • ${t.treatment_name} (${t.status}) → ${t.pathway_name}`));
-
-console.log('\n✅ Ready to add additional supplements from UVA geneticist report\n');
 
 db.close();

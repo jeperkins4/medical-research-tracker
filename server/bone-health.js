@@ -31,75 +31,38 @@ export function getBoneHealthData() {
       };
     }).filter(row => row.value !== null);
 
-    // Get current supplements that support bone health
-    const currentSupplements = [
-      {
-        name: 'Alpha-Ketoglutarate (AKG)',
-        dosage: '1000 mg daily',
-        benefit: 'Collagen synthesis (bone matrix), longevity, cellular energy'
-      },
-      {
-        name: 'Fenbendazole',
-        dosage: '222 mg, 4 days/week',
-        benefit: 'Anti-cancer effects may slow tumor spread to bones'
-      },
-      {
-        name: 'Ivermectin',
-        dosage: '36 mg daily',
-        benefit: 'Anti-cancer, anti-angiogenic - may inhibit metastasis'
-      },
-      {
-        name: 'Vitamin C IV',
-        dosage: 'Bi-weekly infusions',
-        benefit: 'High-dose pro-oxidant effect on cancer cells, immune support'
-      },
-      {
-        name: 'Low Dose Naltrexone (LDN)',
-        dosage: '1.5-4.5 mg nightly',
-        benefit: 'Immune modulation, may inhibit cancer cell growth'
-      },
-      {
-        name: 'Methylene Blue',
-        dosage: 'Daily (0.5-4 mg/kg)',
-        benefit: 'Mitochondrial support, potential anti-cancer effects'
-      },
-      {
-        name: 'Vitamin D3',
-        dosage: '1000 IU daily (INSUFFICIENT - see gaps)',
-        benefit: 'Bone health, immune modulation, anti-cancer effects'
-      },
-      {
-        name: 'Carrot Juice (Morning)',
-        dosage: 'Organic with ginger & turmeric',
-        benefit: 'Beta-carotene (antioxidant), curcumin (anti-inflammatory), bone-protective'
-      },
-      {
-        name: 'Low-Sugar Diet',
-        dosage: 'Daily philosophy',
-        benefit: 'Metabolic approach - cancer cells prefer glucose, anti-inflammatory'
-      }
-    ];
+    // Current supplements/medications the user is actually taking
+    const currentSupplements = query(`
+      SELECT name, dosage, frequency, reason, notes
+      FROM medications
+      WHERE stopped_date IS NULL OR stopped_date = ''
+      ORDER BY name ASC
+    `).map(row => ({
+      name: row.name,
+      dosage: [row.dosage, row.frequency].filter(Boolean).join(' — '),
+      benefit: row.reason || row.notes || ''
+    }));
 
     // Missing supplements - CRITICAL GAPS
     const missingSupplements = [
       {
         name: 'Bisphosphonates (Zoledronic acid) or Denosumab',
         dosage: 'IV monthly (Zometa) or SubQ monthly (Xgeva)',
-        reason: 'Evidence-based for bladder cancer bone mets. TUGAMO study shows efficacy. Reduces bone resorption and SRE.',
+        reason: 'Evidence-based for cancer bone metastases. TUGAMO study shows efficacy. Reduces bone resorption and SRE.',
         urgency: 'urgent',
         category: 'Prescription'
       },
       {
         name: 'Vitamin K2 (MK-7)',
         dosage: '100-200 mcg daily',
-        reason: 'Activates osteocalcin - directs calcium TO BONES (not arteries). Critical with Eliquis. Anti-cancer effects.',
+        reason: 'Activates osteocalcin - directs calcium TO BONES (not arteries). Important consideration for patients on anticoagulants. Anti-cancer effects.',
         urgency: 'urgent',
         category: 'Supplement'
       },
       {
-        name: 'Vitamin D3 (Increase)',
-        dosage: 'Increase from 1,000 IU to 5,000 IU daily',
-        reason: 'Current dose insufficient for cancer patients. Need 4,000-10,000 IU for bone protection + anti-cancer effects.',
+        name: 'Vitamin D3',
+        dosage: '4,000-10,000 IU daily',
+        reason: 'General-population dosing is often insufficient for cancer patients. 4,000-10,000 IU is typically discussed for bone protection plus anti-cancer effects.',
         urgency: 'urgent',
         category: 'Supplement'
       },
@@ -213,7 +176,7 @@ export function getBoneHealthActions() {
   const actions = [
     {
       priority: 'urgent',
-      action: 'Schedule appointment with Dr. Do to discuss rising Alk Phos',
+      action: 'Schedule appointment with your oncologist to discuss rising Alk Phos',
       status: 'pending',
       dueDate: 'ASAP',
       category: 'Medical'

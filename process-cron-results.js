@@ -2,6 +2,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { RELEVANCE_CONDITIONS } from './scanner-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,11 +18,11 @@ function calculateRelevance(title, snippet, searchTerm) {
   // High priority keywords
   const highPriority = ['phase 3', 'phase iii', 'fda approval', 'breakthrough', 'complete response', 'survival benefit'];
   const mediumPriority = ['phase 2', 'phase ii', 'clinical trial', 'efficacy', 'safety'];
-  const conditions = ['bladder cancer', 'urothelial cancer', 'urothelial carcinoma'];
-  
+  const conditions = RELEVANCE_CONDITIONS;
+
   highPriority.forEach(kw => { if (text.includes(kw)) score += 3; });
   mediumPriority.forEach(kw => { if (text.includes(kw)) score += 2; });
-  conditions.forEach(kw => { if (text.includes(kw)) score += 2; });
+  conditions.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 2; });
   
   // Recent dates boost score
   const year2025 = text.includes('2025') || text.includes('2026');
