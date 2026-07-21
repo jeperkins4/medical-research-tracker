@@ -147,18 +147,6 @@ function App() {
           💊 Treatment
         </button>
         <button
-          className={activeTab === 'tests' ? 'active' : ''}
-          onClick={() => setActiveTab('tests')}
-        >
-          Lab Results
-        </button>
-        <button
-          className={activeTab === 'bonehealth' ? 'active' : ''}
-          onClick={() => setActiveTab('bonehealth')}
-        >
-          🦴 Bone Health
-        </button>
-        <button
           className={activeTab === 'radiology' ? 'active' : ''}
           onClick={() => setActiveTab('radiology')}
         >
@@ -188,8 +176,6 @@ function App() {
         {activeTab === 'profile' && <ErrorBoundary resetKey={activeTab}><OverviewView /></ErrorBoundary>}
         {activeTab === 'genomics' && <ErrorBoundary resetKey={activeTab}><PrecisionMedicineDashboard /></ErrorBoundary>}
         {activeTab === 'treatment' && <ErrorBoundary resetKey={activeTab}><TreatmentView /></ErrorBoundary>}
-        {activeTab === 'tests' && <ErrorBoundary resetKey={activeTab}><TestResultsView /></ErrorBoundary>}
-        {activeTab === 'bonehealth' && <ErrorBoundary resetKey={activeTab}><BoneHealthTracker /></ErrorBoundary>}
         {activeTab === 'radiology' && <ErrorBoundary resetKey={activeTab}><RadiologyViewer /></ErrorBoundary>}
         {activeTab === 'portals' && <ErrorBoundary resetKey={activeTab}><PortalManager /></ErrorBoundary>}
         {activeTab === 'research' && <ErrorBoundary resetKey={activeTab}><ResearchView /></ErrorBoundary>}
