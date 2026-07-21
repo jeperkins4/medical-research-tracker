@@ -150,7 +150,7 @@ function App() {
           className={activeTab === 'radiology' ? 'active' : ''}
           onClick={() => setActiveTab('radiology')}
         >
-          Radiology
+          🩻 Radiology
         </button>
         <button
           className={activeTab === 'portals' ? 'active' : ''}
