@@ -123,22 +123,22 @@ function Login({ onLogin, needsSetup }) {
             <div className="feature">
               <span className="feature-icon">🔬</span>
               <div>
-                <h3>Research Scanner</h3>
-                <p>Automated search for relevant clinical trials and treatment research</p>
+                <h3>Research Library</h3>
+                <p>Save and organize research from PubMed and ClinicalTrials.gov</p>
               </div>
             </div>
             
             <div className="feature">
               <span className="feature-icon">🔒</span>
               <div>
-                <h3>HIPAA Compliant</h3>
-                <p>AES-256 encryption, automated backups, full audit logging</p>
+                <h3>Encrypted at Rest</h3>
+                <p>AES-256 database encryption. Your data, secured.</p>
               </div>
             </div>
           </div>
 
           <div className="trust-badge">
-            <p>Built by a stage 4 bladder cancer patient for patients who want control over their treatment journey.</p>
+            <p>Built by a patient, for patients who want control over their treatment journey.</p>
           </div>
         </div>
       </div>
@@ -191,7 +191,7 @@ function Login({ onLogin, needsSetup }) {
           {needsSetup && (
             <div className="setup-info">
               <p className="setup-heading">First time setup</p>
-              <p>Your data stays on your device. No cloud storage, no third parties.</p>
+              <p>Your data is encrypted at rest and stored locally. Supabase is used only for optional cloud sign-in — no health data is sent to it.</p>
             </div>
           )}
 

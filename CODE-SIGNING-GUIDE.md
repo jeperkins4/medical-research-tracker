@@ -71,7 +71,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  identity: "Developer ID Application: John Perkins (TEAM_ID)"  # Add this
+  identity: "Developer ID Application: Your Name (TEAM_ID)"  # Add this
 
 dmg:
   sign: true  # Changed from false
@@ -84,7 +84,7 @@ dmg:
 npm run electron:build:mac
 
 # Or specify identity explicitly
-npx electron-builder --mac --sign="Developer ID Application: John Perkins"
+npx electron-builder --mac --sign="Developer ID Application: Your Name"
 ```
 
 ---

@@ -1,6 +1,25 @@
 import { useState, useEffect } from 'react';
 import MutationDrugNetwork from './MutationDrugNetwork';
 
+// Shared hover-elevate card shadow values, used by the onMouseEnter/onMouseLeave
+// handlers below. Extracted because the base/hover boxShadow strings and the
+// enter/leave transform behavior are identical across all card sites in this file.
+// NOTE: not every card site shares border/padding/backgroundColor/transition —
+// those vary intentionally (e.g. sensitivity-based backgroundColor, a differing
+// `transition` shorthand on the "Trials" tab cards) and are left inline per-site.
+const CARD_SHADOW = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
+const CARD_SHADOW_HOVER = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
+
+const handleCardHoverEnter = (e) => {
+  e.currentTarget.style.boxShadow = CARD_SHADOW_HOVER;
+  e.currentTarget.style.transform = 'translateY(-2px)';
+};
+
+const handleCardHoverLeave = (e) => {
+  e.currentTarget.style.boxShadow = CARD_SHADOW;
+  e.currentTarget.style.transform = 'translateY(0)';
+};
+
 export default function PrecisionMedicineDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [selectedMutation, setSelectedMutation] = useState(null);
@@ -154,17 +173,11 @@ export default function PrecisionMedicineDashboard() {
                   style={{
                     border: '1px solid #e5e7eb',
                     padding: '20px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                    boxShadow: CARD_SHADOW,
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onMouseEnter={handleCardHoverEnter}
+                  onMouseLeave={handleCardHoverLeave}
                   onClick={() => fetchMutationDetails(mutation.id)}
                 >
                   <div className="flex justify-between items-start mb-5">
@@ -225,17 +238,11 @@ export default function PrecisionMedicineDashboard() {
                   style={{
                     border: '1px solid #e5e7eb',
                     padding: '20px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                    boxShadow: CARD_SHADOW,
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onMouseEnter={handleCardHoverEnter}
+                  onMouseLeave={handleCardHoverLeave}
                 >
                   <div className="flex justify-between items-start mb-5">
                     <div>
@@ -283,17 +290,11 @@ export default function PrecisionMedicineDashboard() {
                   style={{
                     border: '1px solid #e5e7eb',
                     padding: '20px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                    boxShadow: CARD_SHADOW,
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onMouseEnter={handleCardHoverEnter}
+                  onMouseLeave={handleCardHoverLeave}
                 >
                   <div className="flex justify-between items-start mb-5">
                     <div className="flex-1">
@@ -414,17 +415,11 @@ export default function PrecisionMedicineDashboard() {
                   style={{
                     border: '1px solid #e5e7eb',
                     padding: '20px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                    boxShadow: CARD_SHADOW,
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onMouseEnter={handleCardHoverEnter}
+                  onMouseLeave={handleCardHoverLeave}
                 >
                   <div className="flex justify-between items-start mb-5">
                     <h4 className="font-bold text-lg">{pathway.name}</h4>
@@ -472,17 +467,11 @@ export default function PrecisionMedicineDashboard() {
                     backgroundColor: treatment.sensitivity_or_resistance === 'sensitivity' ? '#f0fdf4' : '#fef2f2',
                     border: treatment.sensitivity_or_resistance === 'sensitivity' ? '1px solid #86efac' : '1px solid #fecaca',
                     padding: '20px',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                    boxShadow: CARD_SHADOW,
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
+                  onMouseEnter={handleCardHoverEnter}
+                  onMouseLeave={handleCardHoverLeave}
                 >
                   <div className="flex justify-between items-start mb-5">
                     <div>
@@ -545,17 +534,11 @@ export default function PrecisionMedicineDashboard() {
                     style={{
                       border: '1px solid #e5e7eb',
                       padding: '20px',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                      boxShadow: CARD_SHADOW,
                       transition: 'all 0.2s ease'
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
+                    onMouseEnter={handleCardHoverEnter}
+                    onMouseLeave={handleCardHoverLeave}
                   >
                     <div className="flex justify-between items-start mb-5">
                       <h4 className="font-bold text-lg flex-1 mb-2">{trial.trial_name}</h4>
@@ -636,18 +619,12 @@ export default function PrecisionMedicineDashboard() {
                   padding: '20px',
                   border: '1px solid #e5e7eb',
                   marginBottom: '24px',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)',
+                  boxShadow: CARD_SHADOW,
                   backgroundColor: '#ffffff',
                   transition: 'box-shadow 0.2s ease, transform 0.2s ease'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                onMouseEnter={handleCardHoverEnter}
+                onMouseLeave={handleCardHoverLeave}
               >
                 <div className="flex justify-between items-start mb-5">
                   <div className="flex-1">

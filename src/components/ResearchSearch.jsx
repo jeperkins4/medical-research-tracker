@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export default function ResearchSearch() {
+export default function ResearchSearch({ onPaperSaved }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState([]);
@@ -8,7 +8,7 @@ export default function ResearchSearch() {
   const [selectedTags, setSelectedTags] = useState({});
   const [newTagName, setNewTagName] = useState('');
   const [savedPapers, setSavedPapers] = useState([]);
-  const [activeTab, setActiveTab] = useState('search'); // search, saved
+  const [activeTab, setActiveTab] = useState('search'); // search, tags
 
   useEffect(() => {
     loadTags();
@@ -105,6 +105,7 @@ export default function ResearchSearch() {
           return updated;
         });
         loadSavedPapers();
+        onPaperSaved?.();
       }
     } catch (error) {
       console.error('Failed to save paper:', error);
@@ -121,32 +122,6 @@ export default function ResearchSearch() {
     }));
   };
 
-  const addTagToPaper = async (paperId, tagId) => {
-    try {
-      await fetch(`/api/papers/${paperId}/tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tag_id: tagId })
-      });
-      loadSavedPapers();
-    } catch (error) {
-      console.error('Failed to add tag:', error);
-    }
-  };
-
-  const removeTagFromPaper = async (paperId, tagId) => {
-    try {
-      await fetch(`/api/papers/${paperId}/tags/${tagId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-      loadSavedPapers();
-    } catch (error) {
-      console.error('Failed to remove tag:', error);
-    }
-  };
-
   return (
     <div className="research-search">
       <div className="tabs">
@@ -155,12 +130,6 @@ export default function ResearchSearch() {
           onClick={() => setActiveTab('search')}
         >
           Search
-        </button>
-        <button
-          className={activeTab === 'saved' ? 'active' : ''}
-          onClick={() => setActiveTab('saved')}
-        >
-          Saved Papers ({savedPapers.length})
         </button>
         <button
           className={activeTab === 'tags' ? 'active' : ''}
@@ -177,7 +146,7 @@ export default function ResearchSearch() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search: bladder cancer, immunotherapy, clinical trials..."
+              placeholder="Search: immunotherapy, clinical trials, targeted therapy..."
               className="search-input"
             />
             <button type="submit" disabled={searching || !query.trim()}>
@@ -195,65 +164,7 @@ export default function ResearchSearch() {
             </ol>
           </div>
 
-          <ManualPaperEntry tags={tags} onSave={loadSavedPapers} />
-        </div>
-      )}
-
-      {activeTab === 'saved' && (
-        <div className="saved-tab">
-          <h3>Saved Research Papers ({savedPapers.length})</h3>
-          
-          {savedPapers.length === 0 && (
-            <p className="empty">No papers saved yet. Search and save articles to build your research library.</p>
-          )}
-
-          <div className="papers-list">
-            {savedPapers.map(paper => (
-              <div key={paper.id} className="paper-card">
-                <h4>{paper.title}</h4>
-                {paper.authors && <p className="authors">{paper.authors}</p>}
-                {paper.journal && <p className="journal">{paper.journal} {paper.publication_date && `(${paper.publication_date})`}</p>}
-                {paper.abstract && (
-                  <p className="abstract">{paper.abstract.substring(0, 300)}...</p>
-                )}
-                
-                <div className="paper-tags">
-                  {paper.tags && paper.tags.map(tag => (
-                    <span key={tag.id} className="tag">
-                      {tag.name}
-                      <button
-                        className="tag-remove"
-                        onClick={() => removeTagFromPaper(paper.id, tag.id)}
-                        title="Remove tag"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        addTagToPaper(paper.id, parseInt(e.target.value));
-                        e.target.value = '';
-                      }
-                    }}
-                    className="add-tag-select"
-                  >
-                    <option value="">+ Add tag</option>
-                    {tags.filter(t => !paper.tags?.find(pt => pt.id === t.id)).map(tag => (
-                      <option key={tag.id} value={tag.id}>{tag.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="paper-links">
-                  {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer">View Article</a>}
-                  {paper.pmid && <a href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}/`} target="_blank" rel="noopener noreferrer">PubMed</a>}
-                  {paper.doi && <a href={`https://doi.org/${paper.doi}`} target="_blank" rel="noopener noreferrer">DOI</a>}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ManualPaperEntry tags={tags} onSave={() => { loadSavedPapers(); onPaperSaved?.(); }} />
         </div>
       )}
 
@@ -266,7 +177,7 @@ export default function ResearchSearch() {
               type="text"
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="New tag name (e.g., immunotherapy, Phase 3, bladder cancer)"
+              placeholder="New tag name (e.g., immunotherapy, Phase 3, targeted therapy)"
               onKeyPress={(e) => e.key === 'Enter' && createTag()}
             />
             <button onClick={createTag}>Create Tag</button>
@@ -294,13 +205,11 @@ export default function ResearchSearch() {
               <button onClick={() => { setNewTagName('Phase 1'); }}>Phase 1</button>
               <button onClick={() => { setNewTagName('Phase 2'); }}>Phase 2</button>
               <button onClick={() => { setNewTagName('Phase 3'); }}>Phase 3</button>
-              <button onClick={() => { setNewTagName('bladder cancer'); }}>bladder cancer</button>
-              <button onClick={() => { setNewTagName('urothelial'); }}>urothelial</button>
-              <button onClick={() => { setNewTagName('ARID1A'); }}>ARID1A</button>
+              <button onClick={() => { setNewTagName('targeted therapy'); }}>targeted therapy</button>
+              <button onClick={() => { setNewTagName('biomarker'); }}>biomarker</button>
               <button onClick={() => { setNewTagName('ATR inhibitor'); }}>ATR inhibitor</button>
               <button onClick={() => { setNewTagName('checkpoint inhibitor'); }}>checkpoint inhibitor</button>
               <button onClick={() => { setNewTagName('ADC'); }}>ADC</button>
-              <button onClick={() => { setNewTagName('nectin-4'); }}>nectin-4</button>
               <button onClick={() => { setNewTagName('integrative'); }}>integrative</button>
               <button onClick={() => { setNewTagName('repurposed drug'); }}>repurposed drug</button>
             </div>

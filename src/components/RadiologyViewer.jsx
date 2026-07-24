@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -677,7 +677,7 @@ function StudyDetailPanel({ study, volumeData, volumeLoading, onLoadVolume, onAd
               <Box sx={{ mt: 2 }}>
                 <Alert severity="info" variant="outlined" sx={{ fontSize: '0.85rem' }}>
                   <AlertTitle sx={{ fontSize: '0.9rem' }}>Volume Rendering</AlertTitle>
-                  Showing volumetric reconstruction from {study.modality} data.
+                  Showing a synthetic {study.modality}-style volume for demonstration — no real imaging data is loaded.
                   Bone structures appear white, soft tissue in warm tones, and areas of
                   interest are highlighted in red.
                 </Alert>
@@ -865,8 +865,9 @@ export default function RadiologyViewer() {
   const fetchStudies = async () => {
     try {
       const response = await apiFetch('/api/radiology/studies');
+      if (!response.ok) { setStudies([]); return; }
       const data = await response.json();
-      setStudies(data);
+      setStudies(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching radiology studies:', error);
     } finally {

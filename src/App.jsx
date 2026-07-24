@@ -11,6 +11,7 @@ import NutritionTracker from './components/NutritionTracker';
 import MedicationEvidenceModal from './components/MedicationEvidenceModal';
 import medicationEvidence from './medicationEvidence';
 import { apiFetch } from './apiFetch';
+import { ErrorBoundary } from './ErrorBoundary';
 
 function App() {
   const [health, setHealth] = useState(null);
@@ -146,22 +147,10 @@ function App() {
           💊 Treatment
         </button>
         <button
-          className={activeTab === 'tests' ? 'active' : ''}
-          onClick={() => setActiveTab('tests')}
-        >
-          Lab Results
-        </button>
-        <button
-          className={activeTab === 'bonehealth' ? 'active' : ''}
-          onClick={() => setActiveTab('bonehealth')}
-        >
-          🦴 Bone Health
-        </button>
-        <button
           className={activeTab === 'radiology' ? 'active' : ''}
           onClick={() => setActiveTab('radiology')}
         >
-          Radiology
+          🩻 Radiology
         </button>
         <button
           className={activeTab === 'portals' ? 'active' : ''}
@@ -175,31 +164,22 @@ function App() {
         >
           📚 Research
         </button>
-        <button 
+        <button
           className={activeTab === 'summary' ? 'active' : ''}
           onClick={() => setActiveTab('summary')}
         >
           🧠 Strategy
         </button>
-        <button 
-          className={activeTab === 'portals' ? 'active' : ''}
-          onClick={() => setActiveTab('portals')}
-        >
-          🔐 Portals
-        </button>
       </nav>
 
       <main>
-        {activeTab === 'profile' && <OverviewView />}
-        {activeTab === 'genomics' && <PrecisionMedicineDashboard />}
-        {activeTab === 'treatment' && <TreatmentView />}
-        {activeTab === 'tests' && <TestResultsView />}
-        {activeTab === 'bonehealth' && <BoneHealthTracker />}
-        {activeTab === 'radiology' && <RadiologyViewer />}
-        {activeTab === 'portals' && <PortalManager />}
-        {activeTab === 'research' && <ResearchView />}
-        {activeTab === 'summary' && <HealthcareSummary />}
-        {activeTab === 'portals' && <PortalManager />}
+        {activeTab === 'profile' && <ErrorBoundary resetKey={activeTab}><OverviewView /></ErrorBoundary>}
+        {activeTab === 'genomics' && <ErrorBoundary resetKey={activeTab}><PrecisionMedicineDashboard /></ErrorBoundary>}
+        {activeTab === 'treatment' && <ErrorBoundary resetKey={activeTab}><TreatmentView /></ErrorBoundary>}
+        {activeTab === 'radiology' && <ErrorBoundary resetKey={activeTab}><RadiologyViewer /></ErrorBoundary>}
+        {activeTab === 'portals' && <ErrorBoundary resetKey={activeTab}><PortalManager /></ErrorBoundary>}
+        {activeTab === 'research' && <ErrorBoundary resetKey={activeTab}><ResearchView /></ErrorBoundary>}
+        {activeTab === 'summary' && <ErrorBoundary resetKey={activeTab}><HealthcareSummary /></ErrorBoundary>}
       </main>
     </div>
   );
@@ -1314,27 +1294,41 @@ function TreatmentView() {
 function ResearchView() {
   const [subTab, setSubTab] = useState('search');
   const [papers, setPapers] = useState([]);
+  const [tags, setTags] = useState([]);
+
+  const loadPapers = () => {
+    apiFetch('/api/papers/detailed').then(r => r.json()).then(setPapers);
+  };
 
   useEffect(() => {
-    apiFetch('/api/papers').then(r => r.json()).then(setPapers);
+    loadPapers();
+    apiFetch('/api/tags').then(r => r.json()).then(setTags);
   }, []);
 
-  const getPaperUrl = (paper) => {
-    if (paper.url) return paper.url;
-    if (paper.pubmed_id) return `https://pubmed.ncbi.nlm.nih.gov/${paper.pubmed_id}/`;
-    return null;
+  const addTagToPaper = async (paperId, tagId) => {
+    await apiFetch(`/api/papers/${paperId}/tags`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_id: tagId })
+    });
+    loadPapers();
+  };
+
+  const removeTagFromPaper = async (paperId, tagId) => {
+    await apiFetch(`/api/papers/${paperId}/tags/${tagId}`, { method: 'DELETE' });
+    loadPapers();
   };
 
   return (
     <div className="view">
       <div className="sub-nav">
-        <button 
+        <button
           className={subTab === 'search' ? 'active' : ''}
           onClick={() => setSubTab('search')}
         >
           Search
         </button>
-        <button 
+        <button
           className={subTab === 'library' ? 'active' : ''}
           onClick={() => setSubTab('library')}
         >
@@ -1345,42 +1339,60 @@ function ResearchView() {
       {subTab === 'search' && (
         <>
           <h2>Research Discovery</h2>
-          <ResearchSearch />
+          <ResearchSearch onPaperSaved={loadPapers} />
         </>
       )}
 
       {subTab === 'library' && (
         <>
           <h2>Research Library</h2>
-          {papers.length === 0 && <p className="empty">No papers saved yet</p>}
-          <div className="papers">
-            {papers.map(p => {
-              const paperUrl = getPaperUrl(p);
-              const CardContent = (
-                <>
-                  <h4>{p.title}</h4>
-                  <p className="meta">{p.authors} • {p.journal}</p>
-                  <span className={`type ${p.type}`}>{p.type}</span>
-                </>
-              );
+          {papers.length === 0 && <p className="empty">No papers saved yet. Search and save articles to build your research library.</p>}
+          <div className="papers-list">
+            {papers.map(paper => (
+              <div key={paper.id} className="paper-card">
+                <h4>{paper.title}</h4>
+                {paper.authors && <p className="authors">{paper.authors}</p>}
+                {paper.journal && <p className="journal">{paper.journal} {paper.publication_date && `(${paper.publication_date})`}</p>}
+                {paper.type && <span className={`type ${paper.type}`}>{paper.type}</span>}
+                {paper.abstract && (
+                  <p className="abstract">{paper.abstract.substring(0, 300)}...</p>
+                )}
 
-              return paperUrl ? (
-                <a 
-                  key={p.id} 
-                  href={paperUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="paper-card clickable"
-                  style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
-                >
-                  {CardContent}
-                </a>
-              ) : (
-                <div key={p.id} className="paper-card">
-                  {CardContent}
+                <div className="paper-tags">
+                  {paper.tags && paper.tags.map(tag => (
+                    <span key={tag.id} className="tag">
+                      {tag.name}
+                      <button
+                        className="tag-remove"
+                        onClick={() => removeTagFromPaper(paper.id, tag.id)}
+                        title="Remove tag"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        addTagToPaper(paper.id, parseInt(e.target.value));
+                        e.target.value = '';
+                      }
+                    }}
+                    className="add-tag-select"
+                  >
+                    <option value="">+ Add tag</option>
+                    {tags.filter(t => !paper.tags?.find(pt => pt.id === t.id)).map(tag => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
                 </div>
-              );
-            })}
+
+                <div className="paper-links">
+                  {paper.url && <a href={paper.url} target="_blank" rel="noopener noreferrer">View Article</a>}
+                  {paper.pubmed_id && <a href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pubmed_id}/`} target="_blank" rel="noopener noreferrer">PubMed</a>}
+                </div>
+              </div>
+            ))}
           </div>
         </>
       )}

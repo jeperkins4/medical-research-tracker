@@ -396,7 +396,7 @@ app.get('/api/search/research', requireAuth, async (req, res) => {
   
   try {
     // Enhanced query for medical research
-    const searchQuery = `${q} site:pubmed.ncbi.nlm.nih.gov OR site:clinicaltrials.gov OR site:nih.gov OR site:cancer.gov OR bladder cancer urothelial`;
+    const searchQuery = `${q} site:pubmed.ncbi.nlm.nih.gov OR site:clinicaltrials.gov OR site:nih.gov OR site:cancer.gov`;
     
     // Note: This is a placeholder - actual implementation would use external API
     // For now, return structure for frontend development
@@ -924,7 +924,7 @@ app.get('/api/genomics/vus', requireAuth, (req, res) => {
   res.json(vusVariants);
 });
 
-// Get treatment-genomic correlations (Dr. Gildea's rationale)
+// Get treatment-genomic correlations
 app.get('/api/genomics/treatment-correlations', requireAuth, (req, res) => {
   const correlations = query(`
     SELECT 

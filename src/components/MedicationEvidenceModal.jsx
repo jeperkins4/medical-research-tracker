@@ -1,4 +1,3 @@
-import React from 'react';
 import './MedicationEvidenceModal.css';
 
 export default function MedicationEvidenceModal({ medication, evidence, onClose }) {

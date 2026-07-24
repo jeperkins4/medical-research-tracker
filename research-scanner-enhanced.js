@@ -11,6 +11,7 @@ import Database from 'better-sqlite3-multiple-ciphers';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
+import { SEARCH_TERMS, RELEVANCE_CONDITIONS } from './scanner-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,72 +29,9 @@ if (!DB_KEY) {
 db.pragma(`key = "${DB_KEY}"`);
 db.pragma('cipher_compatibility = 4');
 
-// Search terms organized by category (maps to Library tags)
-const SEARCH_TERMS = {
-  // Current Conventional Treatments
-  conventional: [
-    'Keytruda pembrolizumab bladder cancer 2025 2026',
-    'Padcev enfortumab vedotin urothelial cancer',
-    'pembrolizumab enfortumab combination bladder',
-    'gemcitabine cisplatin bladder cancer',
-  ],
-  
-  // Pipeline Drugs (Experimental)
-  pipeline: [
-    'BT8009 zelenectide pevedotin nectin-4',
-    'ETx-22 nectin-4 bladder cancer',
-    'nectin-4 ADC urothelial cancer trial',
-    'FGFR inhibitor urothelial cancer',
-  ],
-  
-  // Integrative/Alternative Treatments
-  integrative: [
-    'low dose naltrexone LDN bladder cancer',
-    'IV vitamin C urothelial cancer cisplatin',
-    'Angiostop sea cucumber cancer',
-    'fenbendazole cancer clinical study',
-    'ivermectin cancer research bladder',
-    'methylene blue cancer mitochondrial',
-    'curcumin bladder cancer',
-    'sulforaphane cancer stem cells',
-  ],
-  
-  // Clinical Trials
-  trials: [
-    'bladder cancer clinical trial 2026 recruiting',
-    'urothelial carcinoma immunotherapy trial phase 2',
-    'nectin-4 targeted therapy trial enrollment',
-    'stage IV bladder cancer new treatment trial',
-  ],
-  
-  // Genomics & Biomarkers
-  genomics: [
-    'ARID1A mutation bladder cancer treatment',
-    'FGFR3 mutation urothelial cancer therapy',
-    'PIK3CA inhibitor bladder cancer',
-    'nectin-4 expression biomarker',
-    'tumor mutational burden bladder cancer',
-  ],
-  
-  // Mechanisms & Pathways
-  research: [
-    'OGF-OGFr axis cancer naltrexone',
-    'angiogenesis inhibition bladder cancer',
-    'hypoxia HIF-1 pathway cancer',
-    'PD-L1 immune checkpoint bladder',
-    'autophagy cancer treatment',
-  ],
-  
-  // GU Oncology Now (Specialist Resource)
-  guoncology: [
-    'site:guoncologynow.com bladder cancer',
-    'site:guoncologynow.com urothelial cancer',
-    'site:guoncologynow.com nectin-4',
-    'site:guoncologynow.com immunotherapy bladder',
-    'site:guoncologynow.com clinical trial bladder',
-    'site:guoncologynow.com FGFR inhibitor',
-  ],
-};
+// Search terms and relevance conditions come from ./scanner-config.js
+// (customizable via SCANNER_SEARCH_TERMS / SCANNER_CONDITIONS env vars).
+// SEARCH_TERMS categories map to Library tags via TAG_MAP below.
 
 // Tag mapping (category → Library tag IDs)
 const TAG_MAP = {
@@ -101,7 +39,7 @@ const TAG_MAP = {
   pipeline: ['clinical-trial', 'experimental', 'ADC'],
   integrative: ['integrative', 'LDN', 'vitamin-c', 'supplements'],
   trials: ['clinical-trial', 'recruiting'],
-  genomics: ['genomics', 'biomarkers', 'ARID1A', 'FGFR3'],
+  genomics: ['genomics', 'biomarkers', 'mutations', 'genomic-profiling'],
   research: ['mechanisms', 'pathways', 'basic-science'],
   guoncology: ['GU-oncology', 'expert-source', 'urology'],
 };
@@ -116,11 +54,11 @@ function calculateRelevance(title, snippet, searchTerm) {
   // High priority keywords
   const highPriority = ['phase 3', 'phase iii', 'fda approval', 'breakthrough', 'complete response', 'survival benefit'];
   const mediumPriority = ['phase 2', 'phase ii', 'clinical trial', 'efficacy', 'safety', 'objective response'];
-  const conditions = ['bladder cancer', 'urothelial cancer', 'urothelial carcinoma'];
-  
+  const conditions = RELEVANCE_CONDITIONS;
+
   highPriority.forEach(kw => { if (text.includes(kw)) score += 3; });
   mediumPriority.forEach(kw => { if (text.includes(kw)) score += 2; });
-  conditions.forEach(kw => { if (text.includes(kw)) score += 2; });
+  conditions.forEach(kw => { if (text.includes(kw.toLowerCase())) score += 2; });
   
   // Recent dates boost score
   const year2026 = text.includes('2026');
@@ -131,7 +69,7 @@ function calculateRelevance(title, snippet, searchTerm) {
   else if (year2024) score += 1;
   
   // Genomic keywords (high value for personalized medicine)
-  const genomicKeywords = ['arid1a', 'fgfr3', 'pik3ca', 'nectin-4', 'biomarker'];
+  const genomicKeywords = ['mutation', 'biomarker', 'genomic', 'tumor mutational burden'];
   genomicKeywords.forEach(kw => { if (text.includes(kw)) score += 2; });
   
   return score;

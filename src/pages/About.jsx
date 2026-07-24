@@ -9,8 +9,8 @@ function About({ onBack }) {
         <section>
           <h2>Our Story</h2>
           <p>
-            MyTreatmentPath was created by John Perkins, a stage 4 bladder cancer patient who got 
-            tired of drowning in spreadsheets, PDFs, and scattered medical records.
+            MyTreatmentPath was created by a cancer patient who got tired of drowning in
+            spreadsheets, PDFs, and scattered medical records.
           </p>
           <p>
             When you're fighting cancer, you're handed massive amounts of data — genomic reports, 
@@ -157,9 +157,8 @@ function About({ onBack }) {
           <h2>Acknowledgments</h2>
           <p>Built with guidance and inspiration from:</p>
           <ul>
-            <li>Dr. John Gildea (integrative oncology, genomic protocol design)</li>
-            <li>Dr. Tien Phuc Do (medical oncology, Florida Cancer Specialists)</li>
-            <li>The stage 4 cancer community on Reddit, Facebook groups, and patient forums</li>
+            <li>The oncologists and integrative medicine clinicians who take patient research seriously</li>
+            <li>The cancer community on Reddit, Facebook groups, and patient forums</li>
             <li>Every patient who's ever asked "why isn't there a tool for this?"</li>
           </ul>
         </section>
@@ -176,9 +175,7 @@ function About({ onBack }) {
             And you deserve better tools than spreadsheets and sticky notes.
           </p>
           <p style={{ marginTop: '2rem', fontStyle: 'italic' }}>
-            — John Perkins<br />
-            Creator, MyTreatmentPath<br />
-            Stage 4 Bladder Cancer Survivor
+            — The MyTreatmentPath team
           </p>
         </section>
       </div>

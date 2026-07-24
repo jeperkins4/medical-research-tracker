@@ -52,7 +52,7 @@ if (medications.akg && arid1a) {
         pathway_id: atrPathway?.id,
         correlation_type: 'targeted',
         mechanism_description: 'Alpha-ketoglutarate (AKG) is a key intermediate in the Krebs cycle and cofactor for α-ketoglutarate-dependent dioxygenases. ARID1A loss leads to chromatin remodeling defects and hypoxia/HIF1 pathway dysregulation. AKG modulates HIF1α stability and epigenetic modifications via TET (ten-eleven translocation) enzymes and Jumonji-domain histone demethylases. By supporting these α-KG-dependent enzymes, AKG may counteract the epigenetic and metabolic vulnerabilities created by ARID1A deficiency, particularly in cancer stem cell populations driven by hypoxia signaling.',
-        notes: 'Dr. Gildea genomic protocol - Targets Hypoxia/HIF1 pathway dysregulated by ARID1A loss. 1000mg daily dosing.'
+        notes: 'Genomic protocol - Targets Hypoxia/HIF1 pathway dysregulated by ARID1A loss. 1000mg daily dosing.'
     });
 }
 
@@ -64,7 +64,7 @@ if (medications.ubiquinol && arid1a) {
         pathway_id: atrPathway?.id,
         correlation_type: 'supportive',
         mechanism_description: 'Ubiquinol (reduced CoQ10) is critical for mitochondrial electron transport chain function (Complex I/II) and ATP production. ARID1A loss creates metabolic stress and upregulates multi-drug resistance (MDR) phenotypes through altered chromatin accessibility at drug transporter genes (P-glycoprotein/MDR1, ABCG2). Ubiquinol supports mitochondrial function under replication stress, potentially reversing MDR by restoring normal oxidative metabolism. Enhanced mitochondrial function reduces reliance on glycolysis and may sensitize cancer cells to chemotherapy and targeted agents. Also provides antioxidant protection during treatment.',
-        notes: 'Dr. Gildea genomic protocol - Targets MDR phenotype and mitochondrial dysfunction. 100mg daily dosing.'
+        notes: 'Genomic protocol - Targets MDR phenotype and mitochondrial dysfunction. 100mg daily dosing.'
     });
 }
 
@@ -76,7 +76,7 @@ if (medications.methyleneBlue && arid1a) {
         pathway_id: chromatinPathway?.id,
         correlation_type: 'targeted',
         mechanism_description: 'Methylene blue acts as an alternative electron carrier in the mitochondrial electron transport chain, bypassing Complex I/III deficiencies and enhancing ATP production. In hypoxic conditions created by ARID1A-driven chromatin dysregulation, methylene blue improves mitochondrial efficiency and reduces ROS production. It also has mild MAO-A/MAO-B inhibition, potentially affecting cancer cell metabolism. By targeting mitochondrial dysfunction and hypoxia adaptation, methylene blue addresses key vulnerabilities in ARID1A-deficient tumors that rely on altered metabolic states for survival.',
-        notes: 'Dr. Gildea genomic protocol - Mitochondrial support targeting hypoxia adaptation and metabolic stress.'
+        notes: 'Genomic protocol - Mitochondrial support targeting hypoxia adaptation and metabolic stress.'
     });
 }
 
@@ -100,8 +100,8 @@ if (keytruda && arid1a && immunePathway) {
         mutation_id: arid1a.id,
         pathway_id: immunePathway.id,
         correlation_type: 'targeted',
-        mechanism_description: 'ARID1A loss correlates with increased PD-L1 expression and immune infiltration in some tumor types. While TMB is low (4 Muts/Mb) and microsatellite stable (MSS) - typically unfavorable biomarkers for checkpoint inhibitor response - ARID1A alterations may independently predict sensitivity to anti-PD-1 therapy. ARID1A deficiency alters chromatin accessibility at immune regulatory genes, potentially sensitizing tumors to checkpoint blockade through mechanisms independent of neoantigen burden. Patient achieved stable disease on Keytruda + Padcev despite unfavorable biomarkers, supporting ARID1A-driven immune sensitivity.',
-        notes: 'Paradoxical response: Stable disease achieved despite TMB 4 (low) and MSS status. ARID1A mutation may confer checkpoint inhibitor sensitivity. Started 6/20/2025, stable disease confirmed 12/10/2025 PET/CT.'
+        mechanism_description: 'ARID1A loss correlates with increased PD-L1 expression and immune infiltration in some tumor types. Where tumor mutational burden is low and the tumor is microsatellite stable (MSS) - typically unfavorable biomarkers for checkpoint inhibitor response - ARID1A alterations may independently predict sensitivity to anti-PD-1 therapy. ARID1A deficiency alters chromatin accessibility at immune regulatory genes, potentially sensitizing tumors to checkpoint blockade through mechanisms independent of neoantigen burden. Reports of disease control on pembrolizumab-based regimens despite unfavorable biomarkers are consistent with ARID1A-driven immune sensitivity.',
+        notes: 'ARID1A mutation may confer checkpoint inhibitor sensitivity despite low TMB and MSS status.'
     });
 }
 
@@ -202,18 +202,18 @@ console.log(`   ${successCount} links created`);
 console.log(`   ${skippedCount} skipped (medication not found)`);
 
 console.log('\n📊 Genomic-Driven Treatment Rationale Summary:\n');
-console.log('ARID1A Y1281* Targets:');
+console.log('ARID1A Targets:');
 console.log('  • AKG 1000mg → Hypoxia/HIF1 pathway modulation');
 console.log('  • Ubiquinol 100mg → MDR reversal, mitochondrial support');
 console.log('  • Methylene Blue → Mitochondrial/hypoxia targeting');
 console.log('  • IV Vitamin C → Oxidative stress + DNA damage (synergy with chemo)');
-console.log('  • Keytruda → ARID1A-driven immune sensitivity (explains response despite low TMB)');
+console.log('  • Keytruda → ARID1A-driven immune sensitivity (potential sensitivity despite low TMB)');
 console.log('  • Angiostop → Multi-RTK inhibition (includes FGFr - targets FGFR3 mutation)');
 console.log('  • LDN → OGF-OGFr immune modulation (synergizes with Keytruda)');
 console.log('  • Ivermectin 36mg → Multi-mechanistic (PAK1, WNT, autophagy, immune)');
 console.log('  • Fenbendazole 222mg → Microtubule disruption + metabolic');
 console.log('  • Turkey Tail → PSK/PSP immune enhancement');
 
-console.log('\n💡 Each supplement now has molecular mechanism linked to your specific mutations.');
+console.log('\n💡 Each supplement now has molecular mechanism linked to the recorded mutations.');
 
 db.close();

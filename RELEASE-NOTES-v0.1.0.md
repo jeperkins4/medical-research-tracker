@@ -88,7 +88,7 @@ MyTreatmentPath is a research and tracking tool. It is NOT medical advice and do
 
 ## License
 
-Copyright © 2026 John Perkins. All rights reserved.
+Copyright © 2026 MyTreatmentPath. All rights reserved.
 
 ---
 

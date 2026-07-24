@@ -50,7 +50,7 @@ Safety considerations:
 - Requires adequate kidney function
 - Should be coordinated with oncology team
 
-Patient receiving bi-weekly infusions as complementary therapy to Keytruda/Padcev regimen for Stage IV bladder cancer.`
+Typically used as a complementary therapy alongside a patient's conventional cancer treatment regimen. Update this note with your own schedule and regimen details.`
     );
 
     console.log('✓ Successfully added Vitamin C IV Infusion');
